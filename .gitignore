@@ -1,0 +1,8 @@
+.ipynb_checkpoints/*
+*/.ipynb_checkpoints/*
+__pycache__/
+Notebooks/Large_Notebooks
+Notebooks/Other_Notebooks
+slurm*
+wandb/
+.vscode/

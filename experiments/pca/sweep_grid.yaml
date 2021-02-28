@@ -1,0 +1,16 @@
+program: ~/Ge2Net_Repo/trainer.py
+method: random
+metric:
+  goal: minimize
+  name: valid_weighted_loss
+parameters:
+  aux_net_hidden:
+    values: [64,100,128,256]
+  aux_net_hidden1:
+    values: [64,100,128,256]
+  aux_net_hidden2:
+    values: [64,100,128,256]
+  rnn_net_hidden:
+    values: [16,32,64]
+  rnn_net_n_layers:
+    value: [2,3,4,5]

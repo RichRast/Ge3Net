@@ -1,0 +1,60 @@
+{
+"train_seed":  1234, 
+"model":"Model_D",
+"ver":2.31,
+"batch_size":256,
+"mc_samples":100,
+   
+"dataset":{
+"train_gens":[0,2,4,8,16,32,64],
+"valid_gens":[2,4,8,16,32,64],
+"test_gens":[2,4,8,16,32,64],
+"win_size" :1000,
+"chmlen":317000,
+"n_win" : 317,
+"dim":3,
+"coordinates":'coordinates.pkl'
+},
+
+"Basic_Block":{
+"num_layers": 3,
+"input":256,
+"output":256,
+"dropout":0.3
+},
+    
+"aux_net":{
+ 
+"input":1000, 
+"hidden_unit":100,
+"hidden_unit1":100,
+"hidden_unit2":50,
+"output":3,
+"input_length":317400, 
+
+"an_labels":7, 
+"dropout":0.2,
+"sws":75
+},
+
+"rnn_net":{
+"input_size":100,
+"output1":3,
+"output2":1,
+"hidden_size":32,
+"hidden_size2":6,
+"num_layers":2,
+"dropout":0.3,
+"tbptt":true,
+"tbptt_steps":20
+},
+"thresh": 0.01,
+"num_epochs":200,
+"lr_group0":1e-4,
+"lr_group1":1e-2,
+"eps":1e-4,
+"early_stopping_thresh":5,
+"clip":10.0,
+"lr_steps_decay":10
+
+}

@@ -1,0 +1,8 @@
+pandas 
+scikit-allel  
+tensorboard 
+torch 
+wandb
+optuna
+scipy
+
