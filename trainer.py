@@ -82,7 +82,7 @@ def main(config, params, trial=None):
         m.apply(weight_int)
         
     if config['log.verbose']:
-        # watch all the models
+        #watch all the models
         for m in middle_models:
             wandb.log({"model_name":str(m)})
             wandb.watch(m, log='all')

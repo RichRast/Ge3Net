@@ -61,7 +61,10 @@ class model_A(object):
                 reg_loss = gradient_reg(self.params, a*cp_mask, p = self.params.reg_loss_pow)
             if self.params.cp_predict: # for parallel branch to predict changepoints
                 assert self.params.cp_detect, "cp detection is not true while cp prediction is true"
-                cp_pred_logits = self.cp_network(out4)
+                # add residual connection by taking the gradient of aux network predictions
+                aux_diff = get_gradient(out4)
+                cp_in = torch.cat((out1, aux_diff), dim =2)
+                cp_pred_logits = self.cp_network(cp_in)
                 cp_pred = torch.round(torch.sigmoid(cp_pred_logits)) 
                 # invert the mask for the cp target
                 cp_target = torch.where(cp_mask[:,:,0].unsqueeze(2)==0.0, torch.tensor([1.0]).to(self.params.device), torch.tensor([0.0]).to(self.params.device))          
@@ -108,7 +111,7 @@ class model_A(object):
                 val_x = val_x[:, 0:self.params.chmlen].float().to(self.params.device)
                 val_labels = val_y.to(self.params.device)
                 cp_mask = cp_mask.to(self.params.device)
-                batch_size = val_labels.shape[0]*val_labels.shape[1]
+                sample_size = val_labels.shape[0]*val_labels.shape[1]
                 output_list, cp_pred_list = [], []
                 preds, target =[], []
                 
@@ -122,7 +125,10 @@ class model_A(object):
                     out1, out2, _ , out4 = self.aux_network(val_x)
                     
                     if self.params.cp_predict:
-                        cp_pred_out_logits = self.cp_network(out4)
+                        # add residual connection by taking the gradient of aux network predictions
+                        aux_diff = get_gradient(out4)
+                        cp_in = torch.cat((out1, aux_diff), dim =2)
+                        cp_pred_out_logits = self.cp_network(cp_in)
                         cp_pred_out = torch.round(torch.sigmoid(cp_pred_out_logits))
                         cp_target = torch.where(cp_mask[:,:,0].unsqueeze(2)==0.0, torch.tensor([1.0]).to(self.params.device), torch.tensor([0.0]).to(self.params.device))
                         cp_pred_loss = F.binary_cross_entropy_with_logits(cp_pred_out_logits, cp_target).item()
@@ -156,7 +162,7 @@ class model_A(object):
                         cp_pred = cp_pred_cat
                      
                 y = [preds, target]
-                accuracy = self.evaluate_accuracy(accr_avg, batch_size, accr, *y) 
+                accuracy = self.evaluate_accuracy(accr_avg, sample_size, accr, *y) 
 
                 if writer:
                     # write to Tensorboard
@@ -172,7 +178,7 @@ class model_A(object):
     def pred(self, data_generator):
         pass
 
-    def evaluate_accuracy(self, accr_avg, batch_size, accr, *y):
+    def evaluate_accuracy(self, accr_avg, sample_size, accr, *y):
     
         preds = y[0]
         target = y[1]
@@ -183,29 +189,30 @@ class model_A(object):
 
         l1_loss_sum = F.l1_loss(pred_y, target_y, reduction='sum').item()
         # update the running avg accuracy
-        accr_avg[0].update(l1_loss_sum, batch_size)
+        accr_avg[0].update(l1_loss_sum, sample_size)
         # return the running avg accuracy
         l1_loss = accr_avg[0]()
         
         mse_loss_sum = F.mse_loss(pred_y, target_y, reduction='sum').item()
-        accr_avg[1].update(mse_loss_sum, batch_size)
+        accr_avg[1].update(mse_loss_sum, sample_size)
         mse_loss = accr_avg[1]()
 
         smooth_l1_loss_sum = self.smooth_l1_accr(pred_y, target_y, self.params.device)
-        accr_avg[2].update(smooth_l1_loss_sum, batch_size)
+        accr_avg[2].update(smooth_l1_loss_sum, sample_size)
         smooth_l1_loss = accr_avg[2]()
 
         weighted_loss_sum = self.weighted_loss_accr(pred_y, target_y)
-        accr_avg[3].update(weighted_loss_sum, batch_size)
+        accr_avg[3].update(weighted_loss_sum, sample_size)
         weighted_loss = accr_avg[3]()
         
-        cp_accuracy = None
-        if len(preds)==2:
+        cp_accuracy = [None]*len(cp_accr._fields)
+
+        if self.params.cp_predict:
             cp_pred = preds[1]
             cp_target = target[1]
-            cp_loss_sum = F.binary_cross_entropy_with_logits(cp_pred, cp_target, reduction = 'sum').item()
-            precision, recall = eval_cp_batch(cp_pred, cp_target)
-            accr_avg[4].update([cp_loss_sum, precision, recall] , [batch_size]*len(cp_accr._fields))
+            cp_loss_sum = F.binary_cross_entropy(cp_pred, cp_target, reduction = 'sum').item()
+            precision, recall, _, _, balanced_accuracy = eval_cp_batch(cp_pred, cp_target, seq_len = cp_target.shape[0])
+            accr_avg[4].update([cp_loss_sum, precision, recall, balanced_accuracy] , [sample_size]*len(cp_accr._fields))
             cp_accuracy = accr_avg[4]()
 
         accuracy = accr(l1_loss, mse_loss, smooth_l1_loss, weighted_loss, cp_accuracy)

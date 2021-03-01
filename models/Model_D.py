@@ -291,9 +291,9 @@ class model_D(object):
         # if self.params.cp_predict:
         #     cp_pred = preds[1]
         #     cp_target = target[1]
-        #     cp_loss_sum = F.binary_cross_entropy(cp_pred, cp_target, reduction = 'sum')
+        #     cp_loss_sum = F.binary_cross_entropy(cp_pred, cp_target, reduction = 'sum').item()
         #     precision, recall, _, _, balanced_accuracy = eval_cp_batch(cp_pred, cp_target, seq_len = cp_target.shape[0])
-        #     accr_avg[4].update([cp_loss_sum.detach().cpu().numpy(),precision, recall, balanced_accuracy] , [sample_size]*len(cp_accr._fields))
+        #     accr_avg[4].update([cp_loss_sum, precision, recall, balanced_accuracy] , [sample_size]*len(cp_accr._fields))
         #     cp_accuracy = accr_avg[4]()
           
         accuracy = accr(l1_loss, mse_loss, smooth_l1_loss, weighted_loss, cp_accr(*cp_accuracy))

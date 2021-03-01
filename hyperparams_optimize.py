@@ -110,8 +110,6 @@ def main(config, params):
         job_name = "wandb_sweep"
         sweep_id = wandb.sweep(sweep_config, project=job_name)
         if len(params.sweep_id)==8:
-            # Below is a tmp fix that Rita came up with
-            # to make the sweeps go to a particular agent
             sweep_id = params.sweep_id
         wb_train = wandb_trainer(config, params)
         wandb.agent(sweep_id, function = wb_train, count=params.wandb_n_trials)
