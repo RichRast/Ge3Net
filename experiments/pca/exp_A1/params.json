@@ -3,7 +3,7 @@
 "train_seed":  1234, 
 "model":"Model_A",
  "major_version":1,
- "minor_version":2,
+ "minor_version":3,
 "batch_size":256,
  "mc_dropout":true,
 "mc_samples":100,
@@ -11,7 +11,7 @@
 "cp_tol":3,
 "reg_loss":false,
 "reg_loss_pow":2,
-"cp_predict":false,
+"cp_predict":true,
 
 "hyper_search":false,
 "hyper_search_type":"wandb", 
@@ -55,7 +55,9 @@
 "basic_Block_dropout":0.3,
     
 "logits_Block_n_layers": 1,
-"logits_Block_in":64,
+"logits_Block_in":104,
+"logits_Block_hidden":64,
+"logits_Block_hidden1":4,
 "logits_Block_out":1,
 "logits_Block_dropout":0.3,
     

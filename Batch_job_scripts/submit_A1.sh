@@ -18,4 +18,5 @@ cd /home/users/richras/Ge2Net_Repo
 python3 trainer.py --train.experiment_id 1 \
 --data.params_dir '/home/users/richras/Ge2Net_Repo/experiments/pca/exp_A1/' \
 --train.experiment_name 'unsupervised_labeling' \
---data.labels_dir '/scratch/groups/cdbustam/richras/reference_files/pca_labels'
+--data.labels_dir '/scratch/groups/cdbustam/richras/reference_files/pca_labels' \
+--log.verbose False
