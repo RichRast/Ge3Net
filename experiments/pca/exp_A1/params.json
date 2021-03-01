@@ -3,7 +3,7 @@
 "train_seed":  1234, 
 "model":"Model_A",
  "major_version":1,
- "minor_version":1,
+ "minor_version":2,
 "batch_size":256,
  "mc_dropout":true,
 "mc_samples":100,
