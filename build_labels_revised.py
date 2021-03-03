@@ -111,6 +111,10 @@ def get_admixed_samples(genetic_map_path, vcf_founders, sample_map, save_path, n
     return admixed_samples, select_idx
 
 def repeat_pop_arr(sample_map):
+    """
+    This function maps from ref idx of sample map
+    to ref idx of vcf file by repeating for 2*i and 2*i+1
+    """
     pop_arr = sample_map.values[:, np.newaxis, :]
     pop_arr = np.repeat(pop_arr, 2, axis=1)
     pop_arr = pop_arr.reshape(-1,4)
