@@ -24,7 +24,7 @@ MODEL_CLASS = {'Model_A' : [['Model_A.model_A'],['AuxiliaryTask.AuxNetwork', 'Ba
 parser = argparse.ArgumentParser()
 parser.add_argument('--data.data_dir', type=str, default='/scratch/groups/cdbustam/richras', metavar='data_dir',
                         help='directory where simulated data is stored')
-parser.add_argument('--data.params_dir', type=str, default='/home/users/richras/Ge2Net_Repo/experiments/pca/exp_D_1.12/', metavar='working_dir',
+parser.add_argument('--data.params_dir', type=str, default='/home/users/richras/Ge2Net_Repo/experiments/pca/exp_A1/', metavar='working_dir',
                     help='directory where json file for model hyperparameters are stored')
 parser.add_argument('--data.labels_dir', type=str, default='/scratch/groups/cdbustam/richras/reference_files/pca_labels', metavar='pca_labels_dir',
                     help='pca labels built with maf 0.09')
@@ -43,8 +43,11 @@ parser.add_argument('--data.seed', type=int, default=1234, metavar='SEED',
 #form labels
 parser.add_argument('--data.form_labels', type=bool, default=True, metavar='form_labels',
                     help='set True if you want to form labels')
+parser.add_argument('--data.extended_pca', type=bool, default=False, metavar='whether to compute extended pca',
+                    help='set True if you want to compute extended pca')
+
 # admixed simulation
-parser.add_argument('--data.simulate', type=bool, default=False, metavar='simulate_only',
+parser.add_argument('--data.simulate', type=bool, default=True, metavar='simulate_only',
                     help='set True if you want to simulate admixed data with ref indices')
 
 parser.add_argument('--data.all_chm_snps', type=str, default='/scratch/groups/cdbustam/richras/combined_chm/all_chm_combined_snps_variance_filter_0.09.npy', metavar='all_chm',

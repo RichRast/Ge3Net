@@ -18,6 +18,39 @@ def PCA_space(x, n_comp=3, verbose = True):
     print(f'explained_variance_ratio_:{pca.explained_variance_ratio_}')
     return pca_data
 
+@timer
+def PCA_space_revised(vcf_snp, idx_lst, n_comp=3, verbose = True):
+    """
+    vcf_snp: entire vcf snp consisting of train, valid and test snps
+    idx_list: [train_sample_map, valid_sample_map, test_sample_map]
+
+    This function computes the pca transformation matrix by fitting the 
+    vcf snp for train data and computes the projection of valid vcf snp and
+    test vcf snp using the computed transformation.
+    """
+    pca=decomposition.PCA(n_components=n_comp, whiten=True, random_state=10)
+    vcf_train = vcf_snp[idx_lst[0]]
+    vcf_valid = vcf_snp[idx_lst[1]]
+    vcf_test = vcf_snp[idx_lst[2]]
+    mean_train = np.sum(vcf_train, axis=0)/vcf_train.shape[0]
+    std_train = vcf_train.std(axis=0)
+    std_train[std_train==0] = 1
+
+    # centered_train = (vcf_train - mean_train)/std_train
+    # centered_valid = (vcf_valid - mean_train)/std_train
+    # centered_test = (vcf_test - mean_train)/std_train
+
+    centered_train = vcf_train - mean_train
+    centered_valid = vcf_valid - mean_train
+    centered_test = vcf_test - mean_train
+   
+    pca_train = pca.fit(centered_train)
+    PCA_labels_train = pca_train.transform(centered_train)
+    PCA_labels_valid = pca_train.transform(centered_valid)
+    PCA_labels_test = pca_train.transform(centered_test)
+    print(f'explained_variance_ratio_:{pca.explained_variance_ratio_}')
+    return PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train
+
 def get_hamming_matrix(x):
     Hamming_matrix = scipy.spatial.distance.cdist(x,x, metric="hamming")
     return Hamming_matrix
