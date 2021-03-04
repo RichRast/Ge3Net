@@ -37,7 +37,7 @@ class attention_single(nn.Module):
         self.key_size = params.att1_key_size
         self.query_size = params.att1_query_size
         self.value_size = params.att1_value_size
-        self.input = params.aux_net_hidden + 4
+        self.input = params.aux_net_hidden + params.dataset_dim
         self.linear_keys = nn.Linear(self.input, self.key_size)
         self.linear_query = nn.Linear(self.input, self.query_size)
         self.Linear_value = nn.Linear(self.input, self.value_size)

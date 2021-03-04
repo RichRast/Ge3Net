@@ -43,7 +43,7 @@ parser.add_argument('--data.seed', type=int, default=1234, metavar='SEED',
 #form labels
 parser.add_argument('--data.form_labels', type=bool, default=True, metavar='form_labels',
                     help='set True if you want to form labels')
-parser.add_argument('--data.extended_pca', type=bool, default=False, metavar='whether to compute extended pca',
+parser.add_argument('--data.extended_pca', type=bool, default=True, metavar='whether to compute extended pca',
                     help='set True if you want to compute extended pca')
 
 # admixed simulation

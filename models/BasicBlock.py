@@ -25,7 +25,7 @@ class logits_Block(nn.Module):
         elif params.model=='Model_K':
             self.input = params.att1_value_size 
         elif params.model=='Model_A':
-            self.input = params.aux_net_hidden + 4
+            self.input = params.aux_net_hidden + params.dataset_dim
         #self.fc = nn.Linear(params.logits_Block_in, params.logits_Block_out)
         self.fc1 = nn.Linear(self.input, params.logits_Block_hidden)
         self.fc2 = nn.Linear(params.logits_Block_hidden, params.logits_Block_hidden1)

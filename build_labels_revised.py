@@ -11,13 +11,13 @@ import allel
 sys.path.insert(1, '/home/users/richras/GeNet_Repo')
 from helper_funcs import load_path, save_file, vcf2npy
 from unsupervised_methods import PCA_space, PCA_space_revised
-from visualization import plot_embeddings
+from visualization import plot_embeddings, plot_embeddings_2d
 from settings import parse_args
 
 sys.path.insert(1, '/home/users/richras/XGMix/XGMix')
 from pyadmix.utils import get_chm_info, build_founders, create_non_rec_dataset, write_output 
 
-
+POP_ORDER = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
 def filter_reference_file(ref_file_path, verbose=True):
     """
     read the reference file and filter by default criteria of single_ancestry =1
@@ -178,13 +178,26 @@ def main(config):
         else:
             vcf_snp = vcf2npy(str(config['data.vcf_dir']))
         
-        print("computing labels from PCA/MDS")
-        # pca_train is the pca object to be used for transform for new data
-        PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = PCA_space_revised(vcf_snp, idx_lst, n_comp=5)
+        #for train labels
+        pop_arr_train = repeat_pop_arr(train_sample_map)
         
-        PCA_lbls_train_dict = {k:v for k,v in zip(train_filter_idx, PCA_labels_train[:,0:4])}
-        PCA_lbls_valid_dict = {k:v for k,v in zip(valid_filter_idx, PCA_labels_valid[:,0:4])}
-        PCA_lbls_test_dict = {k:v for k,v in zip(test_filter_idx, PCA_labels_test[:,0:4])}
+        #for valid labels
+        pop_arr_valid = repeat_pop_arr(valid_sample_map)
+        
+        #for test labels
+        pop_arr_test = repeat_pop_arr(test_sample_map)
+
+        print("Computing labels from PCA/MDS")
+        # pca_train is the pca object to be used for transform for new data
+        if config['data.extended_pca']:
+            print("Computing extended pca")
+            PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = PCA_space_revised(vcf_snp, idx_lst, n_comp=4, extended_pca = True, pop_arr=pop_arr_train[:,3])
+        else:
+            PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = PCA_space_revised(vcf_snp, idx_lst, n_comp=4)
+        
+        PCA_lbls_train_dict = {k:v for k,v in zip(train_filter_idx, PCA_labels_train)}
+        PCA_lbls_valid_dict = {k:v for k,v in zip(valid_filter_idx, PCA_labels_valid)}
+        PCA_lbls_test_dict = {k:v for k,v in zip(test_filter_idx, PCA_labels_test)}
 
         PCA_lbls_dict = {**PCA_lbls_train_dict, **PCA_lbls_valid_dict, **PCA_lbls_test_dict}
         
@@ -200,15 +213,6 @@ def main(config):
         save_file(osp.join(dataset_path, 'valid_sample_map.tsv'), valid_sample_map, en_df=True)
         save_file(osp.join(dataset_path, 'test_sample_map.tsv'), test_sample_map, en_df=True)
         
-        #for train labels
-        pop_arr_train = repeat_pop_arr(train_sample_map)
-        
-        #for valid labels
-        pop_arr_valid = repeat_pop_arr(valid_sample_map)
-        
-        #for test labels
-        pop_arr_test = repeat_pop_arr(test_sample_map)
-        
         ax = plot_embeddings(PCA_labels_train[:, 0:3], pop_arr_train[:,3], config['data.n_way'])
         # print randomly 30 granular pop on the PCA plot of train 
         random_idx = np.random.choice(train_filter_idx, 30)
@@ -221,6 +225,22 @@ def main(config):
         plt.title("train")
         plt.savefig(osp.join(dataset_path, 'train_pca.png'), bbox_inches='tight')
         plt.show()
+
+        if config['data.extended_pca']:
+            for i in range(config['data.n_way']):
+                # plot all the classes for the same subclass
+                ax1 = plot_embeddings_2d(PCA_labels_train[:, 4+2*i:6+2*i], pop_arr_train[:,3], config['data.n_way'])
+                for j in random_idx:
+                    idx_pop_arr=np.where(pop_arr_train[:,1]==j)[0][0]
+                    ax1.text(PCA_lbls_train_dict[j][4+2*i], PCA_lbls_train_dict[j][5+2*i], \
+                            s = rev_pop_order[pop_arr_train[idx_pop_arr,2]],\
+                        fontweight='bold', fontsize = 12)
+                plt.title(f"train subclass : {POP_ORDER[i]}")
+                plt.savefig(osp.join(dataset_path, 'train_pca_{0}.png'.format(POP_ORDER[i])), bbox_inches='tight')
+                plt.show()
+
+                # plot only the particular subclass
+
 
         ax = plot_embeddings(PCA_labels_valid[:, 0:3], pop_arr_valid[:,3], config['data.n_way'])
         plt.title("valid")

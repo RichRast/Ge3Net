@@ -19,7 +19,7 @@ def PCA_space(x, n_comp=3, verbose = True):
     return pca_data
 
 @timer
-def PCA_space_revised(vcf_snp, idx_lst, n_comp=3, verbose = True):
+def PCA_space_revised(vcf_snp, idx_lst, n_comp=4, extended_pca = False, pop_arr=None, n_way = 7, n_comp_subclass = 2):
     """
     vcf_snp: entire vcf snp consisting of train, valid and test snps
     idx_list: [train_sample_map, valid_sample_map, test_sample_map]
@@ -36,19 +36,41 @@ def PCA_space_revised(vcf_snp, idx_lst, n_comp=3, verbose = True):
     std_train = vcf_train.std(axis=0)
     std_train[std_train==0] = 1
 
-    # centered_train = (vcf_train - mean_train)/std_train
-    # centered_valid = (vcf_valid - mean_train)/std_train
-    # centered_test = (vcf_test - mean_train)/std_train
+    centered_train = (vcf_train - mean_train)/std_train
+    centered_valid = (vcf_valid - mean_train)/std_train
+    centered_test = (vcf_test - mean_train)/std_train
 
-    centered_train = vcf_train - mean_train
-    centered_valid = vcf_valid - mean_train
-    centered_test = vcf_test - mean_train
+    # centered_train = vcf_train - mean_train
+    # centered_valid = vcf_valid - mean_train
+    # centered_test = vcf_test - mean_train
    
     pca_train = pca.fit(centered_train)
     PCA_labels_train = pca_train.transform(centered_train)
     PCA_labels_valid = pca_train.transform(centered_valid)
     PCA_labels_test = pca_train.transform(centered_test)
     print(f'explained_variance_ratio_:{pca.explained_variance_ratio_}')
+
+    if extended_pca:
+        pca_train_subclass = {}
+        pca_subclass = decomposition.PCA(n_components=n_comp_subclass, whiten=True, random_state=10)
+        for i in range(n_way):
+            idx_subclass = np.nonzero(pop_arr==i)[0]
+            pca_train_subclass[i] = pca_subclass.fit(centered_train[idx_subclass])
+            print(f'explained_variance_ratio for subclass {i} :{pca_train_subclass[i].explained_variance_ratio_}')
+            if i >0:
+                PCA_labels_train_subclass = np.hstack((PCA_labels_train_subclass, pca_train_subclass[i].transform(centered_train)))
+                PCA_labels_valid_subclass = np.hstack((PCA_labels_valid_subclass, pca_train_subclass[i].transform(centered_valid)))
+                PCA_labels_test_subclass = np.hstack((PCA_labels_test_subclass, pca_train_subclass[i].transform(centered_test))) 
+            else:
+                PCA_labels_train_subclass = pca_train_subclass[i].transform(centered_train)
+                PCA_labels_valid_subclass = pca_train_subclass[i].transform(centered_valid)
+                PCA_labels_test_subclass = pca_train_subclass[i].transform(centered_test)    
+        
+        PCA_labels_train = np.hstack((PCA_labels_train[:,0:4], PCA_labels_train_subclass))
+        PCA_labels_valid = np.hstack((PCA_labels_valid[:,0:4], PCA_labels_valid_subclass))
+        PCA_labels_test = np.hstack((PCA_labels_test[:,0:4], PCA_labels_test_subclass))
+        pca_train = [pca_train, pca_train_subclass]
+
     return PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train
 
 def get_hamming_matrix(x):
