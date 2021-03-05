@@ -13,7 +13,6 @@ from unsupervised_methods import PCA_space, PCA_space_revised
 from visualization import plot_embeddings, plot_embeddings_2d
 from settings import parse_args
 
-sys.path.insert(1, '/home/users/richras/XGMix/XGMix')
 from pyadmix.utils import get_chm_info, build_founders, create_non_rec_dataset, write_output 
 
 POP_ORDER = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
