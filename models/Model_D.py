@@ -265,8 +265,9 @@ class model_D(object):
         preds = y[0]
         target = y[1]
         
-        pred_y = preds[0]
-        target_y = target[0]
+        # compute the accuracy on first 4 dimensions of output only
+        pred_y = preds[0][:,:,0:4]
+        target_y = target[0][:,:,0:4]
         assert len(preds)==len(target), "Target and pred variable length must be equal"
 
         l1_loss_sum = F.l1_loss(pred_y, target_y, reduction='sum').item()

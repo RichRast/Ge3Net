@@ -49,12 +49,12 @@ def plot_embeddings_2d(X_transformed, pop_arr, n_way):
         for l in lgnd.legendHandles:
             l._sizes = [30]
 
-        ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-        ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        # ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        # ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
         
-        # make the grid lines transparent
-        ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-        ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+        # # make the grid lines transparent
+        # ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+        # ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
 
     return ax
 

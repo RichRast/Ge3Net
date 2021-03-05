@@ -19,7 +19,7 @@ def PCA_space(x, n_comp=3, verbose = True):
     return pca_data
 
 @timer
-def PCA_space_revised(vcf_snp, idx_lst, n_comp=4, extended_pca = False, pop_arr=None, n_way = 7, n_comp_subclass = 2):
+def PCA_space_revised(vcf_snp, idx_lst, n_comp=3, extended_pca = False, pop_arr=None, n_way = 7, n_comp_subclass = 2):
     """
     vcf_snp: entire vcf snp consisting of train, valid and test snps
     idx_list: [train_sample_map, valid_sample_map, test_sample_map]
@@ -55,6 +55,9 @@ def PCA_space_revised(vcf_snp, idx_lst, n_comp=4, extended_pca = False, pop_arr=
         pca_subclass = decomposition.PCA(n_components=n_comp_subclass, whiten=True, random_state=10)
         for i in range(n_way):
             idx_subclass = np.nonzero(pop_arr==i)[0]
+            #subclass_train = vcf_train[idx_subclass]
+            # normed_subclass_train = (subclass_train-np.mean(subclass_train, axis=0))/subclass_train.std(axis=0)
+            # normed_subclass_valid = (vcf_valid-np.mean(subclass_train, axis=0))/subclass_train.std(axis=0)
             pca_train_subclass[i] = pca_subclass.fit(centered_train[idx_subclass])
             print(f'explained_variance_ratio for subclass {i} :{pca_train_subclass[i].explained_variance_ratio_}')
             if i >0:
@@ -66,9 +69,9 @@ def PCA_space_revised(vcf_snp, idx_lst, n_comp=4, extended_pca = False, pop_arr=
                 PCA_labels_valid_subclass = pca_train_subclass[i].transform(centered_valid)
                 PCA_labels_test_subclass = pca_train_subclass[i].transform(centered_test)    
         
-        PCA_labels_train = np.hstack((PCA_labels_train[:,0:4], PCA_labels_train_subclass))
-        PCA_labels_valid = np.hstack((PCA_labels_valid[:,0:4], PCA_labels_valid_subclass))
-        PCA_labels_test = np.hstack((PCA_labels_test[:,0:4], PCA_labels_test_subclass))
+        PCA_labels_train = np.hstack((PCA_labels_train, PCA_labels_train_subclass))
+        PCA_labels_valid = np.hstack((PCA_labels_valid, PCA_labels_valid_subclass))
+        PCA_labels_test = np.hstack((PCA_labels_test, PCA_labels_test_subclass))
         pca_train = [pca_train, pca_train_subclass]
 
     return PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train

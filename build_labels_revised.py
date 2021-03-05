@@ -8,7 +8,6 @@ import os.path as osp
 import sys
 import allel
 
-sys.path.insert(1, '/home/users/richras/GeNet_Repo')
 from helper_funcs import load_path, save_file, vcf2npy
 from unsupervised_methods import PCA_space, PCA_space_revised
 from visualization import plot_embeddings, plot_embeddings_2d
@@ -179,6 +178,9 @@ def main(config):
             vcf_snp = vcf2npy(str(config['data.vcf_dir']))
         
         #for train labels
+        # pop_arr_xx is defined with column 0: 'sample_id'
+        # col 1: vcf_ref_idx, col2: granular_pop_num
+        # col3:superpop_num
         pop_arr_train = repeat_pop_arr(train_sample_map)
         
         #for valid labels
@@ -191,9 +193,9 @@ def main(config):
         # pca_train is the pca object to be used for transform for new data
         if config['data.extended_pca']:
             print("Computing extended pca")
-            PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = PCA_space_revised(vcf_snp, idx_lst, n_comp=4, extended_pca = True, pop_arr=pop_arr_train[:,3])
+            PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = PCA_space_revised(vcf_snp, idx_lst, n_comp=3, extended_pca = True, pop_arr=pop_arr_train[:,3])
         else:
-            PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = PCA_space_revised(vcf_snp, idx_lst, n_comp=4)
+            PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = PCA_space_revised(vcf_snp, idx_lst, n_comp=3)
         
         PCA_lbls_train_dict = {k:v for k,v in zip(train_filter_idx, PCA_labels_train)}
         PCA_lbls_valid_dict = {k:v for k,v in zip(valid_filter_idx, PCA_labels_valid)}
@@ -215,7 +217,9 @@ def main(config):
         
         ax = plot_embeddings(PCA_labels_train[:, 0:3], pop_arr_train[:,3], config['data.n_way'])
         # print randomly 30 granular pop on the PCA plot of train 
+        # random_idx refers to vcf_ref_idx
         random_idx = np.random.choice(train_filter_idx, 30)
+        # dict with key as granular_pop_num, and value as string of granular_pop
         rev_pop_order={v:k for k,v in granular_pop_dict.items()}
         for i in random_idx:
             idx_pop_arr=np.where(pop_arr_train[:,1]==i)[0][0]
@@ -227,20 +231,20 @@ def main(config):
         plt.show()
 
         if config['data.extended_pca']:
-            for i in range(config['data.n_way']):
+            for j in range(config['data.n_way']):
                 # plot all the classes for the same subclass
-                ax1 = plot_embeddings_2d(PCA_labels_train[:, 4+2*i:6+2*i], pop_arr_train[:,3], config['data.n_way'])
-                for j in random_idx:
-                    idx_pop_arr=np.where(pop_arr_train[:,1]==j)[0][0]
-                    ax1.text(PCA_lbls_train_dict[j][4+2*i], PCA_lbls_train_dict[j][5+2*i], \
+                ax1 = plot_embeddings_2d(PCA_labels_train[:, 3+2*j:5+2*j], pop_arr_train[:,3], config['data.n_way'])
+                pop_specific_idx = np.where(pop_arr_train[:,3]==j)[0]
+                random_idx = np.random.choice(pop_arr_train[pop_specific_idx,1], 30)
+
+                for k in random_idx:
+                    idx_pop_arr=np.where(pop_arr_train[:,1]==k)[0][0]
+                    ax1.text(PCA_lbls_train_dict[k][3+2*j], PCA_lbls_train_dict[k][4+2*j], \
                             s = rev_pop_order[pop_arr_train[idx_pop_arr,2]],\
                         fontweight='bold', fontsize = 12)
-                plt.title(f"train subclass : {POP_ORDER[i]}")
-                plt.savefig(osp.join(dataset_path, 'train_pca_{0}.png'.format(POP_ORDER[i])), bbox_inches='tight')
+                plt.title(f"train subclass : {POP_ORDER[j]}")
+                plt.savefig(osp.join(dataset_path, 'train_pca_{0}.png'.format(POP_ORDER[j])), bbox_inches='tight')
                 plt.show()
-
-                # plot only the particular subclass
-
 
         ax = plot_embeddings(PCA_labels_valid[:, 0:3], pop_arr_valid[:,3], config['data.n_way'])
         plt.title("valid")
