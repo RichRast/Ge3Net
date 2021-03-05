@@ -16,6 +16,7 @@ from settings import parse_args
 from pyadmix.utils import get_chm_info, build_founders, create_non_rec_dataset, write_output 
 
 POP_ORDER = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
+
 def filter_reference_file(ref_file_path, verbose=True):
     """
     read the reference file and filter by default criteria of single_ancestry =1
@@ -40,8 +41,7 @@ def get_sample_map(sample_map):
     granular_pop_arr = sample_map['Population'].unique()
     granular_pop_dict = {k:v for k,v in zip(granular_pop_arr, range(len(granular_pop_arr)))}
     
-    pop = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
-    superpop_dict = {k:v for k,v in zip(pop, range(len(pop)))}
+    superpop_dict = {k:v for k,v in zip(pop, range(len(POP_ORDER)))}
 
     pop_sample_map = sample_map.loc[:,['Sample','ref_idx']]
     pop_sample_map['granular_pop'] = list(map(lambda x:granular_pop_dict[x], sample_map['Population'].values))
