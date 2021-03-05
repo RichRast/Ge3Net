@@ -1,5 +1,4 @@
 import time
-# from decorator import decorator
 import functools
 
 def timer(func):

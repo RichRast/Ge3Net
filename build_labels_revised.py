@@ -233,6 +233,7 @@ def main(config):
         if config['data.extended_pca']:
             for j in range(config['data.n_way']):
                 # plot all the classes for the same subclass
+                # randomly select 30 granular pops for the particular subpop
                 ax1 = plot_embeddings_2d(PCA_labels_train[:, 3+2*j:5+2*j], pop_arr_train[:,3], config['data.n_way'])
                 pop_specific_idx = np.where(pop_arr_train[:,3]==j)[0]
                 random_idx = np.random.choice(pop_arr_train[pop_specific_idx,1], 30)

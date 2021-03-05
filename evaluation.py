@@ -141,3 +141,38 @@ def gradient_reg(cp_detect, x, p=0.5):
     return torch.mean(torch.pow(torch.abs(x_diff), p)).item()
     #return torch.mean(p*torch.log(torch.abs(x_diff)))
 
+class Changepoint_Metrics(object):
+    def __init__(self, name, seq_len=317, win_tol=2):
+        self.Precision =None
+        self.Recall = None #same as A_cp
+        self.Accuracy = None
+        self.A_no_cp = None
+        self.Balanced_Accuracy = None
+        self.seq_len = seq_len
+        self.win_tol = win_tol
+        self.name = name
+        
+    def __call__(self, cp_target, cp_pred):
+        self.Precision, self.Recall, self.Accuracy, self.A_no_cp, self.Balanced_Accuracy = \
+        eval_cp_batch(cp_target, cp_pred, self.seq_len, self.win_tol)
+    
+    def get_name(self):
+        print(self.name)
+
+class Changepoint_gradient(Changepoint_Metrics):
+    def transform(self, cp_pred_raw):
+        Batch_size, T = cp_pred_raw.shape[0], cp_pred_raw.shape[1]
+        gradient_thresh = 0.18
+        cp_gradient_pred = torch.zeros((Batch_size, T))
+        cp_gradient_idx = torch.nonzero(torch.abs(cp_pred_raw[:,1:,:]-cp_pred_raw[:,:-1,:])>gradient_thresh)
+        cp_gradient_pred[cp_gradient_idx[:,0], cp_gradient_idx[:,1]]=1
+        return cp_gradient_pred
+    
+class Changepoint_mc_drop(Changepoint_Metrics):
+    def transform(self, cp_pred_raw):
+        Batch_size, T = cp_pred_raw.shape[0], cp_pred_raw.shape[1]
+        mc_dropout_thresh = 0.10
+        cp_mc_pred = torch.zeros((Batch_size, T))
+        cp_mc_idx = torch.nonzero(cp_pred_raw>mc_dropout_thresh)
+        cp_mc_pred[cp_mc_idx[:,0], cp_mc_idx[:,1]]=1
+        return cp_mc_pred
