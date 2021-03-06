@@ -41,7 +41,7 @@ def get_sample_map(sample_map):
     granular_pop_arr = sample_map['Population'].unique()
     granular_pop_dict = {k:v for k,v in zip(granular_pop_arr, range(len(granular_pop_arr)))}
     
-    superpop_dict = {k:v for k,v in zip(pop, range(len(POP_ORDER)))}
+    superpop_dict = {k:v for k,v in zip(POP_ORDER, range(len(POP_ORDER)))}
 
     pop_sample_map = sample_map.loc[:,['Sample','ref_idx']]
     pop_sample_map['granular_pop'] = list(map(lambda x:granular_pop_dict[x], sample_map['Population'].values))
