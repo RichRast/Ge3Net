@@ -42,3 +42,15 @@ class Multivariate_Gaussian(object):
     
     def get_predictive_params(self, t, rt_given_x1_t):
         return torch.sum(torch.exp(rt_given_x1_t).unsqueeze(2) * self.mu[:,:t+1,:], dim=1)
+
+class Bernoulli(object):
+    def __init__(self, p):
+        self.p = p
+        self.mean = self.p
+        self.var = self.p*(1-self.p)
+
+    def sample(self, size=1):
+        return int(np.random.uniform(0,1,size) <= self.p)
+
+    def entropy(self):
+        return -(self.p * np.log2(self.p) + (1-self.p) *np.log2(1-self.p))
