@@ -2,21 +2,25 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import plotly.graph_objects as go
 import numpy as np
+from helper_funcs import load_path
+import seaborn as sns
 
-def plot_embeddings(X_transformed, pop_arr, n_way):
+POP_ORDER = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
+
+def plot_embeddings(X_transformed, pop_arr, n_way, wandb=None):
     fig=plt.figure(figsize=(10,12))
     plt.rcParams['savefig.transparent'] = True
     ax= Axes3D(fig)
     ax = fig.gca(projection='3d')
     
     colors_pop=['#0000ff','#008000', '#ff6dff', '#a3fecb', '#998fff','#fc6500','#800080']
-    pop = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
-    color_pop_dict = {k:v for k,v in zip(pop, colors_pop)}
+    colors_pop = sns.color_palette("rainbow", len(POP_ORDER))
+    color_pop_dict = {k:v for k,v in zip(POP_ORDER, colors_pop)}
 
     for i in range(n_way):
         idx_label = np.nonzero(pop_arr==i)[0]
         ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1],X_transformed[idx_label,2], s=5,\
-                  color=color_pop_dict[pop[i]] , label = pop[i])
+                  color=color_pop_dict[pop[i]] , label = POP_ORDER[i])
         
         lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
         for l in lgnd.legendHandles:
@@ -30,20 +34,23 @@ def plot_embeddings(X_transformed, pop_arr, n_way):
         ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
         ax.zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
 
-    return ax
+    fig_image = None
+    if wandb is not None:
+        fig_image = wandb.Image(fig)
+    return ax, fig_image
 
 def plot_embeddings_2d(X_transformed, pop_arr, n_way):
     plt.rcParams['savefig.transparent'] = True
     fig, ax= plt.subplots(figsize=(10,12))
     
     colors_pop=['#0000ff','#008000', '#ff6dff', '#a3fecb', '#998fff','#fc6500','#800080']
-    pop = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
-    color_pop_dict = {k:v for k,v in zip(pop, colors_pop)}
+    colors_pop = sns.color_palette("rainbow", len(POP_ORDER))
+    color_pop_dict = {k:v for k,v in zip(POP_ORDER, colors_pop)}
 
     for i in range(n_way):
         idx_label = np.nonzero(pop_arr==i)[0]
         ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1], s=5,\
-                  color=color_pop_dict[pop[i]] , label = pop[i])
+                  color=color_pop_dict[pop[i]] , label = POP_ORDER[i])
         
         lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
         for l in lgnd.legendHandles:
@@ -57,6 +64,27 @@ def plot_embeddings_2d(X_transformed, pop_arr, n_way):
         # ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
 
     return ax
+
+def plot_embeddings_2d_extended(X_transformed, pop_arr, pop_order_num, wandb=None):
+    plt.rcParams['savefig.transparent'] = True
+    fig, ax= plt.subplots(figsize=(10,12))
+    
+    colors_pop=['#0000ff','#008000', '#ff6dff', '#a3fecb', '#998fff','#fc6500','#800080']
+    colors_pop = sns.color_palette("rainbow", len(pop_order_num))
+    color_pop_dict = {k:v for k,v in zip(pop_order_num, colors_pop)}
+
+    for i in pop_order_num:
+        idx_label = np.nonzero(pop_arr==i)[0]
+        ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1], s=5,\
+                  color=color_pop_dict[i] , label = POP_ORDER[i])
+        
+        lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
+        for l in lgnd.legendHandles:
+            l._sizes = [30]
+    fig_image = None
+    if wandb is not None:
+        fig_image = wandb.Image(fig)
+    return ax, fig_image
 
 def plot_coordinates_map(label, data_coordinates, rev_pop_order):
     """
@@ -92,7 +120,7 @@ def plot_dist(mean, std , chm):
     ax2.set_title(f"Std dev. distribution for chm {chm}")
     plt.show()
 
-def plot changepoint_predictions(y_pred_index_np, y_pred_var, cp_pred_index_np, bocd_cp, cp_mask, y_vcf_idx, rev_pop_dict, granular_pop_map):
+def plot_changepoint_predictions(y_pred_index_np, y_pred_var, cp_pred_index_np, bocd_cp, cp_mask, y_vcf_idx, rev_pop_dict, granular_pop_map, wandb=None):
     """
     plot for sample wise comparison of predicted changepoints
     and true changepoints for various methods
@@ -123,4 +151,61 @@ def plot changepoint_predictions(y_pred_index_np, y_pred_var, cp_pred_index_np, 
     ax5.set_title("BOCD (post process) run_length")
     ax6.set_title("BOCD (post process) cp")
     ax7.set_title("cp target (cp_mask)")
-    plt.show()
+    
+    # log image/fig to wandb
+    fig_image = wandb.Image(fig)
+    # plt.show()
+    return fig_image
+
+def plot(y_vcf_idx, y_pred, wandb=None):
+    
+    fig=plt.figure(figsize=(10,12))
+    plt.rcParams['savefig.transparent'] = True
+    ax= Axes3D(fig)
+    ax = fig.gca(projection='3d')
+
+    colors1=['#0000ff','#008000', '#ff6dff', '#a3fecb', '#ff830c','#fc6500','#800080', '#ccccfe', '#4c4cfe', '#feccfe', '#000033', '#00fff2']
+    
+    num_labels_idx = np.unique(y_vcf_idx)
+    print(f'num_labels_idx:{num_labels_idx}')
+
+    colors1 = sns.color_palette("rainbow", len(num_labels_idx))
+    color_pop_dict = {k:v for k,v in zip(num_labels_idx, colors1)}
+    j =0
+    # granular_pop_dict = pickle.load(, en_pickle=True)
+    # PCA_lbls_dict = load_path(, en_pickle=True)
+    # pop_arr = load_path()
+    rev_pop_dict = {v:k for k,v in granular_pop_dict.items()}
+    
+    gradient_cp_idx = np.unique(np.where(abs(y_pred[:-1,:]-y_pred[1:,:])>0.3)[0])
+    print(gradient_cp_idx)
+
+    
+    for i, val in enumerate(num_labels_idx):
+        idx_label = np.nonzero(y_vcf_idx==val)[0]
+        pop_arr_idx = np.where(pop_arr[:,1]==val)[0][0]
+       
+        ax.scatter(y_pred[idx_label,0], y_pred[idx_label,1], y_pred[idx_label,2], s=55\
+                  ,color=colors1[j], label = rev_pop_dict[pop_arr[pop_arr_idx,2]] )
+        ax.scatter(PCA_lbls_dict[val][0], PCA_lbls_dict[val][1], PCA_lbls_dict[val][2], s=55\
+                  ,color=colors1[j], marker='X')    
+        j +=1
+
+        lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
+        for l in lgnd.legendHandles:
+            l._sizes = [30]
+
+        ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        # make the grid lines transparent
+        ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+        ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+        ax.zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+        #ax.view_init(azim=-90, elev=19)
+    
+    ax.scatter(y_pred[gradient_cp_idx,0], y_pred[gradient_cp_idx,1], y_pred[gradient_cp_idx,2], s=100,\
+           color='black', marker='v')
+    
+    wandb.Image(fig)
+    # plt.show()

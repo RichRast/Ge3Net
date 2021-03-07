@@ -7,10 +7,11 @@ import os
 import os.path as osp
 import sys
 import allel
+import wandb
 
 from helper_funcs import load_path, save_file, vcf2npy
-from unsupervised_methods import PCA_space, PCA_space_revised
-from visualization import plot_embeddings, plot_embeddings_2d
+from unsupervised_methods import PCA_space, PCA_space_revised, PCA_space_residual
+from visualization import plot_embeddings, plot_embeddings_2d, plot_embeddings_2d_extended
 from settings import parse_args
 
 from pyadmix.utils import get_chm_info, build_founders, create_non_rec_dataset, write_output 
@@ -192,7 +193,10 @@ def main(config):
         # pca_train is the pca object to be used for transform for new data
         if config['data.extended_pca']:
             print("Computing extended pca")
-            PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = PCA_space_revised(vcf_snp, idx_lst, n_comp=3, extended_pca = True, pop_arr=pop_arr_train[:,3])
+            #PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = PCA_space_revised(vcf_snp, idx_lst, n_comp=3, extended_pca = True, pop_arr=pop_arr_train[:,3])
+
+            PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = \
+                PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_pca = True, pop_arr=pop_arr_train[:,3])
         else:
             PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = PCA_space_revised(vcf_snp, idx_lst, n_comp=3)
         
@@ -214,7 +218,8 @@ def main(config):
         save_file(osp.join(dataset_path, 'valid_sample_map.tsv'), valid_sample_map, en_df=True)
         save_file(osp.join(dataset_path, 'test_sample_map.tsv'), test_sample_map, en_df=True)
         
-        ax = plot_embeddings(PCA_labels_train[:, 0:3], pop_arr_train[:,3], config['data.n_way'])
+        wandb.init(project=''.join(["Build_labels", str(config['data.experiment_name']),"_", str(config['data.experiment_id'])]), config=config)
+        ax, fig_image_train_overall = plot_embeddings(PCA_labels_train[:, 0:3], pop_arr_train[:,3], config['data.n_way'], wandb)
         # print randomly 30 granular pop on the PCA plot of train 
         # random_idx refers to vcf_ref_idx
         random_idx = np.random.choice(train_filter_idx, 30)
@@ -225,16 +230,31 @@ def main(config):
             ax.text(PCA_lbls_train_dict[i][0], PCA_lbls_train_dict[i][1], PCA_lbls_train_dict[i][2], \
                     s = rev_pop_order[pop_arr_train[idx_pop_arr,2]],\
                 fontweight='bold', fontsize = 12)
-        plt.title("train")
-        plt.savefig(osp.join(dataset_path, 'train_pca.png'), bbox_inches='tight')
-        plt.show()
 
         if config['data.extended_pca']:
-            for j in range(config['data.n_way']):
+            # for j in range(config['data.n_way']):
+            #     # plot all the classes for the same subclass
+            #     # randomly select 30 granular pops for the particular subpop
+            #     ax1 = plot_embeddings_2d(PCA_labels_train[:, 3+2*j:5+2*j], pop_arr_train[:,3], config['data.n_way'])
+            #     pop_specific_idx = np.where(pop_arr_train[:,3]==j)[0]
+            #     random_idx = np.random.choice(pop_arr_train[pop_specific_idx,1], 30)
+
+            #     for k in random_idx:
+            #         idx_pop_arr=np.where(pop_arr_train[:,1]==k)[0][0]
+            #         ax1.text(PCA_lbls_train_dict[k][3+2*j], PCA_lbls_train_dict[k][4+2*j], \
+            #                 s = rev_pop_order[pop_arr_train[idx_pop_arr,2]],\
+            #             fontweight='bold', fontsize = 12)
+            #     plt.title(f"train subclass : {POP_ORDER[j]}")
+            #     plt.savefig(osp.join(dataset_path, 'train_pca_{0}.png'.format(POP_ORDER[j])), bbox_inches='tight')
+            #     plt.show()
+
+            #pop_num = [4,2,1,6,0,3,5]
+            pop_num = [4,6,2,1,0,3,5]
+            for j,l in enumerate(pop_num):
                 # plot all the classes for the same subclass
                 # randomly select 30 granular pops for the particular subpop
-                ax1 = plot_embeddings_2d(PCA_labels_train[:, 3+2*j:5+2*j], pop_arr_train[:,3], config['data.n_way'])
-                pop_specific_idx = np.where(pop_arr_train[:,3]==j)[0]
+                ax1, fig_image_subclass = plot_embeddings_2d_extended(PCA_labels_train[:, 3+2*j:5+2*j], pop_arr_train[:,3], pop_num)
+                pop_specific_idx = np.where(pop_arr_train[:,3]==l)[0]
                 random_idx = np.random.choice(pop_arr_train[pop_specific_idx,1], 30)
 
                 for k in random_idx:
@@ -242,19 +262,20 @@ def main(config):
                     ax1.text(PCA_lbls_train_dict[k][3+2*j], PCA_lbls_train_dict[k][4+2*j], \
                             s = rev_pop_order[pop_arr_train[idx_pop_arr,2]],\
                         fontweight='bold', fontsize = 12)
-                plt.title(f"train subclass : {POP_ORDER[j]}")
-                plt.savefig(osp.join(dataset_path, 'train_pca_{0}.png'.format(POP_ORDER[j])), bbox_inches='tight')
-                plt.show()
+                # plt.title(f"train subclass : {POP_ORDER[l]}")
+                # plt.savefig(osp.join(dataset_path, 'train_pca_{0}.png'.format(POP_ORDER[l])), bbox_inches='tight')
+                # plt.show()
+                if wandb is not None:
+                    wandb.log({f"train_subclass for {POP_ORDER[l]}":fig_image_subclass})
 
-        ax = plot_embeddings(PCA_labels_valid[:, 0:3], pop_arr_valid[:,3], config['data.n_way'])
-        plt.title("valid")
-        plt.savefig(osp.join(dataset_path, 'valid_pca.png'), bbox_inches='tight')
-        plt.show()
-
-        ax = plot_embeddings(PCA_labels_test[:, 0:3], pop_arr_test[:,3], config['data.n_way'])
-        plt.title("test")
-        plt.savefig(osp.join(dataset_path, 'test_pca.png'), bbox_inches='tight')
-        plt.show()
+        ax, fig_image_valid_overall = plot_embeddings(PCA_labels_valid[:, 0:3], pop_arr_valid[:,3], config['data.n_way'],wandb)
+        ax,fig_image_test_overall = plot_embeddings(PCA_labels_test[:, 0:3], pop_arr_test[:,3], config['data.n_way'],wandb)
+        
+        if wandb is not None:
+            wandb.log({f"PCA train overall plot":fig_image_train_overall})
+            wandb.log({f"PCA valid overall plot":fig_image_valid_overall})
+            wandb.log({f"PCA test overall plot":fig_image_test_overall})
+        plt.close('all')
     
     if config['data.simulate']:
         print("Forming the dataset with simulation")
