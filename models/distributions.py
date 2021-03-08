@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 class Multivariate_Gaussian(object):
     def __init__(self, mu_prior, cov_prior, cov_x):
@@ -44,6 +45,7 @@ class Multivariate_Gaussian(object):
         return torch.sum(torch.exp(rt_given_x1_t).unsqueeze(2) * self.mu[:,:t+1,:], dim=1)
 
 class Bernoulli(object):
+    # Todo convert this to torch
     def __init__(self, p):
         self.p = p
         self.mean = self.p
@@ -53,4 +55,5 @@ class Bernoulli(object):
         return int(np.random.uniform(0,1,size) <= self.p)
 
     def entropy(self):
-        return -(self.p * np.log2(self.p) + (1-self.p) *np.log2(1-self.p))
+        # eps=1e-5
+        return -(self.p * np.log2(self.p) + (1-self.p) * np.log2(1-self.p))

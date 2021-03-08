@@ -22,7 +22,9 @@ class Haplotype(Dataset):
         for i, gen in enumerate(self.gens_to_ret):
             print(f"Loading gen {gen}")
             curr_snps = load_path(osp.join(path_prefix, str(dataset_type) ,'gen_' + str(gen), 'mat_vcf_2d.npy'))
+            print(f' snps data: {curr_snps.shape}')
             curr_vcf_idx = load_path(osp.join(path_prefix , str(dataset_type) ,'gen_' + str(gen) ,'mat_map.npy'))
+            print(f' y_labels data :{curr_vcf_idx.shape}')
 
             if i>0:
                 self.snps = np.concatenate((self.snps, curr_snps),axis=0)

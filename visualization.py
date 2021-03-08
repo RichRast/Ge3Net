@@ -7,7 +7,7 @@ import seaborn as sns
 
 POP_ORDER = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
 
-def plot_embeddings(X_transformed, pop_arr, n_way, wandb=None):
+def plot_embeddings(X_transformed, pop_arr, n_way):
     fig=plt.figure(figsize=(10,12))
     plt.rcParams['savefig.transparent'] = True
     ax= Axes3D(fig)
@@ -20,7 +20,7 @@ def plot_embeddings(X_transformed, pop_arr, n_way, wandb=None):
     for i in range(n_way):
         idx_label = np.nonzero(pop_arr==i)[0]
         ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1],X_transformed[idx_label,2], s=5,\
-                  color=color_pop_dict[pop[i]] , label = POP_ORDER[i])
+                  color=color_pop_dict[POP_ORDER[i]] , label = POP_ORDER[i])
         
         lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
         for l in lgnd.legendHandles:
@@ -34,10 +34,7 @@ def plot_embeddings(X_transformed, pop_arr, n_way, wandb=None):
         ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
         ax.zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
 
-    fig_image = None
-    if wandb is not None:
-        fig_image = wandb.Image(fig)
-    return ax, fig_image
+    return ax, fig
 
 def plot_embeddings_2d(X_transformed, pop_arr, n_way):
     plt.rcParams['savefig.transparent'] = True
@@ -50,7 +47,7 @@ def plot_embeddings_2d(X_transformed, pop_arr, n_way):
     for i in range(n_way):
         idx_label = np.nonzero(pop_arr==i)[0]
         ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1], s=5,\
-                  color=color_pop_dict[pop[i]] , label = POP_ORDER[i])
+                  color=color_pop_dict[POP_ORDER[i]] , label = POP_ORDER[i])
         
         lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
         for l in lgnd.legendHandles:
@@ -65,7 +62,7 @@ def plot_embeddings_2d(X_transformed, pop_arr, n_way):
 
     return ax
 
-def plot_embeddings_2d_extended(X_transformed, pop_arr, pop_order_num, wandb=None):
+def plot_embeddings_2d_extended(X_transformed, pop_arr, pop_order_num):
     plt.rcParams['savefig.transparent'] = True
     fig, ax= plt.subplots(figsize=(10,12))
     
@@ -81,10 +78,8 @@ def plot_embeddings_2d_extended(X_transformed, pop_arr, pop_order_num, wandb=Non
         lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
         for l in lgnd.legendHandles:
             l._sizes = [30]
-    fig_image = None
-    if wandb is not None:
-        fig_image = wandb.Image(fig)
-    return ax, fig_image
+    
+    return ax, fig
 
 def plot_coordinates_map(label, data_coordinates, rev_pop_order):
     """
@@ -120,7 +115,7 @@ def plot_dist(mean, std , chm):
     ax2.set_title(f"Std dev. distribution for chm {chm}")
     plt.show()
 
-def plot_changepoint_predictions(y_pred_index_np, y_pred_var, cp_pred_index_np, bocd_cp, cp_mask, y_vcf_idx, rev_pop_dict, granular_pop_map, wandb=None):
+def plot_changepoint_predictions(y_pred_index_np, y_pred_var, cp_pred_index_np, bocd_cp, cp_mask, y_vcf_idx, rev_pop_dict, granular_pop_map):
     """
     plot for sample wise comparison of predicted changepoints
     and true changepoints for various methods
@@ -153,11 +148,11 @@ def plot_changepoint_predictions(y_pred_index_np, y_pred_var, cp_pred_index_np, 
     ax7.set_title("cp target (cp_mask)")
     
     # log image/fig to wandb
-    fig_image = wandb.Image(fig)
+    
     # plt.show()
-    return fig_image
+    return fig
 
-def plot(y_vcf_idx, y_pred, wandb=None):
+def plot(y_vcf_idx, y_pred):
     
     fig=plt.figure(figsize=(10,12))
     plt.rcParams['savefig.transparent'] = True
@@ -207,5 +202,5 @@ def plot(y_vcf_idx, y_pred, wandb=None):
     ax.scatter(y_pred[gradient_cp_idx,0], y_pred[gradient_cp_idx,1], y_pred[gradient_cp_idx,2], s=100,\
            color='black', marker='v')
     
-    wandb.Image(fig)
     # plt.show()
+    return ax, fig
