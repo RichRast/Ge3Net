@@ -12,8 +12,7 @@ def plot_embeddings(X_transformed, pop_arr, n_way):
     plt.rcParams['savefig.transparent'] = True
     ax= Axes3D(fig)
     ax = fig.gca(projection='3d')
-    
-    colors_pop=['#0000ff','#008000', '#ff6dff', '#a3fecb', '#998fff','#fc6500','#800080']
+
     colors_pop = sns.color_palette("rainbow", len(POP_ORDER))
     color_pop_dict = {k:v for k,v in zip(POP_ORDER, colors_pop)}
 
@@ -39,8 +38,7 @@ def plot_embeddings(X_transformed, pop_arr, n_way):
 def plot_embeddings_2d(X_transformed, pop_arr, n_way):
     plt.rcParams['savefig.transparent'] = True
     fig, ax= plt.subplots(figsize=(10,12))
-    
-    colors_pop=['#0000ff','#008000', '#ff6dff', '#a3fecb', '#998fff','#fc6500','#800080']
+
     colors_pop = sns.color_palette("rainbow", len(POP_ORDER))
     color_pop_dict = {k:v for k,v in zip(POP_ORDER, colors_pop)}
 
@@ -62,11 +60,10 @@ def plot_embeddings_2d(X_transformed, pop_arr, n_way):
 
     return ax
 
-def plot_embeddings_2d_extended(X_transformed, pop_arr, pop_order_num):
+def plot_embeddings_2d_extended(X_transformed, pop_arr, pop_order_num=np.arange(7)):
     plt.rcParams['savefig.transparent'] = True
     fig, ax= plt.subplots(figsize=(10,12))
-    
-    colors_pop=['#0000ff','#008000', '#ff6dff', '#a3fecb', '#998fff','#fc6500','#800080']
+
     colors_pop = sns.color_palette("rainbow", len(pop_order_num))
     color_pop_dict = {k:v for k,v in zip(pop_order_num, colors_pop)}
 
