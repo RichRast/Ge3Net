@@ -91,7 +91,7 @@ def PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_p
     vcf snp for train data and computes the projection of valid vcf snp and
     test vcf snp using the computed transformation.
     """
-    pca=decomposition.PCA(n_components=n_comp, random_state=10)
+    pca=decomposition.PCA(n_components=n_comp, whiten=True, random_state=10)
     [vcf_train, vcf_valid, vcf_test] = [vcf_snp[idx_lst[i]] for i in range(len(idx_lst))]
     mean_train = np.sum(vcf_train, axis=0)/vcf_train.shape[0]
     std_train = vcf_train.std(axis=0)
@@ -119,7 +119,7 @@ def PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_p
         #revised_pop_order = 
         n_components = n_comp-n_comp_overall
         for i,j in enumerate(pop_num):
-            pca_subclass = decomposition.PCA(n_components=n_components, random_state=10)
+            pca_subclass = decomposition.PCA(n_components=n_components, whiten=True, random_state=10)
             if i >0:
                 subclass_train, subclass_valid, subclass_test = PCA_transform_train_subclass[:,n_comp_subclass:], \
                     PCA_transform_valid_subclass[:,n_comp_subclass:], PCA_transform_test_subclass[:,n_comp_subclass:]

@@ -149,7 +149,7 @@ def plot_changepoint_predictions(y_pred_index_np, y_pred_var, cp_pred_index_np, 
     # plt.show()
     return fig
 
-def plot(y_vcf_idx, y_pred):
+def predictions_plot(y_vcf_idx, y_pred):
     
     fig=plt.figure(figsize=(10,12))
     plt.rcParams['savefig.transparent'] = True
@@ -201,3 +201,42 @@ def plot(y_vcf_idx, y_pred):
     
     # plt.show()
     return ax, fig
+
+def chm_plot(label,gcd):
+    """
+    plot subplots for chm style true label, heat map style chm plot
+    of predicted gcd and line plot style chm plot of gcd
+    """
+    x = np.arange(label.shape[0])
+    y1 = np.ones(label.shape[0])
+    cmap1 = plt.cm.rainbow
+    labels = [inv_dict[i] for i in np.unique(label)]
+    colors = ['tab:blue','tab:green','tab:brown','tab:pink','tab:gray','tab:olive','tab:cyan' ]
+    
+    label_lst=np.unique(label)
+    fig, (ax1,ax2,ax3) = plt.subplots(nrows = 3, ncols=1, figsize = (12,5))
+    
+    plt.subplots_adjust(hspace=0.5)
+    j=0
+    for i in label_lst:
+        ax1.scatter(np.nonzero(label==i)[0],np.ones(np.argwhere(label==i).shape[0]),label=inv_dict[i],\
+                    cmap=cmap1, c = colors[j])
+        j+=1
+    ax1.set_yticks([])
+    ax1.set_ylabel('True_label')
+    
+    divider = make_axes_locatable(ax)
+    
+    ax1.legend(bbox_to_anchor=(1.3,0.9))
+    
+    cmap2 = mpl.colors.LinearSegmentedColormap.from_list('viridis',['yellow','red'])
+    im2 = ax2.scatter(x,y1, c = gcd, cmap = cmap2)
+    cbar = fig.colorbar(im2, ax=ax2, orientation="horizontal", pad = 0.5)
+    cbar.ax.set_xlabel('Km')
+    ax2.set_yticks([])
+    ax2.set_ylabel('gcd')
+    ax3.set_figsize=(12,2)
+    ax3.plot(np.arange(gcd.shape[0]),gcd)
+    ax3.set_ylabel('gcd Km')
+    print(f' Overall gcd : {np.mean(gcd):.3f} Km')
+    plt.show()

@@ -16,7 +16,9 @@ import numpy as np
 from collections import namedtuple
 from torch.utils.tensorboard import SummaryWriter
 import wandb
+from decorators import timer
 
+@timer
 def main(config, params, trial=None):
     # use GPU if available
     params.cuda = torch.cuda.is_available()
@@ -41,8 +43,8 @@ def main(config, params, trial=None):
         params=wandb.config
         
         # Tensorboard Writer
-        writer_train = SummaryWriter(config['log.train'])
-        writer_val = SummaryWriter(config['log.valid'])
+        #writer_train = SummaryWriter(config['log.train'])
+        #writer_val = SummaryWriter(config['log.valid'])
 
     # configure device
     params.device = torch.device(config['cuda'] if params.cuda else 'cpu')
@@ -50,7 +52,7 @@ def main(config, params, trial=None):
     # Create the input data pipeline
     logging.info("Loading the datasets...")
 
-    dataset_path = os.path.join(str(config['data.data_dir']), config['data.experiment_name'], str(config['data.experiment_id']))
+    dataset_path = osp.join(str(config['data.data_dir']), config['data.experiment_name'], str(config['data.experiment_id']))
     labels_path = config['data.labels_dir']
     training_dataset = Haplotype('train', dataset_path, params, labels_path)
     validation_dataset = Haplotype('valid', dataset_path, params, labels_path)
@@ -93,8 +95,13 @@ def main(config, params, trial=None):
     if config['model.pretrained']:
         model_path = osp.join(config['model.working_dir'], config['model.pretrained_version'], 'best.pt')
         #model_main, model_aux, start_epoch, optimizer = load_model(model_path, model_aux, model_main, optimizer)
-        
-    # optimizer
+
+    training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, wandb)    
+   
+    
+@timer
+def training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, wandb):
+     # optimizer
     optimizer = torch.optim.Adam(model_params)
     #custom_optimizer = custom_opt(optimizer, d_model=params.att['input_size'], warmup_steps=params.att['warmup_steps'], factor=params.att['factor'], groups=params.lr_groups)
     
@@ -104,17 +111,18 @@ def main(config, params, trial=None):
     logging.info("Begin Training....")
     start_epoch = 0
     patience = 0
-    for epoch in range(start_epoch, params.num_epochs):
-        train_result = model.train(optimizer, training_generator, writer_train, wandb)
 
-        eval_result = model.valid(validation_generator, writer_val, wandb)
+    for epoch in range(start_epoch, params.num_epochs):
+        train_result = model.train(optimizer, training_generator, wandb=wandb)
+
+        eval_result = model.valid(validation_generator, wandb=wandb)
         
         if config['log.verbose']:
-            writer_train.add_scalar('Accuracy/train', train_result.accr.weighted_loss, epoch)
-            writer_val.add_scalar('Accuracy/val', eval_result.accr.weighted_loss, epoch)
+            #writer_train.add_scalar('Accuracy/train', train_result.accr.weighted_loss, epoch)
+            #writer_val.add_scalar('Accuracy/val', eval_result.accr.weighted_loss, epoch)
 
-            writer_train.flush()
-            writer_val.flush()
+            #writer_train.flush()
+            #writer_val.flush()
 
             wandb.log({"train_metrics":train_result.accr._asdict(), "epoch":epoch})
             wandb.log({"valid_metrics":eval_result.accr._asdict(), "epoch":epoch})
@@ -160,7 +168,7 @@ def main(config, params, trial=None):
             return best_val_accr
         
 
-    del train_result, eval_result, model, model_subclass, model_basics, \
+    del train_result, eval_result, model, model_basics, \
         middle_models, model_params, training_generator, validation_generator, \
         training_dataset, validation_dataset
     torch.cuda.empty_cache()

@@ -196,7 +196,7 @@ def main(config):
             #PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = PCA_space_revised(vcf_snp, idx_lst, n_comp=3, extended_pca = True, pop_arr=pop_arr_train[:,3])
 
             PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = \
-                PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_pca = True, pop_arr=pop_arr_train[:,3])
+                PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=4, extended_pca = True, pop_arr=pop_arr_train[:,3])
         else:
             PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = PCA_space_revised(vcf_snp, idx_lst, n_comp=3)
         

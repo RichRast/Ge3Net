@@ -4,6 +4,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from helper_funcs import load_path
 import os.path as osp
+from decorators import timer
 
 class Haplotype(Dataset):
     def __init__(self, dataset_type, path_prefix, params, labels_path):
@@ -58,6 +59,7 @@ class Haplotype(Dataset):
         result = torch.tensor(result).float()
         return result
     
+    @timer
     def load_data(self, params):        
         # take the mode according to windows for labels
         # map to coordinates according to ref_idx

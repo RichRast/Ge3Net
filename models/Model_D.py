@@ -246,6 +246,12 @@ class model_D(object):
                     
             eval_result = results(accr = accuracy, pred = [y_pred, cp_pred, y_pred_var])
 
+            # randomly or non-randomly select an index and plot the output
+            index = 71
+            # y_vcf_idx = 
+            # y_pred = 
+            # plot(y_vcf_idx, y_pred_idx, wandb)
+
         # delete tensors for memory optimization
         del val_x, val_labels, out1, out2, out4, val_x_sample, aux_diff, val_lstm, y_pred, y_pred_var,\
             vec_64, val_outputs, outputs_cat, outputs_var, vec_64_cat, val_loss_regress_MLP, val_loss_main
@@ -257,7 +263,7 @@ class model_D(object):
 
         return eval_result
     
-    def pred(self, data_generator):
+    def pred(self, data_generator, wandb=None):   
         pass
 
     def evaluate_accuracy(self, accr_avg, sample_size, accr, *y):
