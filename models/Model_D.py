@@ -2,6 +2,7 @@ import torch
 from torch.autograd import Variable as V
 import torch.nn.functional as F
 from collections import namedtuple
+from decorators import timer
 
 from helper_funcs import activate_mc_dropout, split_batch, square_normalize, get_gradient, Running_Average, form_mask
 from evaluation import SmoothL1Loss, Weighted_Loss, gradient_reg, eval_cp_batch
@@ -269,8 +270,85 @@ class model_D(object):
 
         return eval_result
     
+    @timer
     def pred(self, data_generator, wandb=None):   
-        pass
+        self.main_network.eval()
+        self.aux_network.eval()
+        self.cp_network.eval()
+        
+        with torch.no_grad():
+            cp_pred_out = None
+            accr_avg=[]
+            for a in accr._fields:
+                if a!='cp_accr':
+                    accr_avg.append(Running_Average(num_members=1))
+                else:
+                    accr_avg.append(Running_Average(len(cp_accr._fields)))  
+
+            for j, test_gen in enumerate(test_generator):
+                x = test_gen
+                x = x[:, 0:self.params.chmlen].float().to(self.params.device)
+                output_list, vec_64_list, cp_pred_list = [], [], []
+                
+                models = [self.aux_network, self.main_network, self.cp_network]
+                if self.params.mc_dropout:
+                    activate_mc_dropout(*models)
+                else:
+                    assert self.params.mc_samples==1, "MC dropout disabled"
+
+                for _ in range(self.params.mc_samples):
+                    out1, out2, _ , out4 = self.aux_network(val_x)
+                    
+                    x_sample = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
+                    aux_diff = get_gradient(out4)
+
+                    test_lstm = torch.cat((x_sample, aux_diff), dim =2)
+                    vec_64, test_outputs, _ = self.main_network(val_lstm)
+                    output_list.append(test_outputs)
+                    vec_64_list.append(vec_64)
+                    
+                outputs_cat = torch.cat(output_list, 0).contiguous().\
+                view(self.params.mc_samples, -1, self.params.n_win, test_outputs.shape[-1]).mean(0)
+                
+                outputs_var = torch.cat(output_list, 0).contiguous().\
+                view(self.params.mc_samples, -1, self.params.n_win, test_outputs.shape[-1]).var(0)
+                
+                vec_64_cat = torch.cat(vec_64_list, 0).contiguous().\
+                view(self.params.mc_samples, -1, self.params.n_win, vec_64.shape[-1]).mean(0)
+ 
+
+                if self.params.cp_predict:
+                    cp_pred_out_logits = self.cp_network(vec_64_cat)
+                    cp_pred_out = torch.round(torch.sigmoid(cp_pred_out_logits))
+ 
+                if j>0:
+                    y_pred = torch.cat((y_pred, outputs_cat), dim=0)
+                    y_pred_var = torch.cat((y_pred_var, outputs_var), dim=0)
+                    cp_pred = torch.cat((cp_pred, cp_pred_out), dim=0)
+
+                else:
+                    y_pred = outputs_cat
+                    y_pred_var = outputs_var
+                    cp_pred = cp_pred_out
+                    
+            # randomly or non-randomly select an index and plot the output
+            index = 71
+            # y_vcf_idx = 
+            # y_pred = 
+            # plot(y_vcf_idx, y_pred_idx, wandb)
+
+        test_result = results(accr = None, pred = [y_pred, cp_pred, y_pred_var])
+
+        # delete tensors for memory optimization
+        del x, out1, out2, out4, x_sample, aux_diff, test_lstm, y_pred, y_pred_var,\
+            vec_64, test_outputs, outputs_cat, outputs_var, vec_64_cat
+        
+        if self.params.cp_predict:
+            del cp_pred_out_logits, cp_pred_out, cp_pred
+
+        torch.cuda.empty_cache()
+
+        return test_result
 
     def evaluate_accuracy(self, accr_avg, sample_size, *y):
     

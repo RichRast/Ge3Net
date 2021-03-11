@@ -8,35 +8,42 @@ from decorators import timer
 
 class Haplotype(Dataset):
     def __init__(self, dataset_type, path_prefix, params, labels_path):
-        if dataset_type not in ["train", "valid", "test"]:
+        if dataset_type not in ["train", "valid", "test", "no_label"]:
             raise ValueError
 
         if dataset_type=="train":
             self.gens_to_ret =  params.train_gens
         elif dataset_type=="valid":
             self.gens_to_ret =  params.valid_gens
-        else:
+        elif dataset_type=="test":
             self.gens_to_ret =  params.test_gens
         
         print(f" Loading {dataset_type} Dataset")
-        
-        for i, gen in enumerate(self.gens_to_ret):
-            print(f"Loading gen {gen}")
-            curr_snps = load_path(osp.join(path_prefix, str(dataset_type) ,'gen_' + str(gen), 'mat_vcf_2d.npy'))
-            print(f' snps data: {curr_snps.shape}')
-            curr_vcf_idx = load_path(osp.join(path_prefix , str(dataset_type) ,'gen_' + str(gen) ,'mat_map.npy'))
-            print(f' y_labels data :{curr_vcf_idx.shape}')
 
-            if i>0:
-                self.snps = np.concatenate((self.snps, curr_snps),axis=0)
-                self.vcf_idx = np.concatenate((self.vcf_idx, curr_vcf_idx),axis=0)
-            else:
-                self.snps = curr_snps
-                self.vcf_idx = curr_vcf_idx
-
-        self.coordinates = load_path(osp.join(labels_path, params.coordinates), en_pickle=True)
         self.data = {'X':None, 'y':None, 'cp_mask':None}
-        self.load_data(params)
+
+        if labels_path is None:
+            print(f'Loading snps data')
+            snps = load_path(osp.join(path_prefix, str(dataset_type),'mat_vcf_2d.npy'))
+            self.data['X'] = torch.tensor(self.snps[:,0:params.chmlen])
+            print(f'snps data shape : {self.data['X'].shape}')
+        else:
+            for i, gen in enumerate(self.gens_to_ret):
+                print(f"Loading gen {gen}")
+                curr_snps = load_path(osp.join(path_prefix, str(dataset_type) ,'gen_' + str(gen), 'mat_vcf_2d.npy'))
+                print(f' snps data: {curr_snps.shape}')
+                curr_vcf_idx = load_path(osp.join(path_prefix , str(dataset_type) ,'gen_' + str(gen) ,'mat_map.npy'))
+                print(f' y_labels data :{curr_vcf_idx.shape}')
+
+                if i>0:
+                    self.snps = np.concatenate((self.snps, curr_snps),axis=0)
+                    self.vcf_idx = np.concatenate((self.vcf_idx, curr_vcf_idx),axis=0)
+                else:
+                    self.snps = curr_snps
+                    self.vcf_idx = curr_vcf_idx
+
+            self.coordinates = load_path(osp.join(labels_path, params.coordinates), en_pickle=True)
+            self.load_data(params)
     
     def __len__(self):
         return len(self.data['X']) 
