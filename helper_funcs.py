@@ -175,6 +175,10 @@ def convert_coordinates(nVector):
     return coord_x, coord_y
 
 def square_normalize(y_pred):
+    """
+    square normalize a tensor with 3 dimensions - x, y and z
+    used for normalizing for Geographical n vector
+    """
     y_pred_square = torch.pow(y_pred, 2)
     temp = torch.sum(y_pred_square, dim=2).reshape(y_pred_square.shape[0], y_pred_square.shape[1], 1)
     y_pred_transformed = y_pred / torch.sqrt(temp)

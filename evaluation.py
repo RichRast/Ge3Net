@@ -3,6 +3,7 @@ import torch
 
 from helper_funcs import get_gradient
 
+EARTH_RADIUS = 6371
 
 def eval_cp_matrix(true_cps, pred_cps, seq_len = 317, win_tol=2):
     """
@@ -176,3 +177,14 @@ class Changepoint_mc_drop(Changepoint_Metrics):
         cp_mc_idx = torch.nonzero(cp_pred_raw>mc_dropout_thresh)
         cp_mc_pred[cp_mc_idx[:,0], cp_mc_idx[:,1]]=1
         return cp_mc_pred
+
+def gcd_loss(y_pred, y, mask=None):
+    """
+    returns sum of gcd given prediction label y_pred of shape (n_samples x n_windows)
+    and target label y of shape (n_sampled x n_windows)
+    """
+    if mask is None:
+        mask = torch.ones(y_pred.shape[0], y_pred.shape[1]).to(device)
+    eps = 1e-4
+    sum_gcd = torch.sum(torch.acos(torch.sum(y_pred * y, dim=2).clamp(-1.0 + eps, 1.0 - eps)) * mask) * EARTH_RADIUS
+    return sum_gcd

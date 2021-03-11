@@ -52,7 +52,7 @@ def main(config, params, trial=None):
     # Create the input data pipeline
     logging.info("Loading the datasets...")
 
-    dataset_path = osp.join(str(config['data.data_dir']), config['data.experiment_name'], str(config['data.experiment_id']))
+    dataset_path = osp.join(str(config['data.data_out']), config['data.experiment_name'], str(config['data.experiment_id']))
     labels_path = config['data.labels_dir']
     training_dataset = Haplotype('train', dataset_path, params, labels_path)
     validation_dataset = Haplotype('valid', dataset_path, params, labels_path)
@@ -168,9 +168,8 @@ def training_loop(model, model_params, middle_models, params, config, training_g
             return best_val_accr
         
 
-    del train_result, eval_result, model, model_basics, \
-        middle_models, model_params, training_generator, validation_generator, \
-        training_dataset, validation_dataset
+    del train_result, eval_result, model, middle_models, model_params, \
+        training_generator, validation_generator
     torch.cuda.empty_cache()
 
     

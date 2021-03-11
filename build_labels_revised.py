@@ -131,11 +131,11 @@ def main(config):
     seed = config['data.seed']
     np.random.seed(seed)
 
-    dataset_path = osp.join(str(config['data.data_dir']), config['data.experiment_name'], str(config['data.experiment_id']))
-    print(f"dataset_path : {str(dataset_path)}")
-    if not osp.exists(dataset_path):
-        print(f"dataset dir doesn't exist, making {str(dataset_path)}")
-        os.makedirs(dataset_path , exist_ok=True)
+    data_out_path = osp.join(str(config['data.data_out']), config['data.experiment_name'], str(config['data.experiment_id']))
+    print(f"data_out_path : {str(data_out_path)}")
+    if not osp.exists(data_out_path):
+        print(f"dataset out dir doesn't exist, making {str(data_out_path)}")
+        os.makedirs(data_out_path , exist_ok=True)
 
     # Note1: Throughout vcf_idx and filter_idx refer to 2i and 2i+1 
     # Note1: and ref_idx refers to the reference idx in reference sample map
@@ -146,9 +146,9 @@ def main(config):
     pop_sample_map, granular_pop_dict, superpop_dict = get_sample_map(master_ref)
     
     # save the above three
-    save_file(osp.join(dataset_path, 'pop_sample_map.tsv'), pop_sample_map, en_df=True)
-    save_file(osp.join(dataset_path, 'granular_pop.pkl'), granular_pop_dict, en_pickle=True)
-    save_file(osp.join(dataset_path, 'superpop.pkl'), superpop_dict, en_pickle=True)
+    save_file(osp.join(data_out_path, 'pop_sample_map.tsv'), pop_sample_map, en_df=True)
+    save_file(osp.join(data_out_path, 'granular_pop.pkl'), granular_pop_dict, en_pickle=True)
+    save_file(osp.join(data_out_path, 'superpop.pkl'), superpop_dict, en_pickle=True)
     
     if config['data.form_labels']:
         print("Split into train, valid and test data")
@@ -207,16 +207,16 @@ def main(config):
         PCA_lbls_dict = {**PCA_lbls_train_dict, **PCA_lbls_valid_dict, **PCA_lbls_test_dict}
         
         # save PCA labels corresponding to the reference index
-        save_file(osp.join(dataset_path, 'PCA_labels_train.pkl'), PCA_lbls_train_dict, en_pickle=True)
-        save_file(osp.join(dataset_path, 'PCA_labels_valid.pkl'), PCA_lbls_valid_dict, en_pickle=True)
-        save_file(osp.join(dataset_path, 'PCA_labels_test.pkl'), PCA_lbls_test_dict, en_pickle=True)
-        save_file(osp.join(dataset_path, 'PCA_labels.pkl'), PCA_lbls_dict, en_pickle=True)
-        save_file(osp.join(dataset_path, 'PCA_train.pkl'), pca_train, en_pickle=True)
+        save_file(osp.join(data_out_path, 'PCA_labels_train.pkl'), PCA_lbls_train_dict, en_pickle=True)
+        save_file(osp.join(data_out_path, 'PCA_labels_valid.pkl'), PCA_lbls_valid_dict, en_pickle=True)
+        save_file(osp.join(data_out_path, 'PCA_labels_test.pkl'), PCA_lbls_test_dict, en_pickle=True)
+        save_file(osp.join(data_out_path, 'PCA_labels.pkl'), PCA_lbls_dict, en_pickle=True)
+        save_file(osp.join(data_out_path, 'PCA_train.pkl'), pca_train, en_pickle=True)
 
         #save the sample_maps
-        save_file(osp.join(dataset_path, 'train_sample_map.tsv'), train_sample_map, en_df=True)
-        save_file(osp.join(dataset_path, 'valid_sample_map.tsv'), valid_sample_map, en_df=True)
-        save_file(osp.join(dataset_path, 'test_sample_map.tsv'), test_sample_map, en_df=True)
+        save_file(osp.join(data_out_path, 'train_sample_map.tsv'), train_sample_map, en_df=True)
+        save_file(osp.join(data_out_path, 'valid_sample_map.tsv'), valid_sample_map, en_df=True)
+        save_file(osp.join(data_out_path, 'test_sample_map.tsv'), test_sample_map, en_df=True)
         
         try:
             wandb.init(project="Build_labels", config=config)
@@ -263,7 +263,7 @@ def main(config):
                             s = rev_pop_order[pop_arr_train[idx_pop_arr,2]],\
                         fontweight='bold', fontsize = 12)
                 plt.title(f"train subclass : {tmp_pop_name}")
-                # plt.savefig(osp.join(dataset_path, 'train_pca_{0}.png'.format(POP_ORDER[l])), bbox_inches='tight')
+                # plt.savefig(osp.join(data_out_path, 'train_pca_{0}.png'.format(POP_ORDER[l])), bbox_inches='tight')
                 plt.show()
                 if wandb is not None:
                     fig_image_subclass = wandb.Image(fig)
@@ -290,7 +290,7 @@ def main(config):
         
         selected_idx={}
         for i, val in enumerate(dataset_type):
-            save_path = osp.join(dataset_path, str(val))
+            save_path = osp.join(data_out_path, str(val))
             genetic_map_path = str(config['data.genetic_map'])
             if (config['data.vcf_dir'][-4:]=='.vcf') or (config['data.vcf_dir'][-3:]=='.gz'):
                 vcf_master = allel.read_vcf(str(config['data.vcf_dir']))

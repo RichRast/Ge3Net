@@ -38,7 +38,7 @@ class model_D(object):
             else:
                 accr_avg.append(Running_Average(len(cp_accr._fields)))                
         for i, train_gen in enumerate(training_generator):
-            preds, target = [], []
+            preds, target, y_pred_list = [], [], []
             train_x, train_y, cp_mask = train_gen
             train_x = train_x[:, 0:self.params.chmlen].float().to(self.params.device)
             train_labels = train_y.to(self.params.device)
@@ -71,10 +71,10 @@ class model_D(object):
                     train_vec_64, train_vector, rnn_state = self.main_network(x_chunk, rnn_state)
 
                     # for each bptt size we have the same batch_labels
-                    loss_main = self.criterion(train_vector*cp_mask_chunk, batch_label_chunk*cp_mask_chunk)
-                    preds.append(train_vector*cp_mask_chunk)
-                    target.append(batch_label_chunk*cp_mask_chunk)
-                    sample_size = batch_label_chunk.shape[0] * batch_label_chunk.shape[1]
+                    loss_main_chunk = self.criterion(train_vector*cp_mask_chunk, batch_label_chunk*cp_mask_chunk)
+                    # preds.append(train_vector*cp_mask_chunk)
+                    # target.append(batch_label_chunk*cp_mask_chunk)
+                    # sample_size = batch_label_chunk.shape[0] * batch_label_chunk.shape[1]
                     if self.params.reg_loss:
                         #add regularization loss
                         reg_loss = gradient_reg(self.params.cp_detect, train_vector*cp_mask_chunk, p = self.params.reg_loss_pow)
@@ -85,23 +85,30 @@ class model_D(object):
                         # invert the mask for the cp target
                         cp_target = torch.where(cp_mask_chunk[:,:,0].unsqueeze(2)==0.0, torch.tensor([1.0]).to(self.params.device), torch.tensor([0.0]).to(self.params.device))
                         cp_pred_loss = F.binary_cross_entropy_with_logits(cp_pred_logits, cp_target).item()
-                        preds.append(cp_pred)
-                        target.append(cp_target)
+                        #preds.append(cp_pred)
+                        #target.append(cp_target)
                     
-                    loss_main += reg_loss + cp_pred_loss
+                    loss_main_chunk += reg_loss + cp_pred_loss
 
                     # do back propagation for tbptt steps in time
-                    loss_main.backward()
+                    loss_main_chunk.backward()
 
                     # after doing back prob, detach rnn state to implement TBPTT
                     # now rnn_state was detached and chain of gradients was broken
                     rnn_state = self.main_network._detach_rnn_state(rnn_state)
-                    
-            else:
-                train_vec_64, train_vector, _ = self.main_network(train_lstm)
-                preds.append(train_vector*cp_mask)
+                    y_pred_list.append(train_vector)
+                
+                y_pred = torch.cat(y_pred_list,1)
+                loss_main = self.criterion(y_pred*cp_mask, train_labels*cp_mask)
+                preds.append(y_pred*cp_mask)
                 target.append(train_labels*cp_mask)
-                sample_size = train_labels.shape[0]*train_labels.shape[1]
+                sample_size = cp_mask.sum() 
+
+            else:
+                train_vec_64, y_pred, _ = self.main_network(train_lstm)
+                preds.append(y_pred*cp_mask)
+                target.append(train_labels*cp_mask)
+                sample_size = cp_mask.sum()
 
                 if self.params.reg_loss: # for regularization loss of the gradients of final prediction
                     reg_loss = gradient_reg(self.params.cp_detect, train_vector*cp_mask, p = self.params.reg_loss_pow)
@@ -111,13 +118,13 @@ class model_D(object):
                     cp_pred = torch.round(torch.sigmoid(cp_pred_logits))    
                     cp_target = torch.where(cp_mask[:,:,0].unsqueeze(2)==0.0, torch.tensor([1.0]).to(self.params.device), torch.tensor([0.0]).to(self.params.device))
                     cp_pred_loss = F.binary_cross_entropy_with_logits(cp_pred_logits, cp_target).item()
-                    preds.append(cp_pred)
-                    target.append(cp_target)
+                    #preds.append(cp_pred)
+                    #target.append(cp_target)
                 
-                loss_main = self.criterion(train_vector*cp_mask, train_labels*cp_mask)
+                loss_main = self.criterion(y_pred*cp_mask, train_labels*cp_mask)
                 
             y = [preds, target]
-            train_accr = self.evaluate_accuracy(accr_avg, sample_size, accr, *y)
+            train_accr = self.evaluate_accuracy(accr_avg, sample_size, *y)
 
             # clip gradient norm
             torch.nn.utils.clip_grad_norm_(self.main_network.parameters(), self.params.clip)
@@ -143,7 +150,7 @@ class model_D(object):
                 #wandb.log({"train_cp_pred_logits":cp_pred_logits.detach().cpu(),"batch_num":i})
                 #wandb.log({"train_cp_loss":train_accr.cp_accr.cp_loss,"batch_num":i})
         # preds for tbptt will need to have a separate logic
-        train_result=results(accr = train_accr, pred=[None, cp_pred, None])
+        train_result=results(accr = train_accr, pred=[y_pred, cp_pred, None])
         
         # delete tensors for memory optimization
         del train_x, train_labels, cp_mask, out1, out2, out4, train_lstm, \
@@ -174,7 +181,7 @@ class model_D(object):
                 val_x = val_x[:, 0:self.params.chmlen].float().to(self.params.device)
                 val_labels = val_y.to(self.params.device)
                 #cp_mask = cp_mask.to(self.params.device)
-                sample_size = val_labels.shape[0]*val_labels.shape[1]
+                sample_size = val_labels.shape[0]*val_labels.shape[1]*val_labels.shape[2]
                 output_list, vec_64_list, cp_pred_list = [], [], []
                 preds, target =[], []
                 
@@ -195,7 +202,6 @@ class model_D(object):
                     output_list.append(val_outputs)
                     vec_64_list.append(vec_64)
                     
-                    
                 outputs_cat = torch.cat(output_list, 0).contiguous().\
                 view(self.params.mc_samples, -1, self.params.n_win, val_outputs.shape[-1]).mean(0)
                 
@@ -208,7 +214,6 @@ class model_D(object):
                 preds.append(outputs_cat)
                 target.append(val_labels)
 
-                
                 if self.params.cp_predict:
                     cp_pred_out_logits = self.cp_network(vec_64_cat)
                     cp_pred_out = torch.round(torch.sigmoid(cp_pred_out_logits))
@@ -219,7 +224,8 @@ class model_D(object):
                 
                 val_loss_regress_MLP = self.criterion(out4, val_labels)
                 val_loss_main = self.criterion(outputs_cat, val_labels)
-
+                test_loss = self.weighted_loss_accr(outputs_cat, val_labels)/float(sample_size)
+ 
                 if j>0:
                     y_pred = torch.cat((y_pred, outputs_cat), dim=0)
                     y_pred_var = torch.cat((y_pred_var, outputs_var), dim=0)
@@ -231,7 +237,7 @@ class model_D(object):
                     cp_pred = cp_pred_out
                    
                 y = [preds, target]
-                accuracy = self.evaluate_accuracy(accr_avg, sample_size, accr, *y) 
+                accuracy = self.evaluate_accuracy(accr_avg, sample_size, *y) 
 
                 if writer:
                     # write to Tensorboard
@@ -266,15 +272,14 @@ class model_D(object):
     def pred(self, data_generator, wandb=None):   
         pass
 
-    def evaluate_accuracy(self, accr_avg, sample_size, accr, *y):
+    def evaluate_accuracy(self, accr_avg, sample_size, *y):
     
-        preds = y[0]
-        target = y[1]
+        [preds, target] = y
         
-        # compute the accuracy on first 4 dimensions of output only
-        pred_y = preds[0][:,:,0:4]
-        target_y = target[0][:,:,0:4]
+        pred_y = preds[0]
+        target_y = target[0]
         assert len(preds)==len(target), "Target and pred variable length must be equal"
+        assert pred_y.shape==target_y.shape, "Shapes for pred_y and target_y do not match"
 
         l1_loss_sum = F.l1_loss(pred_y, target_y, reduction='sum').item()
         # update the running avg accuracy

@@ -22,17 +22,19 @@ MODEL_CLASS = {'Model_A' : [['Model_A.model_A'],['AuxiliaryTask.AuxNetwork', 'Ba
                     }   
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data.data_dir', type=str, default='/scratch/groups/cdbustam/richras', metavar='data_dir',
-                        help='directory where simulated data is stored')
-parser.add_argument('--data.params_dir', type=str, default='/home/users/richras/Ge2Net_Repo/experiments/pca/exp_A1/', metavar='working_dir',
+parser.add_argument('--data.data_in', type=str, default=os.environ.get('IN_PATH'), metavar='data_in_dir',
+                        help='directory where raw data is stored')
+parser.add_argument('--data.data_out', type=str, default=os.environ.get('OUT_PATH'), metavar='data_out_dir',
+                        help='directory where output data is stored')
+parser.add_argument('--data.params_dir', type=str, default=osp.join(os.environ.get('USER_PATH'), 'experiments/pca/exp_A1'), metavar='working_dir',
                     help='directory where json file for model hyperparameters are stored')
-parser.add_argument('--data.labels_dir', type=str, default='/scratch/groups/cdbustam/richras/reference_files/pca_labels', metavar='pca_labels_dir',
+parser.add_argument('--data.labels_dir', type=str, default=osp.join(os.environ.get('IN_PATH'), 'reference_files/pca_labels'), metavar='pca_labels_dir',
                     help='pca labels built with maf 0.09')
-parser.add_argument('--data.vcf_dir', type=str, default='/scratch/groups/cdbustam/richras/master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr22.vcf.gz', metavar='vcf_dir',
+parser.add_argument('--data.vcf_dir', type=str, default=osp.join(os.environ.get('IN_PATH'), 'master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr22.vcf.gz'), metavar='vcf_dir',
                     help='directory where vcf file for the particular chm is saved')
-parser.add_argument('--data.genetic_map', type=str, default='/scratch/groups/cdbustam/richras/reference_files/allchrs.b38.gmap', metavar='genetic_map_dir',
+parser.add_argument('--data.genetic_map', type=str, default=osp.join( os.environ.get('IN_PATH'), 'reference_files/allchrs.b38.gmap'), metavar='genetic_map_dir',
                     help='directory where genetic map is saved')
-parser.add_argument('--data.reference_map', type=str, default='/scratch/groups/cdbustam/richras/reference_files/reference_panel_metadata.tsv', metavar='ref_file_path',
+parser.add_argument('--data.reference_map', type=str, default=osp.join(os.environ.get('IN_PATH'), 'reference_files/reference_panel_metadata.tsv'), metavar='ref_file_path',
                 help="reference sample map")
 parser.add_argument('--data.experiment_id', type=int, default=1, metavar='experiment_id',
                     help='unique experiment identifier seed')
@@ -50,7 +52,7 @@ parser.add_argument('--data.extended_pca', type=bool, default=True, metavar='whe
 parser.add_argument('--data.simulate', type=bool, default=True, metavar='simulate_only',
                     help='set True if you want to simulate admixed data with ref indices')
 
-parser.add_argument('--data.all_chm_snps', type=str, default='/scratch/groups/cdbustam/richras/combined_chm/all_chm_combined_snps_variance_filter_0.09.npy', metavar='all_chm',
+parser.add_argument('--data.all_chm_snps', type=str, default=osp.join(os.environ.get('IN_PATH'), 'combined_chm/all_chm_combined_snps_variance_filter_0.3.npy'), metavar='all_chm',
                     help='numpy files with combined chm whose var>0.09')
 parser.add_argument('--data.n_way', type=int, default=7, metavar='continent_way',
                     help='n_way classification for continent labels')
@@ -61,7 +63,7 @@ parser.add_argument('--data.split_perc', type=list, default=[0.7, 0.2, 0.1], met
 parser.add_argument('--data.gens_to_ret', type=list, default=[2,4,8], metavar='gens_to_ret',
                     help='gens to simulate') 
 # model arguments
-parser.add_argument('--model.working_dir', type=str, default='/scratch/groups/cdbustam/richras/pca_models_dir', metavar='working_dir',
+parser.add_argument('--model.working_dir', type=str, default=osp.join( os.environ.get('OUT_PATH'), 'pca_models_dir'), metavar='working_dir',
                     help='directory where models related to experiment is saved')
 parser.add_argument('--model.pretrained', type=bool, default=False, metavar='pretrained',
                     help='specify whether to load pretrained model')
@@ -72,19 +74,19 @@ parser.add_argument('--cuda', type=str, default='cuda:0', metavar='CUDA_DEVICE',
 # log args
 parser.add_argument('--log.verbose', type=bool, default=True, metavar='verbose',
                     help='verbose')
-parser.add_argument('--log.train', type=str, default='/scratch/groups/cdbustam/richras/logs/', metavar='log_train',
+parser.add_argument('--log.train', type=str, default=osp.join( os.environ.get('OUT_PATH'), 'logs'), metavar='log_train',
                     help='logging for training')
-parser.add_argument('--log.valid', type=str, default='/scratch/groups/cdbustam/richras/logs/', metavar='log_valid',
+parser.add_argument('--log.valid', type=str, default=osp.join( os.environ.get('OUT_PATH'), 'logs'), metavar='log_valid',
                     help='logging for validation')
-parser.add_argument('--log.wandb_dir', type=str, default='/scratch/users/richras/Batch_jobs/wandb', metavar='wandb_dir',
+parser.add_argument('--log.wandb_dir', type=str, default=osp.join( os.environ.get('USER_SCRATCH_PATH'), 'Batch_jobs/wandb'), metavar='wandb_dir',
                     help='wandb logging dir')
 
 def parse_args():
     # Load the parameters from json file
     args, unknown = parser.parse_known_args()
     config = vars(args)
-    json_path = os.path.join(config['data.params_dir'], 'params.json')
-    assert os.path.isfile(json_path), "No json configuration file found at {}".format(json_path)
+    json_path = osp.join(config['data.params_dir'], 'params.json')
+    assert osp.isfile(json_path), "No json configuration file found at {}".format(json_path)
     params = Params(json_path)
     
     # ToDo remove this later 
