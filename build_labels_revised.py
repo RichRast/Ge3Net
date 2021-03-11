@@ -181,7 +181,7 @@ def main(config):
         #for train labels
         # pop_arr_xx is defined with column 0: 'sample_id'
         # col 1: vcf_ref_idx, col2: granular_pop_num
-        # col3:superpop_num
+        # col3: superpop_num
         pop_arr_train = repeat_pop_arr(train_sample_map)
         
         #for valid labels

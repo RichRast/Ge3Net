@@ -3,7 +3,7 @@
 "train_seed":  1234, 
 "model":"Model_D",
  "major_version":6,
- "minor_version":4,
+ "minor_version":8,
 "batch_size":256,
  "mc_dropout":true,
 "mc_samples":100,
@@ -67,7 +67,7 @@
 "aux_net_hidden1":100,
 "aux_net_hidden2":50,
 "aux_net_out":15,
-"aux_net_dropout":0.4,
+"aux_net_dropout":0.2,
 "aux_net_dropout1":0.2,
 "aux_net_dropout2":0.2,
 "aux_net_block":false,
@@ -110,7 +110,7 @@
 "beta":1.0
 },
     
-"thresh": 0.001,
+"thresh": 0.0001,
 "num_epochs":500,
  "SmoothLoss_beta":1.0,
 "weightLoss_alpha":1.0,
