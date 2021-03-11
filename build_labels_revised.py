@@ -34,7 +34,7 @@ def filter_reference_file(ref_file_path, verbose=True):
 def get_sample_map(sample_map):
     """
     Reads the sample map and returns an tsv file with 
-    sample ID: unique sample ID
+    Sample: unique sample ID
     ref_idx: index from reference file 
     superpop: superpop out of the 7 continents, range 0-6
     granularpop: granular ancestries, range 0-135
@@ -55,7 +55,8 @@ def split_sample_maps(sample_map, split_perc, random_seed=10):
     This function splits the sample_map with single ancestry =1 into train, val and test splits
     whose split ratio is given by split_perc
 
-    sample_map : sample map
+    sample_map : sample map with column names: 'Sample', 'granular_pop', 'ref_idx' and 'superpop'
+    'Sample' is the sample id, 'granular_pop; is the granular population number 
     split_perc: [train_perc, valid_perc, test_perc]
     return : tsv for train, valid and test sample maps
     """
