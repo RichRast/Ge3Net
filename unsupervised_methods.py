@@ -97,13 +97,13 @@ def PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_p
     std_train = vcf_train.std(axis=0)
     std_train[std_train==0] = 1
 
-    # norm_train = (vcf_train - mean_train)/std_train
-    # norm_valid = (vcf_valid - mean_train)/std_train
-    # norm_test = (vcf_test - mean_train)/std_train
+    norm_train = (vcf_train - mean_train)/std_train
+    norm_valid = (vcf_valid - mean_train)/std_train
+    norm_test = (vcf_test - mean_train)/std_train
 
-    norm_train = (vcf_train - mean_train)
-    norm_valid = (vcf_valid - mean_train)
-    norm_test = (vcf_test - mean_train)
+    # norm_train = (vcf_train - mean_train)
+    # norm_valid = (vcf_valid - mean_train)
+    # norm_test = (vcf_test - mean_train)
    
     pca_train = pca.fit(norm_train)
     PCA_transform_train = pca_train.transform(norm_train)
@@ -119,10 +119,11 @@ def PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_p
         #pop_num = [4,2,1,6,0,3,5]
         #pop_num = [6,4,2,1,0,3,5]
         # pop_num = [4,6,2,1,0,3,5]
-        pop_num = [4,[6,2],1,0,3,5]
+        # pop_num = [4,[6,2,1,0],3,5]
+        pop_num = [4,[6,2,1],0,3,5]
         #revised_pop_order = 
         n_components = n_comp-n_comp_overall
-        for i,j in enumerate(pop_num):
+        for i, pop_num_val in enumerate(pop_num):
             pca_subclass = decomposition.PCA(n_components=n_components, whiten=True, random_state=10)
             if i >0:
                 subclass_train, subclass_valid, subclass_test = PCA_transform_train_subclass[:,n_comp_subclass:], \
@@ -133,13 +134,13 @@ def PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_p
             norm_residual_train = subclass_train
             norm_residual_valid = subclass_valid
             norm_residual_test = subclass_test
-            if isinstance(j, list):
-                idx_subclass = np.nonzero(np.isin(pop_arr, j))[0]
-                tmp_pop_name = str(POP_ORDER[j[0]]) + "_" + str(POP_ORDER[j[1]])
-                print(f'mask array, idx_subclass, subclass: {np.isin(pop_arr, j)}, {idx_subclass}, {tmp_pop_name}')
+            if isinstance(pop_num_val, list):
+                idx_subclass = np.nonzero(np.isin(pop_arr, pop_num_val))[0]
+                tmp_pop_name = "_".join([str(POP_ORDER[j]) for j in pop_num_val])
+                print(f'mask array, idx_subclass, subclass: {np.isin(pop_arr, pop_num_val)}, {idx_subclass}, {tmp_pop_name}')
             else:    
-                idx_subclass = np.nonzero(pop_arr==j)[0]
-                tmp_pop_name = POP_ORDER[j] 
+                idx_subclass = np.nonzero(pop_arr==pop_num_val)[0]
+                tmp_pop_name = POP_ORDER[pop_num_val] 
             print(f' n_components :{n_components}, norm_residual_train: {norm_residual_train.shape}, \
                 number of samples of class {tmp_pop_name} : {len(idx_subclass)}')
             pca_train_subclass[i] = pca_subclass.fit(norm_residual_train[idx_subclass])
@@ -180,7 +181,7 @@ def PCA_space_extended(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_p
     vcf snp for train data and computes the projection of valid vcf snp and
     test vcf snp using the computed transformation.
     """
-    pca=decomposition.PCA(n_components=n_comp_overall, random_state=10)
+    pca=decomposition.PCA(n_components=n_comp_overall, whiten=True, random_state=10)
     [vcf_train, vcf_valid, vcf_test] = [vcf_snp[idx_lst[i]] for i in range(len(idx_lst))]
     mean_train = np.sum(vcf_train, axis=0)/vcf_train.shape[0]
     std_train = vcf_train.std(axis=0)
@@ -200,15 +201,15 @@ def PCA_space_extended(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_p
 
     if extended_pca:
         pca_train_subclass = {}
-        pop_num = [0,1,2,3,4,5,6]
-        #pop_num = [4,2,1,6,0,3,5]
-        #pop_num = [4,6,2,1,0,3,5]
+        # pop_num = [0,1,2,3,4,5,6]
+        # pop_num = [4,2,1,6,0,3,5]
+        pop_num = [4,6,2,1,0,3,5]
         #revised_pop_order = 
         for i,j in enumerate(pop_num):
-            pca_subclass = decomposition.PCA(n_components=n_comp_subclass, random_state=10)
-            norm_residual_train = PCA_transform_train
-            norm_residual_valid = PCA_transform_valid
-            norm_residual_test = PCA_transform_test
+            pca_subclass = decomposition.PCA(n_components=n_comp_subclass, whiten=True, random_state=10)
+            norm_residual_train = norm_train
+            norm_residual_valid = norm_valid
+            norm_residual_test = norm_test
             idx_subclass = np.nonzero(pop_arr==j)[0]
             print(f' number of samples of class {POP_ORDER[j]} : {len(idx_subclass)}')
             pca_train_subclass[i] = pca_subclass.fit(norm_residual_train[idx_subclass])

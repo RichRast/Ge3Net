@@ -11,7 +11,7 @@ import wandb
 
 from helper_funcs import load_path, save_file, vcf2npy
 from unsupervised_methods import PCA_space, PCA_space_revised, PCA_space_residual, PCA_space_extended
-from visualization import plot_embeddings, plot_embeddings_2d, plot_embeddings_2d_extended
+from visualization import plot_embeddings, plot_subclass
 from settings import parse_args
 
 from pyadmix.utils import get_chm_info, build_founders, create_non_rec_dataset, write_output 
@@ -143,7 +143,7 @@ def main(config):
 
     print("Reading reference map")
     master_ref = filter_reference_file(str(config['data.reference_map']))
-    filter_idx = list(chain.from_iterable((2*i ,(2*i)+1) for i in master_ref['ref_idx'].values))
+    # filter_idx = list(chain.from_iterable((2*i ,(2*i)+1) for i in master_ref['ref_idx'].values))
     pop_sample_map, granular_pop_dict, superpop_dict = get_sample_map(master_ref)
     
     # save the above three
@@ -161,16 +161,9 @@ def main(config):
         test_idx = test_sample_map['ref_idx'].values.astype(int)
 
         #filter_idxes
-        train_filter_idx = list(chain.from_iterable((2*i ,(2*i)+1) for i in train_idx))
-        valid_filter_idx = list(chain.from_iterable((2*i ,(2*i)+1) for i in valid_idx))
-        test_filter_idx = list(chain.from_iterable((2*i ,(2*i)+1) for i in test_idx))
-
-        # save the train, valid and test sample maps
-        # create admixed samples
-        dataset_type = ['train', 'valid', 'test']
-        sample_map_lst = [train_sample_map, valid_sample_map, test_sample_map]
-        idx_lst = [train_filter_idx, valid_filter_idx, test_filter_idx]
-        admixed_num_per_gen = config['data.samples_per_type']
+        # train_filter_idx = list(chain.from_iterable((2*i ,(2*i)+1) for i in train_idx))
+        # valid_filter_idx = list(chain.from_iterable((2*i ,(2*i)+1) for i in valid_idx))
+        # test_filter_idx = list(chain.from_iterable((2*i ,(2*i)+1) for i in test_idx))
 
         print("Loading vcf file for PCA/MDS")
         if str(config['data.all_chm_snps'])!= 'None':
@@ -183,23 +176,36 @@ def main(config):
         # col 1: vcf_ref_idx, col2: granular_pop_num
         # col3: superpop_num
         pop_arr_train = repeat_pop_arr(train_sample_map)
+        train_filter_idx = list(pop_arr_train[:,1])
         
         #for valid labels
         pop_arr_valid = repeat_pop_arr(valid_sample_map)
+        valid_filter_idx = list(pop_arr_valid[:,1])
         
         #for test labels
         pop_arr_test = repeat_pop_arr(test_sample_map)
+        test_filter_idx = list(pop_arr_test[:,1])
+
+        # save the train, valid and test sample maps
+        # create admixed samples
+        dataset_type = ['train', 'valid', 'test']
+        sample_map_lst = [train_sample_map, valid_sample_map, test_sample_map]
+        idx_lst = [train_filter_idx, valid_filter_idx, test_filter_idx]
+        admixed_num_per_gen = config['data.samples_per_type']
 
         print("Computing labels from PCA/MDS")
         # pca_train is the pca object to be used for transform for new data
+        n_comp_overall=3
+        n_comp_subclass=2
         if config['data.extended_pca']:
             print("Computing extended pca")
             #PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = PCA_space_revised(vcf_snp, idx_lst, n_comp=3, extended_pca = True, pop_arr=pop_arr_train[:,3])
 
             PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = \
-                PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=4, extended_pca = True, pop_arr=pop_arr_train[:,3])
+                PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=n_comp_overall, extended_pca = True, \
+                    pop_arr=pop_arr_train[:,3], n_way = config['data.n_way'], n_comp_subclass = n_comp_subclass)
         else:
-            PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = PCA_space_revised(vcf_snp, idx_lst, n_comp=3)
+            PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = PCA_space_revised(vcf_snp, idx_lst, n_comp=n_comp_overall)
         
         PCA_lbls_train_dict = {k:v for k,v in zip(train_filter_idx, PCA_labels_train)}
         PCA_lbls_valid_dict = {k:v for k,v in zip(valid_filter_idx, PCA_labels_valid)}
@@ -225,17 +231,24 @@ def main(config):
             print("wandb could not be initialized")
             wandb=None
             pass
-        ax, fig1 = plot_embeddings(PCA_labels_train[:, 0:3], pop_arr_train[:,3], config['data.n_way'])
+
         # print randomly 30 granular pop on the PCA plot of train 
         # random_idx refers to vcf_ref_idx
         random_idx = np.random.choice(train_filter_idx, 30)
         # dict with key as granular_pop_num, and value as string of granular_pop
         rev_pop_order={v:k for k,v in granular_pop_dict.items()}
-        for i in random_idx:
-            idx_pop_arr=np.where(pop_arr_train[:,1]==i)[0][0]
-            ax.text(PCA_lbls_train_dict[i][0], PCA_lbls_train_dict[i][1], PCA_lbls_train_dict[i][2], \
-                    s = rev_pop_order[pop_arr_train[idx_pop_arr,2]],\
-                fontweight='bold', fontsize = 12)
+        ax, fig1 = plot_embeddings(n_comp_overall, pop_arr_train, config['data.n_way'], \
+            random_idx, rev_pop_order, PCA_lbls_train_dict )
+        plt.show()
+
+        random_idx = np.random.choice(valid_filter_idx, 30)
+        ax, fig2 = plot_embeddings(n_comp_overall, pop_arr_valid, config['data.n_way'], \
+            random_idx, rev_pop_order, PCA_lbls_valid_dict) 
+        plt.show()
+
+        random_idx = np.random.choice(test_filter_idx, 30)
+        ax,fig3 = plot_embeddings(n_comp_overall, pop_arr_test, config['data.n_way'], \
+            random_idx, rev_pop_order, PCA_lbls_test_dict)
         plt.show()
 
         if config['data.extended_pca']:
@@ -244,39 +257,16 @@ def main(config):
             #pop_num = [4,2,1,6,0,3,5]
             # pop_num = [4,6,2,1,0,3,5]
             #pop_num = [6,4,2,1,0,3,5]
-            pop_num = [4,[6,2],1,0,3,5]
-            
-            for j,l in enumerate(pop_num):
-                # plot all the classes for the same subclass
-                # randomly select 30 granular pops for the particular subpop
-                ax1, fig = plot_embeddings_2d_extended(PCA_labels_train[:, 3+2*j:5+2*j], pop_arr_train[:,3])
-                if isinstance(l, list):
-                    pop_specific_idx = np.where(np.isin(pop_arr_train[:,3], l))[0]
-                    tmp_pop_name = str(POP_ORDER[l[0]]) + "_" + str(POP_ORDER[l[1]])
-                else:
-                    pop_specific_idx = np.where(pop_arr_train[:,3]==l)[0]
-                    tmp_pop_name = POP_ORDER[l]                
-                random_idx = np.random.choice(pop_arr_train[pop_specific_idx,1], 30)
+            # pop_num = [4,[6,2,1,0],3,5]
+            pop_num = [4,[6,2,1],0,3,5]
 
-                for k in random_idx:
-                    idx_pop_arr=np.where(pop_arr_train[:,1]==k)[0][0]
-                    ax1.text(PCA_lbls_train_dict[k][3+2*j], PCA_lbls_train_dict[k][4+2*j], \
-                            s = rev_pop_order[pop_arr_train[idx_pop_arr,2]],\
-                        fontweight='bold', fontsize = 12)
-                plt.title(f"train subclass : {tmp_pop_name}")
-                # plt.savefig(osp.join(data_out_path, 'train_pca_{0}.png'.format(POP_ORDER[l])), bbox_inches='tight')
-                plt.show()
-                if wandb is not None:
-                    fig_image_subclass = wandb.Image(fig)
-                    wandb.log({f"train_subclass for {tmp_pop_name}":fig_image_subclass})
-
-        ax, fig2 = plot_embeddings(PCA_labels_valid[:, 0:3], pop_arr_valid[:,3], config['data.n_way'])
-        
-        plt.show()
-        ax,fig3 = plot_embeddings(PCA_labels_test[:, 0:3], pop_arr_test[:,3], config['data.n_way'])
-        
-        plt.show()
-        
+            print("Train subclasses")
+            plot_subclass(pop_num, pop_arr_train, PCA_lbls_train_dict, n_comp_overall, n_comp_subclass, wandb)
+            print("Valid subclasses")
+            plot_subclass(pop_num, pop_arr_valid, PCA_lbls_valid_dict, n_comp_overall, n_comp_subclass, wandb)
+            print("Test subclasses")
+            plot_subclass(pop_num, pop_arr_test, PCA_lbls_test_dict, n_comp_overall, n_comp_subclass, wandb)
+                    
         if wandb is not None:
             fig_image_train_overall = wandb.Image(fig1)
             fig_image_valid_overall = wandb.Image(fig2)

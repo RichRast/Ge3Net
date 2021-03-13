@@ -7,7 +7,7 @@ import seaborn as sns
 
 POP_ORDER = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
 
-def plot_embeddings(X_transformed, pop_arr, n_way):
+def plot_embeddings(n_comp_overall, pop_arr, n_way, random_idx, rev_pop_order, PCA_lbls_dict):
     fig=plt.figure(figsize=(10,12))
     plt.rcParams['savefig.transparent'] = True
     ax= Axes3D(fig)
@@ -16,8 +16,9 @@ def plot_embeddings(X_transformed, pop_arr, n_way):
     colors_pop = sns.color_palette("rainbow", len(POP_ORDER))
     color_pop_dict = {k:v for k,v in zip(POP_ORDER, colors_pop)}
 
+    X_transformed = np.array(list(PCA_lbls_dict.values()))[:,0:n_comp_overall]
     for i in range(n_way):
-        idx_label = np.nonzero(pop_arr==i)[0]
+        idx_label = np.nonzero(pop_arr[:,3]==i)[0]
         ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1],X_transformed[idx_label,2], s=5,\
                   color=color_pop_dict[POP_ORDER[i]] , label = POP_ORDER[i])
         
@@ -33,32 +34,13 @@ def plot_embeddings(X_transformed, pop_arr, n_way):
         ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
         ax.zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
 
+    for i in random_idx:
+        idx_pop_arr=np.where(pop_arr[:,1]==i)[0][0]
+        ax.text(PCA_lbls_dict[i][0], PCA_lbls_dict[i][1], PCA_lbls_dict[i],[2], \
+                s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
+            fontweight='bold', fontsize = 12)
+
     return ax, fig
-
-def plot_embeddings_2d(X_transformed, pop_arr, n_way):
-    plt.rcParams['savefig.transparent'] = True
-    fig, ax= plt.subplots(figsize=(10,12))
-
-    colors_pop = sns.color_palette("rainbow", len(POP_ORDER))
-    color_pop_dict = {k:v for k,v in zip(POP_ORDER, colors_pop)}
-
-    for i in range(n_way):
-        idx_label = np.nonzero(pop_arr==i)[0]
-        ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1], s=5,\
-                  color=color_pop_dict[POP_ORDER[i]] , label = POP_ORDER[i])
-        
-        lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
-        for l in lgnd.legendHandles:
-            l._sizes = [30]
-
-        # ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-        # ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-        
-        # # make the grid lines transparent
-        # ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-        # ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-
-    return ax
 
 def plot_embeddings_2d_extended(X_transformed, pop_arr, pop_order_num=np.arange(7)):
     plt.rcParams['savefig.transparent'] = True
@@ -67,8 +49,9 @@ def plot_embeddings_2d_extended(X_transformed, pop_arr, pop_order_num=np.arange(
     colors_pop = sns.color_palette("rainbow", len(pop_order_num))
     color_pop_dict = {k:v for k,v in zip(pop_order_num, colors_pop)}
 
+    # plot it for all the continents
     for i in pop_order_num:
-        idx_label = np.nonzero(pop_arr==i)[0]
+        idx_label = np.nonzero(pop_arr[:,3]==i)[0]
         ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1], s=5,\
                   color=color_pop_dict[i] , label = POP_ORDER[i])
         
@@ -240,3 +223,126 @@ def chm_plot(label,gcd):
     ax3.set_ylabel('gcd Km')
     print(f' Overall gcd : {np.mean(gcd):.3f} Km')
     plt.show()
+
+
+def plot_extended_pca_haplotype(n_comp_overall, pop_num, rev_pop_dict, y_vcf_idx, y_pred, pop_arr, PCA_lbls_dict):
+    # for extended pca - plot the overall plot with 6 or 7 subplots for a prediction
+    fig, ax = plt.subplots(len(pop_num)+1, figsize=(10,62), gridspec_kw={'height_ratios':[1]+[1]*len(pop_num)})
+
+    plt.rcParams['savefig.transparent'] = True
+    num_labels_idx = np.unique(y_vcf_idx)
+    print(f'num_labels_idx:{num_labels_idx}')
+    colors_pop = sns.color_palette("rainbow", len(num_labels_idx))
+    j =0
+
+    gradient_cp_idx = np.unique(np.where(abs(y_pred[:-1,:]-y_pred[1:,:])>0.3)[0])
+    print(f'gradient_cp_idx:{gradient_cp_idx}')
+        
+    # subplot for overall population
+    if n_comp_overall==3:
+        #ax[0] = Axes3D(fig)
+        #ax[0] = fig.gca(projection='3d')
+        ax[0] = plt.subplot(811, projection='3d')
+        for i, val in enumerate(num_labels_idx):
+            idx_label = np.nonzero(y_vcf_idx==val)[0]
+            pop_arr_idx = np.where(pop_arr[:,1]==val)[0][0]
+            granular_pop = pop_arr[pop_arr_idx,2]
+
+            ax[0].scatter(y_pred[idx_label,0], y_pred[idx_label,1], y_pred[idx_label,2], s=55\
+                      ,color=colors_pop[j], label = rev_pop_dict[granular_pop] )
+            ax[0].scatter(PCA_lbls_dict[val][0], PCA_lbls_dict[val][1], PCA_lbls_dict[val][2], s=55\
+                      ,color=colors_pop[j], marker='X')    
+            j +=1
+
+            lgnd = ax[0].legend(bbox_to_anchor=(0.9,0.5+(i/20)))
+            for l in lgnd.legendHandles:
+                l._sizes = [30]
+
+            ax[0].xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+            ax[0].yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+            ax[0].zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+            # make the grid lines transparent
+            ax[0].xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+            ax[0].yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+            ax[0].zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+            #ax.view_init(azim=-90, elev=19)
+
+        ax[0].scatter(y_pred[gradient_cp_idx,0], y_pred[gradient_cp_idx,1], y_pred[gradient_cp_idx,2], s=100,\
+               color='black', marker='v')
+        ax[0].set_title("Overall PCA space Predictions")
+    else:
+        ax[0].set_title("Overall PCA space Predictions")
+        for i, val in enumerate(num_labels_idx):
+            idx_label = np.nonzero(y_vcf_idx==val)[0]
+            pop_arr_idx = np.where(pop_arr[:,1]==val)[0][0]
+            granular_pop = pop_arr[pop_arr_idx,2]
+
+            ax[0].scatter(y_pred[idx_label,0], y_pred[idx_label,1], s=55\
+                      ,color=colors_pop[j], label = rev_pop_dict[granular_pop] )
+            ax[0].scatter(PCA_lbls_dict[val][0], PCA_lbls_dict[val][1], s=55\
+                      ,color=colors_pop[j], marker='X')    
+            j +=1
+
+            lgnd = ax[0].legend(bbox_to_anchor=(0.9,0.5+(i/20)))
+            for l in lgnd.legendHandles:
+                l._sizes = [30]
+        
+        
+    # subplots for granular populations
+    for n, pop_num_val in enumerate(pop_num):
+        if isinstance(pop_num_val, list):
+            pop_name= "_".join([str(POP_ORDER[i]) for i in pop_num_val])
+        else:
+            pop_name = POP_ORDER[pop_num_val]
+        j=0
+        for i, val in enumerate(num_labels_idx):
+            idx_label = np.nonzero(y_vcf_idx==val)[0]
+            pop_arr_idx = np.where(pop_arr[:,1]==val)[0][0]
+            granular_pop = pop_arr[pop_arr_idx,2]
+
+            ax[n+1].scatter(y_pred[idx_label,n+n_comp_overall], y_pred[idx_label,n+n_comp_overall+1], s=55\
+                      ,color=colors_pop[j], label = rev_pop_dict[granular_pop] )
+            ax[n+1].scatter(PCA_lbls_dict[val][n+n_comp_overall], PCA_lbls_dict[val][n+n_comp_overall+1], s=75\
+                      ,color=colors_pop[j], marker='X')    
+            j +=1
+
+            lgnd = ax[n+1].legend(bbox_to_anchor=(0.9,0.5+(i/20)))
+            for l in lgnd.legendHandles:
+                l._sizes = [30]
+
+
+        ax[n+1].scatter(y_pred[gradient_cp_idx,n+n_comp_overall], y_pred[gradient_cp_idx, n+n_comp_overall+1], s=100,\
+               color='black', marker='v')
+        ax[n+1].set_title(f"{pop_name} PCA space Predictions")
+    
+    plt.subplots_adjust(hspace=0.1)
+    
+    plt.show()
+
+def plot_subclass(pop_num, pop_arr, PCA_lbls_dict, n_comp_overall, n_comp_subclass, wandb):
+    for j, pop_num_val in enumerate(pop_num):
+        # plot all the classes for the same subclass for train
+        # randomly select 30 granular pops for the particular subpop
+        
+        if isinstance(pop_num_val, list):
+            pop_specific_idx = np.where(np.isin(pop_arr[:,3], pop_num_val))[0]
+            tmp_pop_name = "_".join([str(POP_ORDER[i]) for i in pop_num_val])
+        else:
+            pop_specific_idx = np.where(pop_arr[:,3]==pop_num_val)[0]
+            tmp_pop_name = POP_ORDER[pop_num_val]                
+        random_idx = np.random.choice(pop_arr[pop_specific_idx,1], 30)
+        PCA_labels = np.array(list(PCA_lbls_dict.values()), dtype=float)
+        ax1, fig = plot_embeddings_2d_extended(PCA_labels[:, n_comp_overall+n_comp_subclass*j:n_comp_overall+n_comp_subclass*(j+1)], \
+            pop_arr)
+        
+        for k in random_idx:
+            idx_pop_arr=np.where(pop_arr[:,1]==k)[0][0]
+            ax1.text(PCA_lbls_dict[k][n_comp_overall+n_comp_subclass*j], PCA_lbls_dict[k][n_comp_overall+1+n_comp_subclass*j], \
+                    s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
+                fontweight='bold', fontsize = 12)
+
+        plt.title(f" subclass : {tmp_pop_name}")
+        plt.show()
+        if wandb is not None:
+            fig_image_subclass = wandb.Image(fig)
+            wandb.log({f"subclass for {tmp_pop_name}":fig_image_subclass})
