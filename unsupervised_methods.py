@@ -119,8 +119,8 @@ def PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_p
         #pop_num = [4,2,1,6,0,3,5]
         #pop_num = [6,4,2,1,0,3,5]
         # pop_num = [4,6,2,1,0,3,5]
-        # pop_num = [4,[6,2,1,0],3,5]
-        pop_num = [4,[6,2,1],0,3,5]
+        pop_num = [4,[6,2,1,0],3,5]
+        #pop_num = [4,[6,2,1],0,3,5]
         #revised_pop_order = 
         n_components = n_comp-n_comp_overall
         for i, pop_num_val in enumerate(pop_num):

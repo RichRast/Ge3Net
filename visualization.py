@@ -34,9 +34,9 @@ def plot_embeddings(n_comp_overall, pop_arr, n_way, random_idx, rev_pop_order, P
         ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
         ax.zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
 
-    for i in random_idx:
-        idx_pop_arr=np.where(pop_arr[:,1]==i)[0][0]
-        ax.text(PCA_lbls_dict[i][0], PCA_lbls_dict[i][1], PCA_lbls_dict[i],[2], \
+    for k in random_idx:
+        idx_pop_arr=np.where(pop_arr[:,1]==k)[0][0]
+        ax.text(PCA_lbls_dict[k][0], PCA_lbls_dict[k][1], PCA_lbls_dict[k][2], \
                 s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
             fontweight='bold', fontsize = 12)
 
@@ -319,7 +319,7 @@ def plot_extended_pca_haplotype(n_comp_overall, pop_num, rev_pop_dict, y_vcf_idx
     
     plt.show()
 
-def plot_subclass(pop_num, pop_arr, PCA_lbls_dict, n_comp_overall, n_comp_subclass, wandb):
+def plot_subclass(pop_num, pop_arr, PCA_lbls_dict, n_comp_overall, n_comp_subclass, rev_pop_order, wandb):
     for j, pop_num_val in enumerate(pop_num):
         # plot all the classes for the same subclass for train
         # randomly select 30 granular pops for the particular subpop

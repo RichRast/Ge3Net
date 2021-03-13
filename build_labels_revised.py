@@ -257,15 +257,18 @@ def main(config):
             #pop_num = [4,2,1,6,0,3,5]
             # pop_num = [4,6,2,1,0,3,5]
             #pop_num = [6,4,2,1,0,3,5]
-            # pop_num = [4,[6,2,1,0],3,5]
-            pop_num = [4,[6,2,1],0,3,5]
+            pop_num = [4,[6,2,1,0],3,5]
+            # pop_num = [4,[6,2,1],0,3,5]
 
             print("Train subclasses")
-            plot_subclass(pop_num, pop_arr_train, PCA_lbls_train_dict, n_comp_overall, n_comp_subclass, wandb)
+            plot_subclass(pop_num, pop_arr_train, PCA_lbls_train_dict, n_comp_overall, n_comp_subclass,\
+                 rev_pop_order, wandb)
             print("Valid subclasses")
-            plot_subclass(pop_num, pop_arr_valid, PCA_lbls_valid_dict, n_comp_overall, n_comp_subclass, wandb)
+            plot_subclass(pop_num, pop_arr_valid, PCA_lbls_valid_dict, n_comp_overall, n_comp_subclass, \
+                rev_pop_order, wandb)
             print("Test subclasses")
-            plot_subclass(pop_num, pop_arr_test, PCA_lbls_test_dict, n_comp_overall, n_comp_subclass, wandb)
+            plot_subclass(pop_num, pop_arr_test, PCA_lbls_test_dict, n_comp_overall, n_comp_subclass,\
+                 rev_pop_order, wandb)
                     
         if wandb is not None:
             fig_image_train_overall = wandb.Image(fig1)
