@@ -8,37 +8,58 @@ import seaborn as sns
 POP_ORDER = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
 
 def plot_embeddings(n_comp_overall, pop_arr, n_way, random_idx, rev_pop_order, PCA_lbls_dict):
-    fig=plt.figure(figsize=(10,12))
+    fig, ax = plt.subplots(figsize=(10,12))
     plt.rcParams['savefig.transparent'] = True
-    ax= Axes3D(fig)
-    ax = fig.gca(projection='3d')
 
     colors_pop = sns.color_palette("rainbow", len(POP_ORDER))
     color_pop_dict = {k:v for k,v in zip(POP_ORDER, colors_pop)}
 
     X_transformed = np.array(list(PCA_lbls_dict.values()))[:,0:n_comp_overall]
-    for i in range(n_way):
-        idx_label = np.nonzero(pop_arr[:,3]==i)[0]
-        ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1],X_transformed[idx_label,2], s=5,\
-                  color=color_pop_dict[POP_ORDER[i]] , label = POP_ORDER[i])
+
+    if n_comp_overall==3:
+        # ax= Axes3D(fig)
+        # ax = fig.gca(projection='3d')
+        ax = plt.subplot(111, projection='3d')
+
+        for i in range(n_way):
+            idx_label = np.nonzero(pop_arr[:,3]==i)[0]
+            ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1],X_transformed[idx_label,2], s=5,\
+                    color=color_pop_dict[POP_ORDER[i]] , label = POP_ORDER[i])
+            
+            lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
+            for l in lgnd.legendHandles:
+                l._sizes = [30]
+
+            ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+            ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+            ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+            # make the grid lines transparent
+            ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+            ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+            ax.zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+
+        for k in random_idx:
+            idx_pop_arr=np.where(pop_arr[:,1]==k)[0][0]
+            ax.text(PCA_lbls_dict[k][0], PCA_lbls_dict[k][1], PCA_lbls_dict[k][2], \
+                    s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
+                fontweight='bold', fontsize = 12)
         
-        lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
-        for l in lgnd.legendHandles:
-            l._sizes = [30]
+    else:
+        
+        for i in range(n_way):
+            idx_label = np.nonzero(pop_arr[:,3]==i)[0]
+            ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1], s=5, \
+                      color=color_pop_dict[POP_ORDER[i]] , label = POP_ORDER[i] )
 
-        ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-        ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-        ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-        # make the grid lines transparent
-        ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-        ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-        ax.zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+            lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
+            for l in lgnd.legendHandles:
+                l._sizes = [30]
 
-    for k in random_idx:
-        idx_pop_arr=np.where(pop_arr[:,1]==k)[0][0]
-        ax.text(PCA_lbls_dict[k][0], PCA_lbls_dict[k][1], PCA_lbls_dict[k][2], \
-                s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
-            fontweight='bold', fontsize = 12)
+        for k in random_idx:
+            idx_pop_arr=np.where(pop_arr[:,1]==k)[0][0]
+            ax.text(PCA_lbls_dict[k][0], PCA_lbls_dict[k][1], \
+                    s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
+                fontweight='bold', fontsize = 12)
 
     return ax, fig
 

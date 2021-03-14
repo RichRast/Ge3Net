@@ -119,8 +119,8 @@ class SmoothL1Loss():
         z2 = rev_mask*(abs(input_y - target) - 0.5*self.beta)
         z = z1 + z2
         if self.reduction=='sum':
-            return z.sum().item()
-        return z.mean().item()
+            return z.sum()
+        return z.mean()
     
 class Weighted_Loss():
     def __init__(self, reduction='mean', alpha = 1.0):
@@ -130,7 +130,7 @@ class Weighted_Loss():
         self.MSE_loss = torch.nn.MSELoss(reduction = self.reduction)
 
     def __call__(self, input_y, target):
-        return self.L1_loss(input_y, target)*self.alpha + (1-self.alpha)*self.MSE_loss(input_y, target).item()
+        return self.L1_loss(input_y, target)*self.alpha + (1-self.alpha)*self.MSE_loss(input_y, target)
 
 
 def gradient_reg(cp_detect, x, p=0.5):
@@ -139,7 +139,7 @@ def gradient_reg(cp_detect, x, p=0.5):
     """
     assert cp_detect, "Cannot apply gradient regularization without transition masking"
     x_diff = get_gradient(x)   
-    return torch.mean(torch.pow(torch.abs(x_diff), p)).item()
+    return torch.mean(torch.pow(torch.abs(x_diff), p))
     #return torch.mean(p*torch.log(torch.abs(x_diff)))
 
 class Changepoint_Metrics(object):

@@ -22,6 +22,8 @@ class model_D(object):
         self.criterion = Weighted_Loss(alpha=self.params.weightLoss_alpha)
         self.smooth_l1_accr = SmoothL1Loss(reduction='sum', beta=self.params.SmoothLoss_beta)
         self.weighted_loss_accr = Weighted_Loss(reduction='sum', alpha=self.params.weightLoss_alpha)
+        # only init below if plotting for train or valid where label is known
+        # self.init_plotting_args()
         
     def train(self, optimizer, training_generator, writer=None, wandb=None):
 
@@ -39,11 +41,12 @@ class model_D(object):
             else:
                 accr_avg.append(Running_Average(len(cp_accr._fields)))                
         for i, train_gen in enumerate(training_generator):
-            preds, target, y_pred_list = [], [], []
-            train_x, train_y, cp_mask = train_gen
+            preds, target, y_pred_list, cp_pred_list, cp_target_list, cp_pred_logits_list = [], [], [], [], [], []
+            train_x, train_y, cps = train_gen
             train_x = train_x[:, 0:self.params.chmlen].float().to(self.params.device)
             train_labels = train_y.to(self.params.device)
-            cp_mask = cp_mask.to(self.params.device) # mask for transition windows
+            cps = cps.to(self.params.device)
+            cp_mask = (cps==0).float() # mask for transition windows
             
             # Forward pass
             # update the gradients to zero
@@ -63,13 +66,14 @@ class model_D(object):
             if self.params.tbptt:
                 rnn_state = None
                 bptt_batch_chunks = split_batch(train_lstm.clone(), self.params.tbptt_steps)
-                batch_cp_mask_chunks = split_batch(cp_mask, self.params.tbptt_steps)
+                batch_cps_chunks = split_batch(cps, self.params.tbptt_steps)
                 batch_label = split_batch(train_labels, self.params.tbptt_steps)
                 
-                for x_chunk, batch_label_chunk, cp_mask_chunk in zip(bptt_batch_chunks, batch_label, batch_cp_mask_chunks):
+                for x_chunk, batch_label_chunk, cps_chunk in zip(bptt_batch_chunks, batch_label, batch_cps_chunks):
                     x_chunk = V(x_chunk)
                     
                     train_vec_64, train_vector, rnn_state = self.main_network(x_chunk, rnn_state)
+                    cp_mask_chunk = (cps_chunk==0).float()
 
                     # for each bptt size we have the same batch_labels
                     loss_main_chunk = self.criterion(train_vector*cp_mask_chunk, batch_label_chunk*cp_mask_chunk)
@@ -81,19 +85,16 @@ class model_D(object):
                         reg_loss = gradient_reg(self.params.cp_detect, train_vector*cp_mask_chunk, p = self.params.reg_loss_pow)
                     if self.params.cp_predict:
                         assert self.params.cp_detect, "cp detection is not true while cp prediction is true"
-                        cp_pred_logits = self.cp_network(train_vec_64)
-                        cp_pred = torch.round(torch.sigmoid(cp_pred_logits)) 
-                        # invert the mask for the cp target
-                        cp_target = torch.where(cp_mask_chunk[:,:,0].unsqueeze(2)==0.0, torch.tensor([1.0]).to(self.params.device), torch.tensor([0.0]).to(self.params.device))
-                        cp_pred_loss = F.binary_cross_entropy_with_logits(cp_pred_logits, cp_target).item()
-                        #preds.append(cp_pred)
-                        #target.append(cp_target)
+                        cp_pred_logits, cp_pred, cp_target, cp_pred_loss_chunk = self.get_cp_predict(train_vec_64, cps_chunk)
+                        cp_pred_list.append(cp_pred)
+                        cp_target_list.append(cp_target)
+                        cp_pred_logits_list.append(cp_pred_logits)
                     
-                    loss_main_chunk += reg_loss + cp_pred_loss
+                    loss_main_chunk += reg_loss + cp_pred_loss_chunk
 
                     # do back propagation for tbptt steps in time
                     loss_main_chunk.backward()
-
+                    
                     # after doing back prob, detach rnn state to implement TBPTT
                     # now rnn_state was detached and chain of gradients was broken
                     rnn_state = self.main_network._detach_rnn_state(rnn_state)
@@ -105,6 +106,14 @@ class model_D(object):
                 target.append(train_labels*cp_mask)
                 sample_size = cp_mask.sum() 
 
+                cp_pred_out = torch.cat(cp_pred_list,1)
+                cp_target_out = torch.cat(cp_target_list, 1)
+                cp_pred_out_logits =  torch.cat(cp_pred_logits_list, 1)
+                cp_pred_loss = F.binary_cross_entropy_with_logits(cp_pred_out_logits, cp_target_out).item()
+                preds.append(cp_pred_out_logits)
+                target.append(cp_target_out)
+
+
             else:
                 train_vec_64, y_pred, _ = self.main_network(train_lstm)
                 preds.append(y_pred*cp_mask)
@@ -115,12 +124,9 @@ class model_D(object):
                     reg_loss = gradient_reg(self.params.cp_detect, train_vector*cp_mask, p = self.params.reg_loss_pow)
                 if self.params.cp_predict: # for parallel branch to predict changepoints
                     assert self.params.cp_detect, "cp detection is not true while cp prediction is true"
-                    cp_pred_logits = self.cp_network(train_vec_64)
-                    cp_pred = torch.round(torch.sigmoid(cp_pred_logits))    
-                    cp_target = torch.where(cp_mask[:,:,0].unsqueeze(2)==0.0, torch.tensor([1.0]).to(self.params.device), torch.tensor([0.0]).to(self.params.device))
-                    cp_pred_loss = F.binary_cross_entropy_with_logits(cp_pred_logits, cp_target).item()
-                    #preds.append(cp_pred)
-                    #target.append(cp_target)
+                    cp_pred_logits, cp_pred, cp_target, cp_pred_loss = self.get_cp_predict(train_vec_64, cps)
+                    preds.append(cp_pred)
+                    target.append(cp_target)
                 
                 loss_main = self.criterion(y_pred*cp_mask, train_labels*cp_mask)
                 
@@ -148,8 +154,10 @@ class model_D(object):
             if wandb:
                 wandb.log({"MainTask_Loss/train":loss_main, "batch_num":i})
                 wandb.log({"AuxTask_Loss/train":loss_aux, "batch_num":i})
-                #wandb.log({"train_cp_pred_logits":cp_pred_logits.detach().cpu(),"batch_num":i})
-                #wandb.log({"train_cp_loss":train_accr.cp_accr.cp_loss,"batch_num":i})
+                wandb.log({"train_cp_pred_logits":cp_pred_out_logits.detach().cpu(),"batch_num":i})
+                wandb.log({"train_cp_loss":cp_pred_loss,"batch_num":i})
+                wandb.log({"train_cp_accr":train_accr.cp_accr._asdict(), "batch_num":i})
+        
         # preds for tbptt will need to have a separate logic
         train_result=results(accr = train_accr, pred=[y_pred, cp_pred, None])
         
@@ -178,10 +186,11 @@ class model_D(object):
                     accr_avg.append(Running_Average(len(cp_accr._fields)))  
 
             for j, val_gen in enumerate(validation_generator):
-                val_x, val_y, _ = val_gen
+                val_x, val_y, cps = val_gen
                 val_x = val_x[:, 0:self.params.chmlen].float().to(self.params.device)
                 val_labels = val_y.to(self.params.device)
-                #cp_mask = cp_mask.to(self.params.device)
+                cps = cps.to(self.params.device)
+                cp_mask = (cps==0).float()
                 sample_size = val_labels.shape[0]*val_labels.shape[1]*val_labels.shape[2]
                 output_list, vec_64_list, cp_pred_list = [], [], []
                 preds, target =[], []
@@ -212,21 +221,17 @@ class model_D(object):
                 vec_64_cat = torch.cat(vec_64_list, 0).contiguous().\
                 view(self.params.mc_samples, -1, self.params.n_win, vec_64.shape[-1]).mean(0)
                 
-                preds.append(outputs_cat)
-                target.append(val_labels)
+                preds.append(outputs_cat*cp_mask)
+                target.append(val_labels*cp_mask)
 
                 if self.params.cp_predict:
-                    cp_pred_out_logits = self.cp_network(vec_64_cat)
-                    cp_pred_out = torch.round(torch.sigmoid(cp_pred_out_logits))
-                    # cp_target = torch.where(cp_mask[:,:,0].unsqueeze(2)==0.0, torch.tensor([1.0]).to(self.params.device), torch.tensor([0.0]).to(self.params.device))
-                    # cp_pred_loss = F.binary_cross_entropy_with_logits(cp_pred_out_logits, cp_target)
-                    # preds.append(cp_pred_out)
-                    # target.append(cp_target)
+                    cp_pred_out_logits, cp_pred_out, cp_target, cp_pred_loss = self.get_cp_predict(vec_64_cat, cps)
+                    preds.append(cp_pred_out_logits)
+                    target.append(cp_target)
                 
-                val_loss_regress_MLP = self.criterion(out4, val_labels)
-                val_loss_main = self.criterion(outputs_cat, val_labels)
-                test_loss = self.weighted_loss_accr(outputs_cat, val_labels)/float(sample_size)
- 
+                val_loss_regress_MLP = self.criterion(out4*cp_mask, val_labels*cp_mask)
+                val_loss_main = self.criterion(outputs_cat*cp_mask, val_labels*cp_mask)
+                
                 if j>0:
                     y_pred = torch.cat((y_pred, outputs_cat), dim=0)
                     y_pred_var = torch.cat((y_pred_var, outputs_var), dim=0)
@@ -248,8 +253,9 @@ class model_D(object):
                 if wandb:
                     wandb.log({"MainTask_Loss/val":val_loss_main,"batch_num":j})
                     wandb.log({"AuxTask_Loss/val":val_loss_regress_MLP,"batch_num":j})
-                    # wandb.log({"val_cp_pred_logits":cp_pred_out_logits.detach().cpu(),"batch_num":j})
-                    # wandb.log({"val_cp_loss":accuracy.cp_accr.cp_loss,"batch_num":j})
+                    wandb.log({"val_cp_pred_logits":cp_pred_out_logits.detach().cpu(),"batch_num":j})
+                    wandb.log({"val_cp_loss":cp_pred_loss,"batch_num":j})
+                    wandb.log({"val_cp_accr":accuracy.cp_accr._asdict(), "batch_num":j})
                     
             eval_result = results(accr = accuracy, pred = [y_pred, cp_pred, y_pred_var])
 
@@ -335,7 +341,7 @@ class model_D(object):
             index = 71
             # y_vcf_idx = 
             # y_pred = 
-            # plot(y_vcf_idx, y_pred_idx, wandb)
+            # plot_extended_pca_haplotype(n_comp_overall, pop_num, rev_pop_dict, y_vcf_idx, y_pred, pop_arr, PCA_lbls_dict)
 
         test_result = results(accr = None, pred = [y_pred, cp_pred, y_pred_var])
 
@@ -378,16 +384,55 @@ class model_D(object):
         weighted_loss = accr_avg[3]()
         
         cp_accuracy = [None]*len(cp_accr._fields)
-        # if self.params.cp_predict:
-        #     cp_pred = preds[1]
-        #     cp_target = target[1]
-        #     cp_loss_sum = F.binary_cross_entropy(cp_pred, cp_target, reduction = 'sum').item()
-        #     precision, recall, _, _, balanced_accuracy = eval_cp_batch(cp_pred, cp_target, seq_len = cp_target.shape[0])
-        #     accr_avg[4].update([cp_loss_sum, precision, recall, balanced_accuracy] , [sample_size]*len(cp_accr._fields))
-        #     cp_accuracy = accr_avg[4]()
+        if self.params.cp_predict:
+            cp_pred_out_logits = preds[1]
+            cp_target = target[1]
+            cp_loss_sum = F.binary_cross_entropy_with_logits(cp_pred_out_logits, cp_target, reduction = 'sum').item()
+            cp_target = cp_target.squeeze(2)
+            cp_pred = (torch.sigmoid(cp_pred_out_logits)>0.5).int()
+            cp_pred = cp_pred.squeeze(2)
+            precision, recall, _, _, balanced_accuracy = eval_cp_batch(cp_target, cp_pred)
+            accr_avg[4].update([cp_loss_sum, precision, recall, balanced_accuracy] , [sample_size/target_y.shape[-1], 1, 1, 1])
+            cp_accuracy = accr_avg[4]()
+            
           
         accuracy = accr(l1_loss, mse_loss, smooth_l1_loss, weighted_loss, cp_accr(*cp_accuracy))
         
         return accuracy
+
+    def get_superpop_mask(self, superpop, pop_num, dim):
+
+        self.sp_mask = np.zeros((superpop.shape[0], superpop.shape[1], dim))
+
+        for i, pop_num_val in enumerate(pop_num):
+            if isinstance(pop_num_val, list):
+                idx_subclass = np.nonzero(np.isin(superpop, pop_num_val))[0]
+            else:    
+                idx_subclass = np.nonzero(superpop==pop_num_val)[0]
+            
+            self.sp_mask[idx_subclass[0], idx_subclass[1], n_comp_overall+i:n_comp_overall+n_comp_subclass:i]=1
+    
+    def get_cp_predict(self, x, cps):
+        cp_pred_out_logits = self.cp_network(x)
+        cp_pred_out = (torch.sigmoid(cp_pred_out_logits)>0.5).int()
+        cp_target = cps[:,:,0].unsqueeze(2)
+        cp_pred_loss = F.binary_cross_entropy_with_logits(cp_pred_out_logits, cp_target)
+
+        return cp_pred_out_logits, cp_pred_out, cp_target, cp_pred_loss
+    
+    def init_plotting_args(self):
+        # self.rev_pop_dict = load_path( , en_pickle=True)
+        # pop_sample_map =  load_path()
+        # self.pop_arr = repeat_pop_arr(pop_sample_map)
+        # self.PCA_lbls_dict = load_path( , en_pickle=True)
+        pass
+
+    def plot_haplotype(self, index,  y_vcf_idx, y_pred):
+
+        fig, ax = plot_extended_pca_haplotype(self.params.n_comp_overall, self.params.pop_num, \
+            self.rev_pop_dict, y_vcf_idx, y_pred, self.pop_arr, self.PCA_lbls_dict)
+
+
+
 
         
