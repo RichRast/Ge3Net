@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from torch.autograd import Variable as V
 import torch.nn.functional as F
 from collections import namedtuple
@@ -22,10 +23,8 @@ class model_D(object):
         self.criterion = Weighted_Loss(alpha=self.params.weightLoss_alpha)
         self.smooth_l1_accr = SmoothL1Loss(reduction='sum', beta=self.params.SmoothLoss_beta)
         self.weighted_loss_accr = Weighted_Loss(reduction='sum', alpha=self.params.weightLoss_alpha)
-        # only init below if plotting for train or valid where label is known
-        # self.init_plotting_args()
         
-    def train(self, optimizer, training_generator, writer=None, wandb=None):
+    def train(self, optimizer, training_generator, train_plot, writer=None, wandb=None):
 
         self.aux_network.train()
         self.main_network.train()
@@ -42,19 +41,24 @@ class model_D(object):
                 accr_avg.append(Running_Average(len(cp_accr._fields)))                
         for i, train_gen in enumerate(training_generator):
             preds, target, y_pred_list, cp_pred_list, cp_target_list, cp_pred_logits_list = [], [], [], [], [], []
-            train_x, train_y, cps = train_gen
+            train_x, train_y, cps, superpop = train_gen
             train_x = train_x[:, 0:self.params.chmlen].float().to(self.params.device)
             train_labels = train_y.to(self.params.device)
             cps = cps.to(self.params.device)
             cp_mask = (cps==0).float() # mask for transition windows
-            
+
+            if self.params.superpop_mask:
+                sp_mask = self.get_superpop_mask(superpop, self.params.pop_num, self.params.dataset_dim)
+            else:
+                sp_mask = torch.ones_like(train_labels)
+
             # Forward pass
             # update the gradients to zero
             optimizer.zero_grad()
             
             out1, out2, _, out4 = self.aux_network(train_x)
             
-            loss_aux = self.criterion(out4*cp_mask, train_labels*cp_mask)
+            loss_aux = self.criterion(out4*cp_mask*sp_mask, train_labels*cp_mask*sp_mask)
             train_x = out1.reshape(train_x.shape[0], self.params.n_win, self.params.aux_net_hidden)
             # add residual connection by taking the gradient of aux network predictions
             aux_diff = get_gradient(out4)
@@ -68,15 +72,16 @@ class model_D(object):
                 bptt_batch_chunks = split_batch(train_lstm.clone(), self.params.tbptt_steps)
                 batch_cps_chunks = split_batch(cps, self.params.tbptt_steps)
                 batch_label = split_batch(train_labels, self.params.tbptt_steps)
+                sp_mask_chunks = split_batch(sp_mask, self.params.tbptt_steps)
                 
-                for x_chunk, batch_label_chunk, cps_chunk in zip(bptt_batch_chunks, batch_label, batch_cps_chunks):
+                for x_chunk, batch_label_chunk, cps_chunk, sp_mask_chunk in zip(bptt_batch_chunks, batch_label, batch_cps_chunks, sp_mask_chunks):
                     x_chunk = V(x_chunk)
                     
                     train_vec_64, train_vector, rnn_state = self.main_network(x_chunk, rnn_state)
                     cp_mask_chunk = (cps_chunk==0).float()
 
                     # for each bptt size we have the same batch_labels
-                    loss_main_chunk = self.criterion(train_vector*cp_mask_chunk, batch_label_chunk*cp_mask_chunk)
+                    loss_main_chunk = self.criterion(train_vector*cp_mask_chunk*sp_mask_chunk, batch_label_chunk*cp_mask_chunk*sp_mask_chunk)
                     # preds.append(train_vector*cp_mask_chunk)
                     # target.append(batch_label_chunk*cp_mask_chunk)
                     # sample_size = batch_label_chunk.shape[0] * batch_label_chunk.shape[1]
@@ -101,9 +106,9 @@ class model_D(object):
                     y_pred_list.append(train_vector)
                 
                 y_pred = torch.cat(y_pred_list,1)
-                loss_main = self.criterion(y_pred*cp_mask, train_labels*cp_mask)
-                preds.append(y_pred*cp_mask)
-                target.append(train_labels*cp_mask)
+                loss_main = self.criterion(y_pred*cp_mask*sp_mask, train_labels*cp_mask*sp_mask)
+                preds.append(y_pred*cp_mask*sp_mask)
+                target.append(train_labels*cp_mask*sp_mask)
                 sample_size = cp_mask.sum() 
 
                 cp_pred_out = torch.cat(cp_pred_list,1)
@@ -157,6 +162,14 @@ class model_D(object):
                 wandb.log({"train_cp_pred_logits":cp_pred_out_logits.detach().cpu(),"batch_num":i})
                 wandb.log({"train_cp_loss":cp_pred_loss,"batch_num":i})
                 wandb.log({"train_cp_accr":train_accr.cp_accr._asdict(), "batch_num":i})
+
+                # randomly or non-randomly select an index and plot the output
+                if i==0:
+                    idx = 71
+                    y_target_idx = train_labels[idx,:,:].detach().cpu().numpy()
+                    y_pred_idx = y_pred[idx,:,:].detach().cpu().numpy()
+                    fig, ax = train_plot.plot_index(idx, y_pred_idx, y_target_idx)
+                    wandb.log({ f" Train Image for idx {idx} ":wandb.Image(fig)})
         
         # preds for tbptt will need to have a separate logic
         train_result=results(accr = train_accr, pred=[y_pred, cp_pred, None])
@@ -171,7 +184,7 @@ class model_D(object):
         torch.cuda.empty_cache()
         return train_result
         
-    def valid(self, validation_generator, writer=None, wandb=None):        
+    def valid(self, validation_generator, val_plot, writer=None, wandb=None):        
         self.main_network.eval()
         self.aux_network.eval()
         self.cp_network.eval()
@@ -186,11 +199,17 @@ class model_D(object):
                     accr_avg.append(Running_Average(len(cp_accr._fields)))  
 
             for j, val_gen in enumerate(validation_generator):
-                val_x, val_y, cps = val_gen
+                val_x, val_y, cps, superpop = val_gen
                 val_x = val_x[:, 0:self.params.chmlen].float().to(self.params.device)
                 val_labels = val_y.to(self.params.device)
                 cps = cps.to(self.params.device)
                 cp_mask = (cps==0).float()
+
+                if self.params.superpop_mask:
+                    sp_mask = self.get_superpop_mask(superpop, self.params.pop_num, self.params.dataset_dim)
+                else:
+                    sp_mask = torch.ones_like(train_labels)
+
                 sample_size = val_labels.shape[0]*val_labels.shape[1]*val_labels.shape[2]
                 output_list, vec_64_list, cp_pred_list = [], [], []
                 preds, target =[], []
@@ -221,16 +240,16 @@ class model_D(object):
                 vec_64_cat = torch.cat(vec_64_list, 0).contiguous().\
                 view(self.params.mc_samples, -1, self.params.n_win, vec_64.shape[-1]).mean(0)
                 
-                preds.append(outputs_cat*cp_mask)
-                target.append(val_labels*cp_mask)
+                preds.append(outputs_cat*cp_mask*sp_mask)
+                target.append(val_labels*cp_mask*sp_mask)
 
                 if self.params.cp_predict:
                     cp_pred_out_logits, cp_pred_out, cp_target, cp_pred_loss = self.get_cp_predict(vec_64_cat, cps)
                     preds.append(cp_pred_out_logits)
                     target.append(cp_target)
                 
-                val_loss_regress_MLP = self.criterion(out4*cp_mask, val_labels*cp_mask)
-                val_loss_main = self.criterion(outputs_cat*cp_mask, val_labels*cp_mask)
+                val_loss_regress_MLP = self.criterion(out4*cp_mask*sp_mask, val_labels*cp_mask*sp_mask)
+                val_loss_main = self.criterion(outputs_cat*cp_mask*sp_mask, val_labels*cp_mask*sp_mask)
                 
                 if j>0:
                     y_pred = torch.cat((y_pred, outputs_cat), dim=0)
@@ -257,13 +276,15 @@ class model_D(object):
                     wandb.log({"val_cp_loss":cp_pred_loss,"batch_num":j})
                     wandb.log({"val_cp_accr":accuracy.cp_accr._asdict(), "batch_num":j})
                     
+                    # randomly or non-randomly select an index and plot the output
+                    if j==0:
+                        idx = 71
+                        y_target_idx = val_labels[idx,:,:].detach().cpu().numpy()
+                        y_pred_idx = y_pred[idx,:,:].detach().cpu().numpy()
+                        fig, ax = val_plot.plot_index(idx, y_pred_idx, y_target_idx)
+                        wandb.log({ f"Val Image for idx {idx}":wandb.Image(fig)})
+                    
             eval_result = results(accr = accuracy, pred = [y_pred, cp_pred, y_pred_var])
-
-            # randomly or non-randomly select an index and plot the output
-            index = 71
-            # y_vcf_idx = 
-            # y_pred = 
-            # plot(y_vcf_idx, y_pred_idx, wandb)
 
         # delete tensors for memory optimization
         del val_x, val_labels, out1, out2, out4, val_x_sample, aux_diff, val_lstm, y_pred, y_pred_var,\
@@ -402,15 +423,20 @@ class model_D(object):
 
     def get_superpop_mask(self, superpop, pop_num, dim):
 
-        self.sp_mask = np.zeros((superpop.shape[0], superpop.shape[1], dim))
+        superpop = superpop.detach().cpu().numpy()
+        sp_mask = np.zeros((superpop.shape[0], superpop.shape[1], dim))
+
+        sp_mask[:,:,0:self.params.n_comp_overall] = 1
 
         for i, pop_num_val in enumerate(pop_num):
             if isinstance(pop_num_val, list):
-                idx_subclass = np.nonzero(np.isin(superpop, pop_num_val))[0]
+                idx_subclass = np.nonzero(np.isin(superpop, pop_num_val))
             else:    
-                idx_subclass = np.nonzero(superpop==pop_num_val)[0]
+                idx_subclass = np.nonzero(superpop==pop_num_val)
             
-            self.sp_mask[idx_subclass[0], idx_subclass[1], n_comp_overall+i:n_comp_overall+n_comp_subclass:i]=1
+            sp_mask[idx_subclass[0], idx_subclass[1], self.params.n_comp_overall+self.params.n_comp_subclass*i:self.params.n_comp_overall+self.params.n_comp_subclass*(i+1)]=1
+        
+        return torch.tensor(sp_mask).float().to(self.params.device)
     
     def get_cp_predict(self, x, cps):
         cp_pred_out_logits = self.cp_network(x)
@@ -420,17 +446,8 @@ class model_D(object):
 
         return cp_pred_out_logits, cp_pred_out, cp_target, cp_pred_loss
     
-    def init_plotting_args(self):
-        # self.rev_pop_dict = load_path( , en_pickle=True)
-        # pop_sample_map =  load_path()
-        # self.pop_arr = repeat_pop_arr(pop_sample_map)
-        # self.PCA_lbls_dict = load_path( , en_pickle=True)
-        pass
 
-    def plot_haplotype(self, index,  y_vcf_idx, y_pred):
-
-        fig, ax = plot_extended_pca_haplotype(self.params.n_comp_overall, self.params.pop_num, \
-            self.rev_pop_dict, y_vcf_idx, y_pred, self.pop_arr, self.PCA_lbls_dict)
+        
 
 
 
