@@ -97,13 +97,13 @@ def PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_p
     std_train = vcf_train.std(axis=0)
     std_train[std_train==0] = 1
 
-    norm_train = (vcf_train - mean_train)/std_train
-    norm_valid = (vcf_valid - mean_train)/std_train
-    norm_test = (vcf_test - mean_train)/std_train
+    # norm_train = (vcf_train - mean_train)/std_train
+    # norm_valid = (vcf_valid - mean_train)/std_train
+    # norm_test = (vcf_test - mean_train)/std_train
 
-    # norm_train = (vcf_train - mean_train)
-    # norm_valid = (vcf_valid - mean_train)
-    # norm_test = (vcf_test - mean_train)
+    norm_train = (vcf_train - mean_train)
+    norm_valid = (vcf_valid - mean_train)
+    norm_test = (vcf_test - mean_train)
    
     pca_train = pca.fit(norm_train)
     PCA_transform_train = pca_train.transform(norm_train)
@@ -118,9 +118,9 @@ def PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_p
         #pop_num = [0,1,2,3,4,5,6]
         #pop_num = [4,2,1,6,0,3,5]
         #pop_num = [6,4,2,1,0,3,5]
-        # pop_num = [4,6,2,1,0,3,5]
+        pop_num = [4,6,2,1,0,3,5]
         # pop_num = [4,[6,2,1,0],3,5]
-        pop_num = [4,[6,2,1],0,3,5]
+        # pop_num = [4,[6,2,1],0,3,5]
         #revised_pop_order = 
         n_components = n_comp-n_comp_overall
         for i, pop_num_val in enumerate(pop_num):

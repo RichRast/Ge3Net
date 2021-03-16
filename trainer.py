@@ -67,20 +67,8 @@ def main(config, params, trial=None):
     if params.plotting:
         granular_pop_dict = load_path(osp.join(dataset_path, 'granular_pop.pkl'), en_pickle=True)
         rev_pop_dict = {v:k for k,v in granular_pop_dict.items()}
-        # train_pop_sample_map =  validation_dataset.pop_sample_map
-        # train_pop_arr = repeat_pop_arr(train_pop_sample_map)
-        # val_pop_sample_map =  validation_dataset.pop_sample_map
-        # val_pop_arr = repeat_pop_arr(val_pop_sample_map)
-
-        # val_y_vcf = torch.tensor(validation_dataset.vcf_idx[:,0:params.chmlen].reshape(-1,params.n_win, params.aux_net_in)).float()
-        # val_y_vcf = torch.mode(val_y_vcf,dim=2)[0]
-        # val_y_vcf = val_y_vcf.detach().cpu().numpy()
-
-        # train_y_vcf = torch.tensor(training_dataset.vcf_idx[:,0:params.chmlen].reshape(-1,params.n_win, params.aux_net_in)).float()
-        # train_y_vcf = torch.mode(train_y_vcf,dim=2)[0]
-        # train_y_vcf = train_y_vcf.detach().cpu().numpy()
-        train_plot = Plot_per_epoch(params.n_comp_overall, params.pop_num, rev_pop_dict, training_dataset.y_vcf_idx, training_dataset.pop_arr)
-        val_plot = Plot_per_epoch(params.n_comp_overall, params.pop_num, rev_pop_dict, validation_dataset.y_vcf_idx, validation_dataset.pop_arr)
+        train_plot = Plot_per_epoch(params.n_comp_overall, params.n_comp_subclass, params.pop_num, rev_pop_dict, training_dataset.y_vcf_idx, training_dataset.pop_arr)
+        val_plot = Plot_per_epoch(params.n_comp_overall, params.n_comp_subclass, params.pop_num, rev_pop_dict, validation_dataset.y_vcf_idx, validation_dataset.pop_arr)
          
     # Create the model
     model_subclass, model_basics = MODEL_CLASS[params.model]

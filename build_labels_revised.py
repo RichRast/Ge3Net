@@ -127,16 +127,25 @@ def repeat_pop_arr(sample_map):
     return pop_arr
 
 def main(config):
-
+    
     # set seed 
     seed = config['data.seed']
     np.random.seed(seed)
-
+    print(f"seed used in this run : {seed}")
     data_out_path = osp.join(str(config['data.data_out']), config['data.experiment_name'], str(config['data.experiment_id']))
     print(f"data_out_path : {str(data_out_path)}")
     if not osp.exists(data_out_path):
         print(f"dataset out dir doesn't exist, making {str(data_out_path)}")
         os.makedirs(data_out_path , exist_ok=True)
+
+    try:
+        wandb.init(project="Build_labels")
+    except Exception as e:
+        print(e)
+        print("wandb could not be initialized")
+        wandb=None
+    else:
+        print("logging to wandb")
 
     # Note1: Throughout vcf_idx and filter_idx refer to 2i and 2i+1 
     # Note1: and ref_idx refers to the reference idx in reference sample map
@@ -224,14 +233,7 @@ def main(config):
         save_file(osp.join(data_out_path, 'train_sample_map.tsv'), train_sample_map, en_df=True)
         save_file(osp.join(data_out_path, 'valid_sample_map.tsv'), valid_sample_map, en_df=True)
         save_file(osp.join(data_out_path, 'test_sample_map.tsv'), test_sample_map, en_df=True)
-        
-        try:
-            wandb.init(project="Build_labels", config=config)
-        except:
-            print("wandb could not be initialized")
-            wandb=None
-            pass
-
+            
         # print randomly 30 granular pop on the PCA plot of train 
         # random_idx refers to vcf_ref_idx
         random_idx = np.random.choice(train_filter_idx, 30)
@@ -255,10 +257,10 @@ def main(config):
 
             # pop_num = [0,1,2,3,4,5,6]
             #pop_num = [4,2,1,6,0,3,5]
-            # pop_num = [4,6,2,1,0,3,5]
+            pop_num = [4,6,2,1,0,3,5]
             #pop_num = [6,4,2,1,0,3,5]
             # pop_num = [4,[6,2,1,0],3,5]
-            pop_num = [4,[6,2,1],0,3,5]
+            # pop_num = [4,[6,2,1],0,3,5]
 
             print("Train subclasses")
             plot_subclass(pop_num, pop_arr_train, PCA_lbls_train_dict, n_comp_overall, n_comp_subclass,\

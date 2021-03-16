@@ -3,6 +3,7 @@ import pandas as pd
 import torch 
 from torch.utils.data import Dataset, DataLoader
 from helper_funcs import load_path
+from build_labels_revised import repeat_pop_arr
 import os.path as osp
 from decorators import timer
 
@@ -44,9 +45,9 @@ class Haplotype(Dataset):
                 else:
                     self.snps = curr_snps
                     self.vcf_idx = curr_vcf_idx
-
-            if self.params.superpop_mask:
-                self.pop_sample_map = pd.read_csv(osp.join(labels_path, self.params.pop_sample_map), sep='\t')
+   
+            pop_sample_map = pd.read_csv(osp.join(labels_path, self.params.pop_sample_map), sep='\t')
+            self.pop_arr = repeat_pop_arr(pop_sample_map)
             self.coordinates = load_path(osp.join(labels_path, self.params.coordinates), en_pickle=True)
             self.load_data()
     
@@ -76,7 +77,7 @@ class Haplotype(Dataset):
         
         result = np.zeros((y_vcf.shape[0], y_vcf.shape[1])).astype(float)
         if type=='superpop':
-            col_num=2
+            col_num=3
             for k in np.unique(y_vcf):
                 idx = np.nonzero(y_vcf==k)
                 pop_arr_idx = np.nonzero(pop_arr[:,1]==k)[0]
@@ -92,9 +93,9 @@ class Haplotype(Dataset):
         self.data['X'] = torch.tensor(self.snps[:,0:self.params.chmlen])
         y_tmp = torch.tensor(self.vcf_idx[:,0:self.params.chmlen])
         y_tmp = y_tmp.reshape(-1, self.params.n_win, self.params.win_size)
-        y_vcf_idx = torch.mode(y_tmp, dim=2)[0]
+        self.y_vcf_idx = (torch.mode(y_tmp, dim=2)[0]).detach().cpu().numpy()
         
-        self.data['y'] = self.mapping_func(y_vcf_idx.detach().cpu().numpy(), self.coordinates, self.params.dataset_dim)
+        self.data['y'] = self.mapping_func(self.y_vcf_idx, self.coordinates, self.params.dataset_dim)
         
         if self.params.cp_detect:
             # if the only gen is gen 0 then there will be no changepoints with founders
@@ -114,7 +115,9 @@ class Haplotype(Dataset):
             self.data['cps'] = torch.ones_like(self.data['y'])
 
         if self.params.superpop_mask:
-            self.data['superpop'] = self.pop_mapping(y_vcf_idx.detach().cpu().numpy(), self.pop_sample_map, type='superpop')
+            self.data['superpop'] = self.pop_mapping(self.y_vcf_idx, self.pop_arr, type='superpop')
+        else:
+            self.data['superpop'] = torch.ones_like(self.data['y'])
     
     def __getitem__(self, idx):
         ls =[]
