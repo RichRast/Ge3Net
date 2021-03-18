@@ -247,21 +247,19 @@ def chm_plot(label,gcd):
 
 
 class Plot_per_epoch(object):
-    def __init__(self, n_comp_overall, n_comp_subclass, pop_num, rev_pop_dict, y_vcf, pop_arr):
+    def __init__(self, n_comp_overall, n_comp_subclass, pop_num, rev_pop_dict, pop_arr):
         self.n_comp_overall = n_comp_overall
         self.n_comp_subclass = n_comp_subclass
         self.pop_num = pop_num
         self.rev_pop_dict = rev_pop_dict
-        self.y_vcf = y_vcf
         self.pop_arr = pop_arr
 
-    def plot_index(self, idx, y_pred, y_target):
+    def plot_index(self, y_pred, y_target, y_vcf_idx):
         # for extended pca - plot the overall plot with 6 or 7 subplots for a prediction
         fig, ax = plt.subplots(len(self.pop_num)+1, figsize=(10,62), gridspec_kw={'height_ratios':[1]+[1]*len(self.pop_num)})
-
         plt.rcParams['savefig.transparent'] = True
-        y_vcf_idx = self.y_vcf[idx,:]
         num_labels_idx = np.unique(y_vcf_idx)
+        print(f'num_labels_idx:{num_labels_idx}')
         colors_pop = sns.color_palette("rainbow", len(num_labels_idx))
         j =0
 
@@ -303,7 +301,7 @@ class Plot_per_epoch(object):
             ax[0].set_title("Overall PCA space Predictions")
             for i, val in enumerate(num_labels_idx):
                 idx_label = np.nonzero(y_vcf_idx==val)[0]
-                pop_arr_idx = np.where(self.pop_arr[:,1]==val)[0][0]
+                pop_arr_idx = (np.where(self.pop_arr[:,1]==val)[0]).item()
                 granular_pop = self.pop_arr[pop_arr_idx,2]
 
                 ax[0].scatter(y_pred[idx_label,0], y_pred[idx_label,1], s=55\
@@ -326,13 +324,13 @@ class Plot_per_epoch(object):
                 j=0
                 for i, val in enumerate(num_labels_idx):
                     idx_label = np.nonzero(y_vcf_idx==val)[0]
-                    pop_arr_idx = np.where(self.pop_arr[:,1]==val)[0][0]
+                    pop_arr_idx = (np.where(self.pop_arr[:,1]==val)[0]).item()
                     granular_pop = self.pop_arr[pop_arr_idx,2]
 
                     ax[n+1].scatter(y_pred[idx_label,n+self.n_comp_overall], y_pred[idx_label,n+self.n_comp_overall+1], s=55\
-                            ,color=colors_pop[j], label = self.rev_pop_dict[granular_pop] )
+                            ,color=colors_pop[j] )
                     ax[n+1].scatter(y_target[idx_label,n+self.n_comp_overall], y_target[idx_label,n+self.n_comp_overall+1], s=75\
-                            ,color=colors_pop[j], marker='X')    
+                            ,color=colors_pop[j], marker='X', label = self.rev_pop_dict[granular_pop])    
                     j +=1
 
                     lgnd = ax[n+1].legend(bbox_to_anchor=(0.9,0.5+(i/20)))

@@ -11,10 +11,12 @@ from helper_funcs import save_checkpoint, set_logger, load_model, early_stopping
 from dataset import Haplotype
 from settings import parse_args, MODEL_CLASS
 from visualization import Plot_per_epoch
+from build_labels_revised import repeat_pop_arr
 import matplotlib.pyplot as plt
 
 import torch
 import numpy as np
+import pandas as pd
 from collections import namedtuple
 from torch.utils.tensorboard import SummaryWriter
 import wandb
@@ -67,8 +69,10 @@ def main(config, params, trial=None):
     if params.plotting:
         granular_pop_dict = load_path(osp.join(dataset_path, 'granular_pop.pkl'), en_pickle=True)
         rev_pop_dict = {v:k for k,v in granular_pop_dict.items()}
-        train_plot = Plot_per_epoch(params.n_comp_overall, params.n_comp_subclass, params.pop_num, rev_pop_dict, training_dataset.y_vcf_idx, training_dataset.pop_arr)
-        val_plot = Plot_per_epoch(params.n_comp_overall, params.n_comp_subclass, params.pop_num, rev_pop_dict, validation_dataset.y_vcf_idx, validation_dataset.pop_arr)
+        pop_sample_map = pd.read_csv(osp.join(labels_path, params.pop_sample_map), sep='\t')
+        pop_arr = repeat_pop_arr(pop_sample_map)
+        plot_obj = Plot_per_epoch(params.n_comp_overall, params.n_comp_subclass, params.pop_num, rev_pop_dict, pop_arr)
+        
          
     # Create the model
     model_subclass, model_basics = MODEL_CLASS[params.model]
@@ -105,11 +109,11 @@ def main(config, params, trial=None):
         model_path = osp.join(config['model.working_dir'], config['model.pretrained_version'], 'best.pt')
         #model_main, model_aux, start_epoch, optimizer = load_model(model_path, model_aux, model_main, optimizer)
 
-    training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, train_plot, val_plot, wandb)    
+    training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, plot_obj, wandb)    
    
     
 @timer
-def training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, train_plot, val_plot, wandb):
+def training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, plot_obj, wandb):
      # optimizer
     optimizer = torch.optim.Adam(model_params)
     #custom_optimizer = custom_opt(optimizer, d_model=params.att['input_size'], warmup_steps=params.att['warmup_steps'], factor=params.att['factor'], groups=params.lr_groups)
@@ -122,9 +126,9 @@ def training_loop(model, model_params, middle_models, params, config, training_g
     patience = 0
 
     for epoch in range(start_epoch, params.num_epochs):
-        train_result = model.train(optimizer, training_generator, train_plot, wandb=wandb)
+        train_result = model.train(optimizer, training_generator, plot_obj, wandb=wandb)
 
-        eval_result = model.valid(validation_generator, val_plot, wandb=wandb)
+        eval_result = model.valid(validation_generator, plot_obj, wandb=wandb)
         plt.close('all')
         
         if config['log.verbose']:

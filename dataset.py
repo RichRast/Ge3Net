@@ -24,7 +24,7 @@ class Haplotype(Dataset):
         print(f" Loading {dataset_type} Dataset")
 
         # can add more here, example granular_pop is not being used
-        self.data = {'X':None, 'y':None, 'cps':None, 'superpop':None, 'granular_pop':None}
+        self.data = {'X':None, 'y':None, 'y_vcf_idx':None, 'cps':None, 'superpop':None, 'granular_pop':None}
 
         if labels_path is None:
             print(f'Loading snps data')
@@ -50,7 +50,7 @@ class Haplotype(Dataset):
             self.pop_arr = repeat_pop_arr(pop_sample_map)
             self.coordinates = load_path(osp.join(labels_path, self.params.coordinates), en_pickle=True)
             self.load_data()
-    
+        
     def __len__(self):
         return len(self.data['X']) 
     
@@ -93,9 +93,9 @@ class Haplotype(Dataset):
         self.data['X'] = torch.tensor(self.snps[:,0:self.params.chmlen])
         y_tmp = torch.tensor(self.vcf_idx[:,0:self.params.chmlen])
         y_tmp = y_tmp.reshape(-1, self.params.n_win, self.params.win_size)
-        self.y_vcf_idx = (torch.mode(y_tmp, dim=2)[0]).detach().cpu().numpy()
+        self.data['y_vcf_idx'] = (torch.mode(y_tmp, dim=2)[0]).detach().cpu().numpy()
         
-        self.data['y'] = self.mapping_func(self.y_vcf_idx, self.coordinates, self.params.dataset_dim)
+        self.data['y'] = self.mapping_func(self.data['y_vcf_idx'], self.coordinates, self.params.dataset_dim)
         
         if self.params.cp_detect:
             # if the only gen is gen 0 then there will be no changepoints with founders
@@ -115,7 +115,7 @@ class Haplotype(Dataset):
             self.data['cps'] = torch.ones_like(self.data['y'])
 
         if self.params.superpop_mask:
-            self.data['superpop'] = self.pop_mapping(self.y_vcf_idx, self.pop_arr, type='superpop')
+            self.data['superpop'] = self.pop_mapping(self.data['y_vcf_idx'], self.pop_arr, type='superpop')
         else:
             self.data['superpop'] = torch.ones_like(self.data['y'])
     
