@@ -254,7 +254,7 @@ class Plot_per_epoch(object):
         self.rev_pop_dict = rev_pop_dict
         self.pop_arr = pop_arr
 
-    def plot_index(self, y_pred, y_target, y_vcf_idx):
+    def plot_index(self, y_pred_overall, y_pred_subclass, y_target, y_vcf_idx):
         # for extended pca - plot the overall plot with 6 or 7 subplots for a prediction
         fig, ax = plt.subplots(len(self.pop_num)+1, figsize=(10,62), gridspec_kw={'height_ratios':[1]+[1]*len(self.pop_num)})
         plt.rcParams['savefig.transparent'] = True
@@ -263,7 +263,7 @@ class Plot_per_epoch(object):
         colors_pop = sns.color_palette("rainbow", len(num_labels_idx))
         j =0
 
-        gradient_cp_idx = np.unique(np.where(abs(y_pred[:-1,:]-y_pred[1:,:])>0.3)[0])
+        gradient_cp_idx = np.unique(np.where(abs(y_pred_overall[:-1,:]-y_pred_overall[1:,:])>0.3)[0])
             
         # subplot for overall population
         if self.n_comp_overall==3:
@@ -275,7 +275,7 @@ class Plot_per_epoch(object):
                 pop_arr_idx = (np.where(self.pop_arr[:,1]==val)[0]).item()
                 granular_pop = self.pop_arr[pop_arr_idx,2]
 
-                ax[0].scatter(y_pred[idx_label,0], y_pred[idx_label,1], y_pred[idx_label,2], s=55\
+                ax[0].scatter(y_pred_overall[idx_label,0], y_pred_overall[idx_label,1], y_pred_overall[idx_label,2], s=55\
                         ,color=colors_pop[j], label = self.rev_pop_dict[granular_pop] )
                 ax[0].scatter(y_target[idx_label,0], y_target[idx_label,1], y_target[idx_label,2], s=55\
                         ,color=colors_pop[j], marker='X')    
@@ -294,7 +294,7 @@ class Plot_per_epoch(object):
                 ax[0].zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
                 #ax.view_init(azim=-90, elev=19)
 
-            ax[0].scatter(y_pred[gradient_cp_idx,0], y_pred[gradient_cp_idx,1], y_pred[gradient_cp_idx,2], s=100,\
+            ax[0].scatter(y_pred_overall[gradient_cp_idx,0], y_pred_overall[gradient_cp_idx,1], y_pred_overall[gradient_cp_idx,2], s=100,\
                 color='black', marker='v')
             ax[0].set_title("Overall PCA space Predictions")
         else:
@@ -304,7 +304,7 @@ class Plot_per_epoch(object):
                 pop_arr_idx = (np.where(self.pop_arr[:,1]==val)[0]).item()
                 granular_pop = self.pop_arr[pop_arr_idx,2]
 
-                ax[0].scatter(y_pred[idx_label,0], y_pred[idx_label,1], s=55\
+                ax[0].scatter(y_pred_overall[idx_label,0], y_pred_overall[idx_label,1], s=55\
                         ,color=colors_pop[j], label = self.rev_pop_dict[granular_pop] )
                 ax[0].scatter(y_target[idx_label,0], y_target[idx_label,1], s=55\
                         ,color=colors_pop[j], marker='X')    
@@ -327,7 +327,7 @@ class Plot_per_epoch(object):
                     pop_arr_idx = (np.where(self.pop_arr[:,1]==val)[0]).item()
                     granular_pop = self.pop_arr[pop_arr_idx,2]
 
-                    ax[n+1].scatter(y_pred[idx_label,n+self.n_comp_overall], y_pred[idx_label,n+self.n_comp_overall+1], s=55\
+                    ax[n+1].scatter(y_pred_subclass[idx_label,n], y_pred_subclass[idx_label,n+1], s=55\
                             ,color=colors_pop[j] )
                     ax[n+1].scatter(y_target[idx_label,n+self.n_comp_overall], y_target[idx_label,n+self.n_comp_overall+1], s=75\
                             ,color=colors_pop[j], marker='X', label = self.rev_pop_dict[granular_pop])    
@@ -338,7 +338,7 @@ class Plot_per_epoch(object):
                         l._sizes = [30]
 
 
-                ax[n+1].scatter(y_pred[gradient_cp_idx,n+self.n_comp_overall], y_pred[gradient_cp_idx, n+self.n_comp_overall+1], s=100,\
+                ax[n+1].scatter(y_pred_subclass[gradient_cp_idx,n], y_pred_subclass[gradient_cp_idx, n+1], s=100,\
                     color='black', marker='v')
                 ax[n+1].set_title(f"{pop_name} PCA space Predictions")
         

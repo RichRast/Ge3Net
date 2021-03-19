@@ -188,3 +188,11 @@ def gcd_loss(y_pred, y, mask=None):
     eps = 1e-4
     sum_gcd = torch.sum(torch.acos(torch.sum(y_pred * y, dim=2).clamp(-1.0 + eps, 1.0 - eps)) * mask) * EARTH_RADIUS
     return sum_gcd
+
+def class_accuracy(y_pred, y_test):
+    correct_pred = (y_pred == y_test).astype(float)
+    n = y_test.shape[0]
+    w = y_test.shape[1]
+    acc = correct_pred.sum() / (n * w)
+    acc = acc * 100
+    return acc
