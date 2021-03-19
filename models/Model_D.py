@@ -87,7 +87,7 @@ class model_D(object):
                 sp_chunks = split_batch(superpop, self.params.tbptt_steps)
                 
                 for x_chunk, batch_label_chunk, cps_chunk, sp_mask_chunk, sp_chunk in zip(bptt_batch_chunks, batch_label, batch_cps_chunks, sp_mask_chunks, sp_chunks):
-                    x_chunk = V(x_chunk)
+                    x_chunk = V(x_chunk, requires_grad=True)
                     
                     train_vec_64, train_vector, rnn_state = self.main_network(x_chunk, rnn_state)
                     cp_mask_chunk = (cps_chunk==0).float()
