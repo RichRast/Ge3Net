@@ -103,21 +103,27 @@ class Haplotype(Dataset):
             cps = self.data['y'][:,:-1,:]-self.data['y'][:,1:,:]
             #insert 0 at the end
             cps = torch.cat((cps, torch.zeros_like(self.data['y'][:,0,:]).unsqueeze(1)), dim=1)
-            
             assert cps.sum()!=0, "No changepoints found. Check the input file"
-            cp_idx = torch.nonzero(cps)[0]
-            for i in cp_idx:
-                cps[i-self.params.cp_tol:i+self.params.cp_tol] = cps[i]
-            #revert to make a mask
-            # self.data['cp_mask'] = torch.where(cps==0.0, torch.tensor([1.0]), torch.tensor([0.0]))
-            self.data['cps'] = cps
+
+            # find window indices where diff for any dim !=0
+            # set all the dim =1
+            cps_copy = torch.zeros_like(cps)
+            # find the sum across the dimensions for each window and find the indices where
+            # at least one dimension is nonzero
+            cps_sum_dims = torch.abs(cps).sum(dim=2)
+            cps_sum_idx = torch.nonzero(cps_sum_dims)
+            for i,j in zip(cps_sum_idx[:,1], cps_sum_idx[:,0]):
+                cps_copy[j, i-self.params.cp_tol:i+self.params.cp_tol+1, :] = 1
+            self.data['cps'] = cps_copy
         else:
-            self.data['cps'] = torch.ones_like(self.data['y'])
+            self.data['cps'] = torch.zeros_like(self.data['y'])
 
         if self.params.superpop_mask:
             self.data['superpop'] = self.pop_mapping(self.data['y_vcf_idx'], self.pop_arr, type='superpop')
         else:
             self.data['superpop'] = torch.ones_like(self.data['y'])
+        del cps, cps_copy
+        torch.cuda.empty_cache()
     
     def __getitem__(self, idx):
         ls =[]
@@ -125,4 +131,5 @@ class Haplotype(Dataset):
             if v is not None:
                 ls.append(self.data[k][idx])
         return ls
+
 

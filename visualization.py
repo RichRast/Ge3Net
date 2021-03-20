@@ -327,9 +327,9 @@ class Plot_per_epoch(object):
                     pop_arr_idx = (np.where(self.pop_arr[:,1]==val)[0]).item()
                     granular_pop = self.pop_arr[pop_arr_idx,2]
 
-                    ax[n+1].scatter(y_pred_subclass[idx_label,n], y_pred_subclass[idx_label,n+1], s=55\
+                    ax[n+1].scatter(y_pred_subclass[idx_label,2*n], y_pred_subclass[idx_label,2*n+1], s=55\
                             ,color=colors_pop[j] )
-                    ax[n+1].scatter(y_target[idx_label,n+self.n_comp_overall], y_target[idx_label,n+self.n_comp_overall+1], s=75\
+                    ax[n+1].scatter(y_target[idx_label,2*n+self.n_comp_overall], y_target[idx_label,2*n+1+self.n_comp_overall], s=75\
                             ,color=colors_pop[j], marker='X', label = self.rev_pop_dict[granular_pop])    
                     j +=1
 
@@ -338,7 +338,7 @@ class Plot_per_epoch(object):
                         l._sizes = [30]
 
 
-                ax[n+1].scatter(y_pred_subclass[gradient_cp_idx,n], y_pred_subclass[gradient_cp_idx, n+1], s=100,\
+                ax[n+1].scatter(y_pred_subclass[gradient_cp_idx,2*n], y_pred_subclass[gradient_cp_idx, 2*n+1], s=100,\
                     color='black', marker='v')
                 ax[n+1].set_title(f"{pop_name} PCA space Predictions")
         

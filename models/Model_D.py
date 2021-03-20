@@ -57,12 +57,12 @@ class model_D(object):
 
             if self.params.superpop_mask:
                 sp_mask = self.get_superpop_mask(superpop, self.params.pop_num, self.params.dataset_dim)
+                superpop = superpop.to(self.params.device)
             else:
                 sp_mask = torch.ones_like(train_labels)
-
-            superpop = superpop.to(self.params.device)
+            
             sp_mask = sp_mask.to(self.params.device)
-
+            
             # Forward pass
             # update the gradients to zero
             optimizer.zero_grad()
@@ -167,24 +167,7 @@ class model_D(object):
                 
             y = [preds, target]
             train_accr = self.evaluate_accuracy(accr_avg, sample_size, *y)
-
-            # test for params.requires_grad
-            # print("param requires grad for aux_network")
-            # for param in self.aux_network.parameters():
-            #     print(f"param : {param}, {param.requires_grad}")
-
-            # print("param requires grad for aux_network")
-            # for param in self.main_network.parameters():
-            #     print(f"param : {param}, {param.requires_grad}")
-
-            # print("param requires grad for aux_network")
-            # for param in self.cp_network.parameters():
-            #     print(f"param : {param}, {param.requires_grad}")
-
-            # print("param requires grad for aux_network")
-            # for param in self.sp_network.parameters():
-            #     print(f"param : {param}, {param.requires_grad}")    
-
+   
             # clip gradient norm
             torch.nn.utils.clip_grad_norm_(self.main_network.parameters(), self.params.clip)
             
@@ -208,7 +191,6 @@ class model_D(object):
                 wandb.log({"AuxTask_Loss/train":loss_aux, "batch_num":i})
                 wandb.log({"train_cp_loss":cp_pred_loss,"batch_num":i})
                 wandb.log({"train_cp_accr":train_accr.cp_accr._asdict(), "batch_num":i})
-                wandb.log({"train_sp_pred":sp_pred_out, "batch_num":i})
                 wandb.log({"train_residual_loss":residual_loss,"batch_num":i})
 
                 # randomly or non-randomly select an index and plot the output
@@ -341,20 +323,19 @@ class model_D(object):
                     wandb.log({"val_cp_loss":cp_pred_loss,"batch_num":j})
                     wandb.log({"val_cp_accr":accuracy.cp_accr._asdict(), "batch_num":j})
                     wandb.log({"val_sp_loss":sp_pred_loss, "batch_num":j})
-                    wandb.log({"val_sp_pred":sp_pred.detach().cpu().numpy(), "batch_num":j})
                     wandb.log({"val_residual_loss":val_loss_residual,"batch_num":j})
                     
                     # randomly or non-randomly select an index and plot the output
                     if j==0:
-                        idx = 30
-                        y_target_idx = val_labels[idx,:,:].detach().cpu().numpy().reshape(-1, self.params.dataset_dim)
-                        y_pred_idx = outputs_cat[idx,:,:].detach().cpu().numpy().reshape(-1, self.params.rnn_net_out)
-                        y_subclass_idx = residual_pred[idx,:,:].detach().cpu().numpy()
-                        val_vcf_idx = vcf_idx[idx,:].detach().cpu().numpy().reshape(-1, 1)
-                        fig, ax = plot_obj.plot_index(y_pred_idx, y_subclass_idx, y_target_idx, val_vcf_idx)
-                        wandb.log({ f"Val Image for idx {idx}":wandb.Image(fig)})
-                        # print(f'sp_target:{superpop[idx,:]}')
-                        # print(f'sp_pred:{sp_pred_out[idx,:]}')
+                        
+                        idx = [30,44,48,54,71]
+                        for k in idx:
+                            y_target_idx = val_labels[k,:,:].detach().cpu().numpy().reshape(-1, self.params.dataset_dim)
+                            y_pred_idx = outputs_cat[k,:,:].detach().cpu().numpy().reshape(-1, self.params.rnn_net_out)
+                            y_subclass_idx = residual_pred[k,:,:].detach().cpu().numpy()
+                            val_vcf_idx = vcf_idx[k,:].detach().cpu().numpy().reshape(-1, 1)
+                            fig, ax = plot_obj.plot_index(y_pred_idx, y_subclass_idx, y_target_idx, val_vcf_idx)
+                            wandb.log({ f"Val Image for idx {k}":wandb.Image(fig)})
                     
             eval_result = results(accr = accuracy, pred = [y_pred, cp_pred, y_pred_var])
 
