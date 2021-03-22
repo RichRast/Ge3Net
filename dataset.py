@@ -121,7 +121,7 @@ class Haplotype(Dataset):
         if self.params.superpop_mask:
             self.data['superpop'] = self.pop_mapping(self.data['y_vcf_idx'], self.pop_arr, type='superpop')
         else:
-            self.data['superpop'] = torch.ones_like(self.data['y'])
+            self.data['superpop'] = np.ones_like(self.data['y_vcf_idx'])
         del cps, cps_copy
         torch.cuda.empty_cache()
     

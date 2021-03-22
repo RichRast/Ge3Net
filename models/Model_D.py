@@ -56,11 +56,10 @@ class model_D(object):
             cp_mask = (cps==0).float() # mask for transition windows
 
             if self.params.superpop_mask:
-                sp_mask = self.get_superpop_mask(superpop, self.params.pop_num, self.params.dataset_dim)
-                superpop = superpop.to(self.params.device)
+                sp_mask = self.get_superpop_mask(superpop, self.params.pop_num, self.params.dataset_dim)    
             else:
                 sp_mask = torch.ones_like(train_labels)
-            
+            superpop = superpop.to(self.params.device)
             sp_mask = sp_mask.to(self.params.device)
             
             # Forward pass
@@ -109,7 +108,7 @@ class model_D(object):
                         sp_pred_logits, sp_pred, sp_pred_loss_chunk = self.get_sp_predict(train_vec_64, sp_chunk)
                         sp_pred_list.append(sp_pred)
                     
-                    if self.params.superpop_mask:
+                    if self.params.residual:
                         residual_out_chunk = self.residual_network(train_vec_64)
                         residual_loss_chunk = self.criterion(residual_out_chunk*cp_mask_chunk[:,:,3:5]*sp_mask_chunk[:,:,3:5], \
                             batch_label_chunk[:,:,3:5]*cp_mask_chunk[:,:,3:5]*sp_mask_chunk[:,:,3:5])
@@ -201,7 +200,7 @@ class model_D(object):
                     y_subclass_idx = residual_out[idx,:,:].detach().cpu().numpy()
                     train_vcf_idx = vcf_idx[idx,:].detach().cpu().numpy().reshape(-1, 1)
                     fig, ax = plot_obj.plot_index(y_pred_idx, y_subclass_idx, y_target_idx, train_vcf_idx)
-                    wandb.log({ f" Train Image for idx {idx} ":wandb.Image(fig)})
+                    wandb.log({f" Train Image for idx {idx} ":wandb.Image(fig)})
         
         # preds for tbptt will need to have a separate logic
         train_result=results(accr = train_accr, pred=[y_pred, cp_pred, None])
@@ -287,7 +286,7 @@ class model_D(object):
                     sp_pred_logits, sp_pred_out, sp_pred_loss= self.get_sp_predict(vec_64_cat, superpop)
                     preds.append(sp_pred_out.detach().cpu().numpy())
                     target.append(superpop.detach().cpu().numpy())
-                if self.params.superpop_mask:
+                if self.params.residual:
                     residual_out = self.residual_network(vec_64_cat)
                   
                 val_loss_regress_MLP = self.criterion(out4*cp_mask[:,:,0:3], val_labels[:,:,0:3]*cp_mask[:,:,0:3])
