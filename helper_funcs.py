@@ -49,11 +49,12 @@ class Params():
 def load_path(path, en_pickle=False, en_df=False):
     with open (path, 'rb') as f:
         if en_pickle:
-            return pickle.load(f)
+            file_content = pickle.load(f)
         elif en_df:
-            return pd.read_csv(f, sep="\t", header=None)
+            file_content = pd.read_csv(f, sep="\t", header=None)
         else:
-            return np.load(f)
+            file_content = np.load(f)
+    return file_content
 
 def save_file(path, file, en_pickle=False, en_df=False ):
     with open (path, 'wb') as f:
