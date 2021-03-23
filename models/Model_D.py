@@ -61,6 +61,11 @@ class model_D(object):
                 sp_mask = torch.ones_like(train_labels)
             superpop = superpop.to(self.params.device)
             sp_mask = sp_mask.to(self.params.device)
+
+            if self.params.residual:
+                n_comp = self.params.n_comp_overall
+            else:
+                n_comp = self.params.n_comp_overall + self.params.n_comp_subclass
             
             # Forward pass
             # update the gradients to zero
@@ -68,15 +73,12 @@ class model_D(object):
             
             out1, out2, _, out4 = self.aux_network(train_x)
             
-            loss_aux = self.criterion(out4*cp_mask[:,:,0:3], train_labels[:,:,0:3]*cp_mask[:,:,0:3])
+            loss_aux = self.criterion(out4[:,:,0:n_comp]*cp_mask[:,:,0:n_comp], train_labels[:,:,0:n_comp]*cp_mask[:,:,0:n_comp])
             train_x = out1.reshape(train_x.shape[0], self.params.n_win, self.params.aux_net_hidden)
             # add residual connection by taking the gradient of aux network predictions
             aux_diff = get_gradient(out4)
             train_lstm = torch.cat((train_x, aux_diff), dim =2)
             
-            #to do make this dynamic so that each model class is defined with dynamic input and outputs
-            self.params.rnn_net_in= train_lstm.shape[-1]
-
             if self.params.tbptt:
                 rnn_state = None
                 bptt_batch_chunks = split_batch(train_lstm.clone(), self.params.tbptt_steps)
@@ -92,7 +94,7 @@ class model_D(object):
                     cp_mask_chunk = (cps_chunk==0).float()
 
                     # for each bptt size we have the same batch_labels
-                    loss_main_chunk = self.criterion(train_vector*cp_mask_chunk[:,:,0:3], batch_label_chunk[:,:,0:3]*cp_mask_chunk[:,:,0:3])
+                    loss_main_chunk = self.criterion(train_vector[:,:,0:n_comp]*cp_mask_chunk[:,:,0:n_comp], batch_label_chunk[:,:,0:n_comp]*cp_mask_chunk[:,:,0:n_comp])
 
                     if self.params.reg_loss:
                         #add regularization loss
@@ -127,10 +129,10 @@ class model_D(object):
                 
                 # concatenating across windows because training was done in chunks of windows
                 y_pred = torch.cat(y_pred_list,1)
-                loss_main = self.criterion(y_pred*cp_mask[:,:,0:3], train_labels[:,:,0:3]*cp_mask[:,:,0:3])
-                preds.append(y_pred*cp_mask[:,:,0:3])
-                target.append(train_labels[:,:,0:3]*cp_mask[:,:,0:3])
-                sample_size = cp_mask[:,:,0:3].sum() 
+                loss_main = self.criterion(y_pred[:,:,0:n_comp]*cp_mask[:,:,0:n_comp], train_labels[:,:,0:n_comp]*cp_mask[:,:,0:n_comp]).item()
+                preds.append(y_pred[:,:,0:n_comp]*cp_mask[:,:,0:n_comp])
+                target.append(train_labels[:,:,0:n_comp]*cp_mask[:,:,0:n_comp])
+                sample_size = cp_mask[:,:,0:n_comp].sum() 
 
                 cp_pred_out = torch.cat(cp_pred_list,1)
                 cp_target_out = torch.cat(cp_target_list, 1)
@@ -139,14 +141,16 @@ class model_D(object):
                 preds.append(cp_pred_out_logits)
                 target.append(cp_target_out)
 
-                sp_pred_out = torch.cat(sp_pred_list,1)
-                sp_pred_out = sp_pred_out.detach().cpu().numpy()
-                superpop = superpop.detach().cpu().numpy()
-                preds.append(sp_pred_out)
-                target.append(superpop)
+                if self.params.superpop_predict:
+                    sp_pred_out = torch.cat(sp_pred_list,1)
+                    sp_pred_out = sp_pred_out.detach().cpu().numpy()
+                    superpop = superpop.detach().cpu().numpy()
+                    preds.append(sp_pred_out)
+                    target.append(superpop)
 
-                residual_out = torch.cat(residual_list,1)                
-                residual_loss = self.criterion(residual_out*cp_mask[:,:,3:5]*sp_mask[:,:,3:5], train_labels[:,:,3:5]*cp_mask[:,:,3:5]*sp_mask[:,:,3:5])
+                if self.params.residual:
+                    residual_out = torch.cat(residual_list,1)                
+                    residual_loss = self.criterion(residual_out*cp_mask[:,:,3:5]*sp_mask[:,:,3:5], train_labels[:,:,3:5]*cp_mask[:,:,3:5]*sp_mask[:,:,3:5])
 
             else:
                 train_vec_64, y_pred, _ = self.main_network(train_lstm)
@@ -190,14 +194,20 @@ class model_D(object):
                 wandb.log({"AuxTask_Loss/train":loss_aux, "batch_num":i})
                 wandb.log({"train_cp_loss":cp_pred_loss,"batch_num":i})
                 wandb.log({"train_cp_accr":train_accr.cp_accr._asdict(), "batch_num":i})
-                wandb.log({"train_residual_loss":residual_loss,"batch_num":i})
+                if self.params.residual:
+                    wandb.log({"train_residual_loss":residual_loss,"batch_num":i})
 
                 # randomly or non-randomly select an index and plot the output
                 if i==0:
                     idx = 71
                     y_target_idx = train_labels[idx,:,:].detach().cpu().numpy().reshape(-1, self.params.dataset_dim)
-                    y_pred_idx = y_pred[idx,:,:].detach().cpu().numpy().reshape(-1, self.params.rnn_net_out)
-                    y_subclass_idx = residual_out[idx,:,:].detach().cpu().numpy()
+                    y_pred_idx = y_pred[idx,:,0:self.params.n_comp_overall].detach().cpu().numpy().reshape(-1, self.params.n_comp_overall)
+                    if self.params.residual:
+                        y_subclass_idx = residual_out[idx,:,:].detach().cpu().numpy()
+                    else:
+                        y_subclass_idx = y_pred[idx,:,-self.params.n_comp_subclass:].detach().cpu().numpy().reshape(self.params.n_win, -1)
+                        print(f'y_subclass_idx shape:{y_subclass_idx.shape}')
+                        
                     train_vcf_idx = vcf_idx[idx,:].detach().cpu().numpy().reshape(-1, 1)
                     fig, ax = plot_obj.plot_index(y_pred_idx, y_subclass_idx, y_target_idx, train_vcf_idx)
                     wandb.log({f" Train Image for idx {idx} ":wandb.Image(fig)})
@@ -246,6 +256,11 @@ class model_D(object):
                 superpop = superpop.to(self.params.device)
                 sp_mask = sp_mask.to(self.params.device)
 
+                if self.params.residual:
+                    n_comp = self.params.n_comp_overall
+                else:
+                    n_comp = self.params.n_comp_overall + self.params.n_comp_subclass
+
                 sample_size = val_labels.shape[0]*val_labels.shape[1]*val_labels.shape[2]
                 preds, target, output_list, vec_64_list, cp_pred_list = [[] for _ in range(5)]
                 
@@ -275,8 +290,8 @@ class model_D(object):
                 vec_64_cat = torch.cat(vec_64_list, 0).contiguous().\
                 view(self.params.mc_samples, -1, self.params.n_win, vec_64.shape[-1]).mean(0)
                 
-                preds.append(outputs_cat*cp_mask[:,:,0:3])
-                target.append(val_labels[:,:,0:3]*cp_mask[:,:,0:3])
+                preds.append(outputs_cat[:,:,0:n_comp]*cp_mask[:,:,0:n_comp])
+                target.append(val_labels[:,:,0:n_comp]*cp_mask[:,:,0:n_comp])
 
                 if self.params.cp_predict:
                     cp_pred_out_logits, cp_pred_out, cp_target, cp_pred_loss = self.get_cp_predict(vec_64_cat, cps)
@@ -289,24 +304,29 @@ class model_D(object):
                 if self.params.residual:
                     residual_out = self.residual_network(vec_64_cat)
                   
-                val_loss_regress_MLP = self.criterion(out4*cp_mask[:,:,0:3], val_labels[:,:,0:3]*cp_mask[:,:,0:3])
-                val_loss_main = self.criterion(outputs_cat*cp_mask[:,:,0:3], val_labels[:,:,0:3]*cp_mask[:,:,0:3])
-                val_loss_residual = self.criterion(residual_out*cp_mask[:,:,3:5]*sp_mask[:,:,3:5], val_labels[:,:,3:5]*cp_mask[:,:,3:5]*sp_mask[:,:,3:5])
+                val_loss_regress_MLP = self.criterion(out4[:,:,0:n_comp]*cp_mask[:,:,0:n_comp], val_labels[:,:,0:n_comp]*cp_mask[:,:,0:n_comp]).item()
+                val_loss_main = self.criterion(outputs_cat[:,:,0:n_comp]*cp_mask[:,:,0:n_comp], val_labels[:,:,0:n_comp]*cp_mask[:,:,0:n_comp]).item()
+                if self.params.residual:
+                    val_loss_residual = self.criterion(residual_out*cp_mask[:,:,3:5]*sp_mask[:,:,3:5], val_labels[:,:,3:5]*cp_mask[:,:,3:5]*sp_mask[:,:,3:5])
                 
                 # concatenating for all the batches for the particular epoch
                 if j>0:
                     y_pred = torch.cat((y_pred, outputs_cat), dim=0)
                     y_pred_var = torch.cat((y_pred_var, outputs_var), dim=0)
                     cp_pred = torch.cat((cp_pred, cp_pred_out), dim=0)
-                    sp_pred = torch.cat((sp_pred, sp_pred_out), dim=0)
-                    residual_pred = torch.cat((residual_pred, residual_out), dim=0)
+                    if self.params.superpop_predict:
+                        sp_pred = torch.cat((sp_pred, sp_pred_out), dim=0)
+                    if self.params.residual:
+                        residual_pred = torch.cat((residual_pred, residual_out), dim=0)
 
                 else:
                     y_pred = outputs_cat
                     y_pred_var = outputs_var
                     cp_pred = cp_pred_out
-                    sp_pred = sp_pred_out
-                    residual_pred = residual_out
+                    if self.params.superpop_predict:
+                        sp_pred = sp_pred_out
+                    if self.params.residual:
+                        residual_pred = residual_out
                    
                 y = [preds, target]
                 accuracy = self.evaluate_accuracy(accr_avg, sample_size, *y) 
@@ -321,8 +341,10 @@ class model_D(object):
                     wandb.log({"AuxTask_Loss/val":val_loss_regress_MLP,"batch_num":j})
                     wandb.log({"val_cp_loss":cp_pred_loss,"batch_num":j})
                     wandb.log({"val_cp_accr":accuracy.cp_accr._asdict(), "batch_num":j})
-                    wandb.log({"val_sp_loss":sp_pred_loss, "batch_num":j})
-                    wandb.log({"val_residual_loss":val_loss_residual,"batch_num":j})
+                    if self.params.superpop_predict:
+                        wandb.log({"val_sp_loss":sp_pred_loss, "batch_num":j})
+                    if self.params.residual:
+                        wandb.log({"val_residual_loss":val_loss_residual,"batch_num":j})
                     
                     # randomly or non-randomly select an index and plot the output
                     if j==0:
@@ -330,8 +352,11 @@ class model_D(object):
                         idx = [30,44,48,54,71]
                         for k in idx:
                             y_target_idx = val_labels[k,:,:].detach().cpu().numpy().reshape(-1, self.params.dataset_dim)
-                            y_pred_idx = outputs_cat[k,:,:].detach().cpu().numpy().reshape(-1, self.params.rnn_net_out)
-                            y_subclass_idx = residual_pred[k,:,:].detach().cpu().numpy()
+                            y_pred_idx = outputs_cat[k,:,0:self.params.n_comp_overall].detach().cpu().numpy().reshape(-1, self.params.n_comp_overall)
+                            if self.params.residual:
+                                y_subclass_idx = residual_pred[k,:,:].detach().cpu().numpy()
+                            else:
+                                y_subclass_idx = outputs_cat[k,:,-self.params.n_comp_subclass:].detach().cpu().numpy().reshape(self.params.n_win, -1)
                             val_vcf_idx = vcf_idx[k,:].detach().cpu().numpy().reshape(-1, 1)
                             fig, ax = plot_obj.plot_index(y_pred_idx, y_subclass_idx, y_target_idx, val_vcf_idx)
                             wandb.log({ f"Val Image for idx {k}":wandb.Image(fig)})
@@ -509,6 +534,9 @@ class model_D(object):
         sp_pred_loss = F.cross_entropy(sp_pred_out_logits, sp_target)
 
         return sp_pred_out_logits, sp_pred_out, sp_pred_loss
+    
+    def get_rnn_pred(self, x_lstm, labels, cps, sp_mask, superpop, pred_type="valid"):
+        pass
     
 
         
