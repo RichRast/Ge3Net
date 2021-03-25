@@ -35,9 +35,10 @@ sbatch << EOT
 #SBATCH -p gpu
 #SBATCH -c 10
 #SBATCH -G 1
+#SBATCH -C GPU_MEM:32GB
 #SBATCH --mem=80G
 #SBATCH -t 24:00:00
-#SBATCH --output=slurm-%a_%j_exp_$exp_$model_type.out
+#SBATCH --output=$OUT_PATH/logs/slurm-%a_%j_exp_$exp_$model_type.out
 
 ml load py-pytorch/1.4.0_py36
 ml load py-scipy/1.4.1_py36
@@ -45,6 +46,7 @@ ml load py-matplotlib/3.2.1_py36
 ml load py-pandas/1.0.3_py36
 ml load cuda/10.1.168
 ml load git-lfs/2.4.0
+ml load system nvtop
 
 python3 trainer.py --data.experiment_id $exp \
 --data.params_dir '$USER_PATH/experiments/pca/exp_$model_type/' \
@@ -52,4 +54,5 @@ python3 trainer.py --data.experiment_id $exp \
 --data.labels_dir '$OUT_PATH/unsupervised_labeling/$exp'
 EOT
 
+sleep .5
 squeue -u richras

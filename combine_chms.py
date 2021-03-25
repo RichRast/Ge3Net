@@ -34,9 +34,9 @@ def process_filter_chm(geno_type, vcf_prefix, chm_start, chm_end, combined_snps_
     
     for i in chm:
         if geno_type=='humans':
-            vcf_file = ''.join([vcf_prefix, 'master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr', str(i), ".vcf.gz"])
+            vcf_file = ''.join([vcf_prefix, '/master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr', str(i), ".vcf.gz"])
         elif geno_type=='dogs':
-            vcf_file = ''.join([vcf_prefix, 'chr', str(i), '/', 'chr', str(i), '_expt1_filtered.vcf.gz'])
+            vcf_file = ''.join([vcf_prefix, '/chr', str(i), '/', 'chr', str(i), '_expt1_filtered.vcf.gz'])
 
         if combine:
             mat_vcf_np = vcf2npy(vcf_file) 
