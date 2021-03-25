@@ -72,9 +72,12 @@ class Residual_Block(nn.Module):
         # self.layernorm1 = nn.LayerNorm(params.Residual_Block_hidden1)
         # self.fc3 = nn.Linear(params.Residual_Block_hidden1, params.Residual_Block_out)
 
+        
+
     def forward(self, x):
         # out_1 = self.dropout(self.relu(self.layernorm(self.fc1(x))))
         # out_2 = self.dropout(self.relu(self.layernorm1(self.fc2(out_1))))
         # logits = self.fc3(out_2)
         logits = self.fc1(x)
-        return logits
+        
+        return logits 

@@ -118,7 +118,7 @@ class Haplotype(Dataset):
         else:
             self.data['cps'] = torch.zeros_like(self.data['y'])
 
-        if self.params.superpop_mask:
+        if self.params.superpop_predict:
             self.data['superpop'] = self.pop_mapping(self.data['y_vcf_idx'], self.pop_arr, type='superpop')
         else:
             self.data['superpop'] = np.ones_like(self.data['y_vcf_idx'])

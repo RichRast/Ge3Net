@@ -10,7 +10,7 @@ Model_F, Seq2Seq, Model_G, Model_H, Model_I, Model_J, Model_K, Model_L, Model_M,
 from helper_funcs import save_checkpoint, set_logger, load_model, early_stopping, Params, weight_int, custom_opt, load_path
 from dataset import Haplotype
 from settings import parse_args, MODEL_CLASS
-from visualization import Plot_per_epoch
+from visualization import Plot_per_epoch_revised
 from build_labels_revised import repeat_pop_arr
 import matplotlib.pyplot as plt
 
@@ -71,7 +71,7 @@ def main(config, params, trial=None):
         rev_pop_dict = {v:k for k,v in granular_pop_dict.items()}
         pop_sample_map = pd.read_csv(osp.join(labels_path, params.pop_sample_map), sep='\t')
         pop_arr = repeat_pop_arr(pop_sample_map)
-        plot_obj = Plot_per_epoch(params.n_comp_overall, params.n_comp_subclass, params.pop_num, rev_pop_dict, pop_arr)
+        plot_obj = Plot_per_epoch_revised(params.n_comp_overall, params.n_comp_subclass, params.pop_num, rev_pop_dict, pop_arr)
         
          
     # Create the model
