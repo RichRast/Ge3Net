@@ -48,7 +48,7 @@ sbatch<<EOT
 #SBATCH -c 1
 #SBATCH --mem=1000G
 #SBATCH -t 24:00:00
-#SBATCH --output=$OUT_PATH/$geno_type/chm_$filter_combine_$combine_chm_$start_chm_chm_$end_chm.out
+#SBATCH --output=$OUT_PATH/$geno_type/chm_${filter}_combine_${combine}_chm_${start_chm}_chm_${end_chm}.out
 
 ml load py-pytorch/1.4.0_py36
 ml load py-scipy/1.4.1_py36
@@ -57,13 +57,16 @@ ml load py-matplotlib/3.2.1_py36
 ml load py-pandas/1.0.3_py36
 
 cd /home/users/richras/Ge2Net_Repo
+
 python3 combine_chms.py --data.geno_type $geno_type \
 --data.variance_filter $filter \
 --data.combine $combine \
 --data.chm_start $start_chm \
---data.chm_end $end_chm \
+--data.chm_end $end_chm
 
 EOT
 
 sleep .5
 squeue -u richras
+
+exit 0

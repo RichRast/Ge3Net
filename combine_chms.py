@@ -3,6 +3,7 @@ import argparse
 import os
 import os.path as osp
 import sys
+import distutils.util 
 
 sys.path.insert(1, '/home/users/richras/GeNet_Repo')
 from helper_funcs import vcf2npy, filter_snps, save_file, filter_vcf
@@ -11,7 +12,7 @@ from visualization import plot_dist
 
 parser = argparse.ArgumentParser(description='Create labels for training')
 default_dataset = '1kg_hgdp_sgdp_chr22'
-parser.add_argument('--data.combine', type=bool, default=False, metavar='combine_snps',
+parser.add_argument('--data.combine', type=distutils.util.strtobool, default='False', 
                     help='flag to indicate whether to combine the snps across chm')
 parser.add_argument('--data.geno_type', type=str, default='humans', metavar='genotype',
                 help="genotype of humans or dogs")
@@ -69,27 +70,31 @@ def process_filter_chm(geno_type, vcf_prefix, chm_start, chm_end, combined_snps_
         else:
             filtered_vcf = filter_vcf(vcf_file, filter_thresh)
             #save each filtered vcf file
-            filtered_save_path = osp.join(os.environ.get('OUT_PATH'), geno_type, 'filtered', ''.join(['chm_', str(i)]))
+            filtered_save_path = osp.join(os.environ.get('OUT_PATH'), geno_type)
             if not osp.exists(filtered_save_path):
                 os.mkdir(filtered_save_path)
-            save_file(filtered_save_path, filtered_vcf)
+            filtered_save_filename = ''.join([filtered_save_path, '/filtered_', 'chm_', str(i)])
+            print(f"saving filtered vcf for chm {i} at {str(filtered_save_filename)}")
+            save_file(filtered_save_filename, filtered_vcf)
             
     # if combine, then save the combined snps npy 
     if combine:
         print(f'combined_snps shape:{filtered_vcf.shape}')
-        save_file(combined_snps_save_path, filtered_vcf) 
         
-        
-
+        if not osp.exists(combined_snps_save_path):
+            os.mkdir(combined_snps_save_path)
+        combined_snps_save_filename = ''.join([combined_snps_save_path, '/all_chm_combined_snps_variance_filter_', str(config['data.variance_filter']), '.npy'])
+        print(f"saving combined filtered vcf at {str(combined_snps_save_filename)}")
+        save_file(combined_snps_save_filename, filtered_vcf) 
     
 def main(config):
     verbose_en = config['log.verbose']
     thresh = config['data.variance_filter']
-    choose_k = config['data.choose_k']
+    # choose_k = config['data.choose_k']
 
     vcf_prefix = osp.join(os.environ.get('IN_PATH'), config['data.geno_type'])
 
-    combined_snps_save_path = osp.join(os.environ.get('OUT_PATH'), ''.join(['all_chm_combined_snps_variance_filter_', str(config['data.variance_filter']), '.npy']))
+    combined_snps_save_path = osp.join(os.environ.get('OUT_PATH'), config['data.geno_type'])
     process_filter_chm(config['data.geno_type'], vcf_prefix, config['data.chm_start'], \
         config['data.chm_end'], combined_snps_save_path, config['data.combine'], thresh)
 

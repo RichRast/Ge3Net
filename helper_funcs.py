@@ -8,6 +8,7 @@ import os
 import shutil
 import os.path as osp
 import allel
+import copy
 
 def weight_int(m):
     if isinstance(m, torch.nn.LSTM):
@@ -216,8 +217,8 @@ def filter_vcf(vcf_filepath, thresh, verbose=True):
     var_vcf_original = mat_vcf_2d.var(axis=0)
     var_sorted = copy.deepcopy(var_vcf_original)
     var_sorted = np.sort(var_sorted)
-    plt.plot(var_sorted)
-    plt.show()
+    # plt.plot(var_sorted)
+    # plt.show()
 
     var_thresh = var_sorted[var_sorted>thresh]
     idx_chosen = np.argwhere(np.isin(var_vcf_original, var_thresh))
