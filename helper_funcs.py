@@ -153,11 +153,13 @@ def filter_snps(mat_vcf_np, filter_thresh):
     filter_thresh: variance filter
     """
     mean = mat_vcf_np.sum(axis=0, keepdims=True)/mat_vcf_np.shape[0]
-    std = np.sqrt(np.mean(np.absolute(mat_vcf_np-mean)**2, axis=0, keepdims=True))
-    
+    # std = np.sqrt(np.mean(np.absolute(mat_vcf_np-mean)**2, axis=0, keepdims=True))
+    var = mat_vcf_np.var(axis=0, keepdims=True)
+    # print(f' variance shape :{var.shape}')
     # filter snps to informative snps -- if std > threshold
-    filtered_snp_idx = np.where(std[0,:]>=filter_thresh)[0]
-    return mean[0,filtered_snp_idx], std[0,filtered_snp_idx], filtered_snp_idx
+    # filtered_snp_idx = np.where(std[0,:]>=filter_thresh)[0]
+    filtered_snp_idx = np.where(var[0,:]>=filter_thresh)[0]
+    return mean[0,filtered_snp_idx], var[0,filtered_snp_idx], filtered_snp_idx
 
 def convert_nVector(coord_map):
     lat, lon = coord_map

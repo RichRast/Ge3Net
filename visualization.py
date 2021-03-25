@@ -104,17 +104,17 @@ def plot_coordinates_map(label, data_coordinates, rev_pop_order):
 
     fig.show()
     
-def plot_dist(mean, std , chm):
+def plot_dist(mean, var , chm):
     """
-    plots the distribution (mean and std)
+    plots the distribution (mean and var)
     for a given chm
     """
     fig, (ax1, ax2) = plt.subplots(2)
     plt.rcParams['figure.figsize']=[18,15]
     count, bins, ignored = ax1.hist(mean, 20, density = True)
     ax1.set_title(f"Mean distribution for chm {chm}")
-    count, bins, ignored = ax2.hist(std, 10, density = True)
-    ax2.set_title(f"Std dev. distribution for chm {chm}")
+    count, bins, ignored = ax2.hist(var, 10, density = True)
+    ax2.set_title(f"variance distribution for chm {chm}")
     plt.show()
 
 def plot_changepoint_predictions(y_pred_index_np, y_pred_var, cp_pred_index_np, bocd_cp, cp_mask, y_vcf_idx, rev_pop_dict, granular_pop_map):

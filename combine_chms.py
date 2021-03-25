@@ -29,10 +29,10 @@ parser.add_argument('--log.verbose', type=bool, default=True, metavar='verbose',
                     help='verbose')
 
 
-def process_filter_chm(geno_type, vcf_prefix, chm_start, chm_end, combined_snps_save_path, combine, filter_thresh=None, verbose=True):
+def process_filter_chm(geno_type, vcf_prefix, chm_start, chm_end, filtered_save_path, combine, filter_thresh=None, verbose=True):
     
     chm = np.arange(chm_start, chm_end+1)
-    
+
     for i in chm:
         if geno_type=='humans':
             vcf_file = ''.join([vcf_prefix, '/master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr', str(i), ".vcf.gz"])
@@ -58,11 +58,13 @@ def process_filter_chm(geno_type, vcf_prefix, chm_start, chm_end, combined_snps_
                 print(f'finished combining chm {i} and filtered vcf shape is {filtered_vcf.shape}')
             
             else:
-                mean, std, filtered_snp_idx = filter_snps(mat_vcf_np, filter_thresh)
+                mean, var, filtered_snp_idx = filter_snps(mat_vcf_np, filter_thresh)
                 if verbose:
                     print(f' unfiltered snps for chm {i} is {mat_vcf_np.shape[1]}')
+                    print(f' mean of snps for chm {i} is {mean}')
+                    print(f' var of snps for chm {i} is {var}')
                     print(f' filtered snps for chm {i} is {len(filtered_snp_idx)}')
-                    plot_dist(mean, std, i)
+                    plot_dist(mean, var, i)
                 if i==chm_start:
                     filtered_vcf = mat_vcf_np[:,filtered_snp_idx]
                 else:
@@ -70,20 +72,14 @@ def process_filter_chm(geno_type, vcf_prefix, chm_start, chm_end, combined_snps_
         else:
             filtered_vcf = filter_vcf(vcf_file, filter_thresh)
             #save each filtered vcf file
-            filtered_save_path = osp.join(os.environ.get('OUT_PATH'), geno_type)
-            if not osp.exists(filtered_save_path):
-                os.mkdir(filtered_save_path)
-            filtered_save_filename = ''.join([filtered_save_path, '/filtered_', 'chm_', str(i)])
-            print(f"saving filtered vcf for chm {i} at {str(filtered_save_filename)}")
-            save_file(filtered_save_filename, filtered_vcf)
+            filtered_save_filename = ''.join([filtered_save_path, '/filtered_', 'chm_', str(i), '.vcf'])
+            print(f"saving filtered vcf for chm {i} at {str(filtered_save_filename)} \n")
+            save_file(filtered_save_filename, filtered_vcf, en_pickle=True)
             
     # if combine, then save the combined snps npy 
     if combine:
         print(f'combined_snps shape:{filtered_vcf.shape}')
-        
-        if not osp.exists(combined_snps_save_path):
-            os.mkdir(combined_snps_save_path)
-        combined_snps_save_filename = ''.join([combined_snps_save_path, '/all_chm_combined_snps_variance_filter_', str(config['data.variance_filter']), '.npy'])
+        combined_snps_save_filename = ''.join([filtered_save_path, '/all_chm_combined_snps_variance_filter_', str(config['data.variance_filter']), '.npy'])
         print(f"saving combined filtered vcf at {str(combined_snps_save_filename)}")
         save_file(combined_snps_save_filename, filtered_vcf) 
     
@@ -94,9 +90,12 @@ def main(config):
 
     vcf_prefix = osp.join(os.environ.get('IN_PATH'), config['data.geno_type'])
 
-    combined_snps_save_path = osp.join(os.environ.get('OUT_PATH'), config['data.geno_type'])
+    filtered_save_path = osp.join(os.environ.get('OUT_PATH'), config['data.geno_type'], ''.join(['filtered_var_', str(thresh)]))
+    if not osp.exists(filtered_save_path):
+        os.mkdir(filtered_save_path)
+
     process_filter_chm(config['data.geno_type'], vcf_prefix, config['data.chm_start'], \
-        config['data.chm_end'], combined_snps_save_path, config['data.combine'], thresh)
+        config['data.chm_end'], filtered_save_path, config['data.combine'], thresh)
 
 
 if __name__=="__main__":
