@@ -41,7 +41,7 @@ def process_filter_chm(geno_type, vcf_prefix, chm_start, chm_end, filtered_save_
 
         if combine:
             mat_vcf_np = vcf2npy(vcf_file) 
-            if filter_thresh is None:
+            if filter_thresh == 0.0:
                 print("combining all chms with no threshold")
                 if i==chm_start:
                     filtered_vcf = mat_vcf_np
@@ -49,7 +49,7 @@ def process_filter_chm(geno_type, vcf_prefix, chm_start, chm_end, filtered_save_
                     filtered_vcf = np.hstack((filtered_vcf, mat_vcf_np))
                 print(f'finished combining chm {i}')
             
-            elif filter_thresh == 0.0:
+            elif filter_thresh == "combined_variance":
                 print("combining the variance of all chms")
                 if i==chm_start:
                     filtered_vcf = mat_vcf_np.var(axis=0)

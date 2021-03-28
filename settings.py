@@ -2,6 +2,7 @@ import sys
 import argparse
 import os
 import os.path as osp
+import distutils.util
 from helper_funcs import Params
 
 MODEL_CLASS = {'Model_A' : [['Model_A.model_A'],['AuxiliaryTask.AuxNetwork', 'BasicBlock.logits_Block']],
@@ -25,7 +26,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--data.data_in', type=str, default=os.environ.get('IN_PATH'), metavar='data_in_dir',
                         help='directory where raw data is stored')
 parser.add_argument('--data.data_out', type=str, default=os.environ.get('OUT_PATH'), metavar='data_out_dir',
-                        help='directory where output data is stored')
+                        help='directory where output data is stored')                      
+parser.add_argument('--data.geno_type', type=str, default='humans', metavar='genotype',
+                help="genotype of humans or dogs")
 parser.add_argument('--data.params_dir', type=str, default=osp.join(os.environ.get('USER_PATH'), 'experiments/pca/exp_A1'), metavar='working_dir',
                     help='directory where json file for model hyperparameters are stored')
 parser.add_argument('--data.labels_dir', type=str, default=osp.join(os.environ.get('IN_PATH'), 'reference_files/pca_labels'), metavar='pca_labels_dir',
@@ -43,13 +46,13 @@ parser.add_argument('--data.experiment_name', type=str, default='unsupervised_la
 parser.add_argument('--data.seed', type=int, default=1234, metavar='SEED',
                 help='numpy seed')
 #form labels
-parser.add_argument('--data.form_labels', type=bool, default=True, metavar='form_labels',
+parser.add_argument('--data.create_labels', type=distutils.util.strtobool, default='True',
                     help='set True if you want to form labels')
-parser.add_argument('--data.extended_pca', type=bool, default=True, metavar='whether to compute extended pca',
+parser.add_argument('--data.extended_pca', type=distutils.util.strtobool, default='True',
                     help='set True if you want to compute extended pca')
 
 # admixed simulation
-parser.add_argument('--data.simulate', type=bool, default=True, metavar='simulate_only',
+parser.add_argument('--data.simulate', type=distutils.util.strtobool, default='True',
                     help='set True if you want to simulate admixed data with ref indices')
 
 parser.add_argument('--data.all_chm_snps', type=str, default=osp.join(os.environ.get('IN_PATH'), 'combined_chm/all_chm_combined_snps_variance_filter_0.3.npy'), metavar='all_chm',
@@ -65,14 +68,16 @@ parser.add_argument('--data.gens_to_ret', type=list, default=[2,4,8], metavar='g
 # model arguments
 parser.add_argument('--model.working_dir', type=str, default=osp.join( os.environ.get('OUT_PATH'), 'pca_models_dir'), metavar='working_dir',
                     help='directory where models related to experiment is saved')
-parser.add_argument('--model.pretrained', type=bool, default=False, metavar='pretrained',
+parser.add_argument('--model.expt_id', type=int, default=1, metavar='model_expt_id',
+                    help='experiment id for Ge2Net model')
+parser.add_argument('--model.pretrained', type=distutils.util.strtobool, default='False',
                     help='specify whether to load pretrained model')
 parser.add_argument('--model.pretrained_version', type=str, default='Model_L_1', metavar='pretrained_version',
                     help='specify the version of pretrained model')
 parser.add_argument('--cuda', type=str, default='cuda:0', metavar='CUDA_DEVICE',
                     help='which cuda device to use')
 # log args
-parser.add_argument('--log.verbose', type=bool, default=True, metavar='verbose',
+parser.add_argument('--log.verbose', type=distutils.util.strtobool, default='True',
                     help='verbose')
 parser.add_argument('--log.train', type=str, default=osp.join( os.environ.get('OUT_PATH'), 'logs'), metavar='log_train',
                     help='logging for training')

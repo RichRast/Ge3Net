@@ -39,7 +39,7 @@ class model_D(object):
         cp_pred_loss = 0.0
         cp_pred_loss_chunk = 0.0
         sp_pred_loss_chunk = 0.0
-        residual_pred_loss_chunk = 0.0
+        residual_loss_chunk = 0.0
         
         accr_avg=[]
         for a in accr._fields:
@@ -132,7 +132,8 @@ class model_D(object):
                 
                 # concatenating across windows because training was done in chunks of windows
                 y_pred = torch.cat(y_pred_list,1)
-                residual_out = torch.cat(residual_list, 1)
+                if self.params.residual:
+                    residual_out = torch.cat(residual_list, 1)
                 cp_pred_out = torch.cat(cp_pred_list,1)
                 cp_target_out = torch.cat(cp_target_list, 1)
                 cp_pred_out_logits =  torch.cat(cp_pred_logits_list, 1)
@@ -153,8 +154,9 @@ class model_D(object):
                 target.append(train_labels[:,:,0:n_comp]*cp_mask[:,:,0:n_comp]*sp_mask[:,:,0:n_comp])
                 preds.append(cp_pred_out_logits)
                 target.append(cp_target_out)
-                preds.append(sp_pred_out.detach().cpu().numpy())
-                target.append(superpop)
+                if self.params.superpop_predict:
+                    preds.append(sp_pred_out.detach().cpu().numpy())
+                    target.append(superpop)
                 sample_size = (cp_mask[:,:,0:n_comp]*sp_mask[:,:,0:n_comp]).sum() 
 
             else:
@@ -199,7 +201,8 @@ class model_D(object):
                 wandb.log({"AuxTask_Loss/train":loss_aux, "batch_num":i})
                 wandb.log({"train_cp_loss":cp_pred_loss,"batch_num":i})
                 wandb.log({"train_cp_accr":train_accr.cp_accr._asdict(), "batch_num":i})
-                wandb.log({"train_residual_loss":residual_loss_chunk, "batch_num":i})
+                if self.params.residual:
+                    wandb.log({"train_residual_loss":residual_loss_chunk, "batch_num":i})
                 # randomly or non-randomly select an index and plot the output
                 if i==0:
                     idx = 71
@@ -209,7 +212,11 @@ class model_D(object):
                         y_subclass_idx = residual_out[idx,:,:].detach().cpu().numpy().reshape(self.params.n_win, -1)
                     else:
                         y_subclass_idx = y_pred[idx,:,-self.params.n_comp_subclass:].detach().cpu().numpy().reshape(self.params.n_win, -1)
-                    y_sp_idx = sp_pred_out[idx,:].detach().cpu().numpy().reshape(1,-1)
+                    
+                    if self.params.superpop_predict:
+                        y_sp_idx = sp_pred_out[idx,:].detach().cpu().numpy().reshape(1,-1)
+                    else:
+                        y_sp_idx=None
                     train_vcf_idx = vcf_idx[idx,:].detach().cpu().numpy().reshape(-1, 1)
                     fig, ax = plot_obj.plot_index(y_pred_idx, y_subclass_idx, y_sp_idx, y_target_idx, train_vcf_idx)
                     wandb.log({f" Train Image for idx {idx} ":wandb.Image(fig)})
@@ -307,12 +314,14 @@ class model_D(object):
                 target.append(val_labels[:,:,0:n_comp]*cp_mask[:,:,0:n_comp]*sp_mask[:,:,0:n_comp])
                 preds.append(cp_pred_out_logits)
                 target.append(cp_target)
-                preds.append(sp_pred_out.detach().cpu().numpy())
-                target.append(superpop.detach().cpu().numpy())
+                if self.params.superpop_predict:
+                    preds.append(sp_pred_out.detach().cpu().numpy())
+                    target.append(superpop.detach().cpu().numpy())
                 sample_size = (cp_mask[:,:,0:n_comp]*sp_mask[:,:,0:n_comp]).sum()
                 val_loss_regress_MLP = self.criterion(out4[:,:,0:n_comp]*cp_mask[:,:,0:n_comp]*sp_mask[:,:,0:n_comp], val_labels[:,:,0:n_comp]*cp_mask[:,:,0:n_comp]*sp_mask[:,:,0:n_comp]).item()
                 val_loss_main = self.criterion(outputs_cat[:,:,0:n_comp]*cp_mask[:,:,0:n_comp]*sp_mask[:,:,0:n_comp], val_labels[:,:,0:n_comp]*cp_mask[:,:,0:n_comp]*sp_mask[:,:,0:n_comp]).item()
-                residual_loss = self.criterion(residual_pred_out*cp_mask[:,:,-self.params.n_comp_subclass:]*sp_mask[:,:,-self.params.n_comp_subclass:], \
+                if self.params.residual:
+                    residual_loss = self.criterion(residual_pred_out*cp_mask[:,:,-self.params.n_comp_subclass:]*sp_mask[:,:,-self.params.n_comp_subclass:], \
                     val_labels[:,:,-self.params.n_comp_subclass:]*cp_mask[:,:,-self.params.n_comp_subclass:]*sp_mask[:,:,-self.params.n_comp_subclass:]).item()
                 
                 # concatenating for all the batches for the particular epoch
@@ -363,7 +372,11 @@ class model_D(object):
                                 y_subclass_idx = residual_pred[k,:,:].detach().cpu().numpy().reshape(self.params.n_win, -1)
                             else:
                                 y_subclass_idx = outputs_cat[k,:,-self.params.n_comp_subclass:].detach().cpu().numpy().reshape(self.params.n_win, -1)
-                            y_sp_idx = sp_pred[k,:].detach().cpu().numpy().reshape(1,-1)
+                            
+                            if self.params.superpop_predict:
+                                y_sp_idx = sp_pred[k,:].detach().cpu().numpy().reshape(1,-1)
+                            else:
+                                y_sp_idx = None
                             val_vcf_idx = vcf_idx[k,:].detach().cpu().numpy().reshape(-1, 1)
                             fig, ax = plot_obj.plot_index(y_pred_idx, y_subclass_idx, y_sp_idx, y_target_idx, val_vcf_idx)
                             wandb.log({ f"Val Image for idx {k}":wandb.Image(fig)})

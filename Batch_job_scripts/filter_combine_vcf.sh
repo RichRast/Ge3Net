@@ -1,6 +1,7 @@
 #!/bin/bash
 
 cd /home/users/richras/Ge2Net_Repo
+source ini.sh
 
 Help()
 {
@@ -37,7 +38,7 @@ if [[ -z $combine ]] ; then echo "Missing combine argument, no chms will be comb
 if [[ -z $start_chm ]] ; then echo "Missing start chm number" ; exit 1; fi
 if [[ -z $end_chm ]] ; then echo "Missing end chm number" ; exit 1; fi
 
-if [[ ($combine -eq "False") && ($filter -eq "0") ]] ; then echo "Invalid arguments, exiting" ; exit 1 ; fi
+if [[ ($combine == "False") && ($filter == 0.0) ]] ; then echo "Invalid arguments, exiting" ; exit 1 ; fi
 
 echo "Starting with filter = $filter and combine= $combine"
 mkdir -p $OUT_PATH/$geno_type

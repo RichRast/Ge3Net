@@ -56,10 +56,10 @@ def main(config, params, trial=None):
     # Create the input data pipeline
     logging.info("Loading the datasets...")
 
-    dataset_path = osp.join(str(config['data.data_out']), config['data.experiment_name'], str(config['data.experiment_id']))
+    dataset_path = osp.join(str(config['data.data_out']), config['data.geno_type'], config['data.experiment_name'], str(config['data.experiment_id']))
     labels_path = config['data.labels_dir']
-    training_dataset = Haplotype('train', dataset_path, params, labels_path)
-    validation_dataset = Haplotype('valid', dataset_path, params, labels_path)
+    training_dataset = Haplotype('train', dataset_path, params, labels_path, config['data.geno_type'])
+    validation_dataset = Haplotype('valid', dataset_path, params, labels_path, config['data.geno_type'])
     
     training_generator = torch.utils.data.DataLoader(training_dataset, batch_size=params.batch_size, shuffle=True,
                                                     num_workers=0)
@@ -67,10 +67,13 @@ def main(config, params, trial=None):
      
     # Initiate the class for plotting per epoch
     if params.plotting:
-        granular_pop_dict = load_path(osp.join(dataset_path, 'granular_pop.pkl'), en_pickle=True)
-        rev_pop_dict = {v:k for k,v in granular_pop_dict.items()}
+        if config['data.geno_type']=='humans':
+            pop_dict = load_path(osp.join(dataset_path, 'granular_pop.pkl'), en_pickle=True)
+        elif config['data.geno_type']=='dogs':
+            pop_dict = load_path(osp.join(dataset_path, 'superpop.pkl'), en_pickle=True)
+        rev_pop_dict = {v:k for k,v in pop_dict.items()}
         pop_sample_map = pd.read_csv(osp.join(labels_path, params.pop_sample_map), sep='\t')
-        pop_arr = repeat_pop_arr(pop_sample_map)
+        pop_arr = repeat_pop_arr(pop_sample_map, config['data.geno_type'])
         plot_obj = Plot_per_epoch_revised(params.n_comp_overall, params.n_comp_subclass, params.pop_num, rev_pop_dict, pop_arr)
         
          
@@ -189,5 +192,6 @@ def training_loop(model, model_params, middle_models, params, config, training_g
     
 if __name__=="__main__":
     config, params = parse_args()
-    config['model_version'] = ''.join([str(params.model), '_', str(params.major_version), '.', str(params.minor_version)])
+    config['model_version'] = ''.join([str(params.model), '_', str(params.major_version), \
+        '.', str(params.minor_version), '.', str(config['model.expt_id'])])
     main(config, params)

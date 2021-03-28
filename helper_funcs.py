@@ -70,7 +70,7 @@ def save_checkpoint(state, save_path, is_best):
     
     if not osp.exists(save_path):
         print(f'Checkpoint path does not exists, making {save_path}')
-        os.mkdir(save_path)
+        os.makedirs(save_path)
         
     checkpoint = osp.join(save_path, 'last.pt')
     torch.save(state, checkpoint)
