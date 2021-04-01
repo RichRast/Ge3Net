@@ -41,10 +41,21 @@ parser.add_argument('--data.reference_map', type=str, default=osp.join(os.enviro
                 help="reference sample map")
 parser.add_argument('--data.experiment_id', type=int, default=1, metavar='experiment_id',
                     help='unique experiment identifier seed')
-parser.add_argument('--data.experiment_name', type=str, default='unsupervised_labeling', metavar='experiment_name',
+parser.add_argument('--data.experiment_name', type=str, default='unsupervised_labels', metavar='experiment_name',
                     help='name of experiment')
 parser.add_argument('--data.seed', type=int, default=1234, metavar='SEED',
                 help='numpy seed')
+parser.add_argument('--data.metadata', type=str, help='directory for metadata for dogs')
+parser.add_argument('--data.pop_order', type=str, help='directory for a specific pop order')
+parser.add_argument('--data.ref_filter_criteria', type=str, default='Single_Ancestry', 
+                help='criteria to filter the reference map')
+parser.add_argument('--data.n_comp_overall', type=int, default=3, 
+                help='overall components of pca')
+parser.add_argument('--data.n_comp_subclass', type=int, default=2, 
+                help='subclass components of extended pca')
+parser.add_argument('--data.n_comp', type=int, default=44, 
+                help='total number of components (relevant for extended pca)')
+
 #form labels
 parser.add_argument('--data.create_labels', type=distutils.util.strtobool, default='True',
                     help='set True if you want to form labels')

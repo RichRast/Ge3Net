@@ -45,10 +45,6 @@ def main(config, params, trial=None):
         # use the major version only
         wandb.init(project=''.join([str(params.model), '_', str(params.major_version)]), config=params)
         params=wandb.config
-        
-        # Tensorboard Writer
-        #writer_train = SummaryWriter(config['log.train'])
-        #writer_val = SummaryWriter(config['log.valid'])
 
     # configure device
     params.device = torch.device(config['cuda'] if params.cuda else 'cpu')
@@ -58,8 +54,8 @@ def main(config, params, trial=None):
 
     dataset_path = osp.join(str(config['data.data_out']), config['data.geno_type'], config['data.experiment_name'], str(config['data.experiment_id']))
     labels_path = config['data.labels_dir']
-    training_dataset = Haplotype('train', dataset_path, params, labels_path, config['data.geno_type'])
-    validation_dataset = Haplotype('valid', dataset_path, params, labels_path, config['data.geno_type'])
+    training_dataset = Haplotype('train', dataset_path, params, labels_path)
+    validation_dataset = Haplotype('valid', dataset_path, params, labels_path)
     
     training_generator = torch.utils.data.DataLoader(training_dataset, batch_size=params.batch_size, shuffle=True,
                                                     num_workers=0)
@@ -67,14 +63,11 @@ def main(config, params, trial=None):
      
     # Initiate the class for plotting per epoch
     if params.plotting:
-        if config['data.geno_type']=='humans':
-            pop_dict = load_path(osp.join(dataset_path, 'granular_pop.pkl'), en_pickle=True)
-        elif config['data.geno_type']=='dogs':
-            pop_dict = load_path(osp.join(dataset_path, 'superpop.pkl'), en_pickle=True)
+        pop_dict = load_path(osp.join(dataset_path, 'granular_pop.pkl'), en_pickle=True)
         rev_pop_dict = {v:k for k,v in pop_dict.items()}
         pop_sample_map = pd.read_csv(osp.join(labels_path, params.pop_sample_map), sep='\t')
-        pop_arr = repeat_pop_arr(pop_sample_map, config['data.geno_type'])
-        plot_obj = Plot_per_epoch_revised(params.n_comp_overall, params.n_comp_subclass, params.pop_num, rev_pop_dict, pop_arr)
+        pop_arr = repeat_pop_arr(pop_sample_map)
+        plot_obj = Plot_per_epoch_revised(params.n_comp_overall, params.n_comp_subclass, config['data.pop_order'], rev_pop_dict, pop_arr)
         
          
     # Create the model
@@ -135,11 +128,6 @@ def training_loop(model, model_params, middle_models, params, config, training_g
         plt.close('all')
         
         if config['log.verbose']:
-            #writer_train.add_scalar('Accuracy/train', train_result.accr.weighted_loss, epoch)
-            #writer_val.add_scalar('Accuracy/val', eval_result.accr.weighted_loss, epoch)
-
-            #writer_train.flush()
-            #writer_val.flush()
 
             wandb.log({"train_metrics":train_result.accr._asdict(), "epoch":epoch})
             wandb.log({"valid_metrics":eval_result.accr._asdict(), "epoch":epoch})

@@ -6,14 +6,13 @@ import numpy as np
 from helper_funcs import load_path
 import seaborn as sns
 
-POP_ORDER = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
+# POP_ORDER = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
 
-def plot_embeddings(n_comp_overall, pop_arr, n_way, random_idx, rev_pop_order, PCA_lbls_dict):
+def plot_embeddings(n_comp_overall, pop_arr, n_way, random_idx, rev_pop_order, pop_order, PCA_lbls_dict):
     fig, ax = plt.subplots(figsize=(10,12))
-    plt.rcParams['savefig.transparent'] = True
 
-    colors_pop = sns.color_palette("rainbow", len(POP_ORDER))
-    color_pop_dict = {k:v for k,v in zip(POP_ORDER, colors_pop)}
+    colors_pop = sns.color_palette("rainbow", len(pop_order))
+    color_pop_dict = {k:v for k,v in zip(pop_order, colors_pop)}
 
     X_transformed = np.array(list(PCA_lbls_dict.values()))[:,0:n_comp_overall]
 
@@ -21,11 +20,10 @@ def plot_embeddings(n_comp_overall, pop_arr, n_way, random_idx, rev_pop_order, P
         # ax= Axes3D(fig)
         # ax = fig.gca(projection='3d')
         ax = plt.subplot(111, projection='3d')
-
         for i in range(n_way):
             idx_label = np.nonzero(pop_arr[:,3]==i)[0]
             ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1],X_transformed[idx_label,2], s=5,\
-                    color=color_pop_dict[POP_ORDER[i]] , label = POP_ORDER[i])
+                    color=color_pop_dict[pop_order[i]] , label = pop_order[i])
             
             lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
             for l in lgnd.legendHandles:
@@ -44,15 +42,14 @@ def plot_embeddings(n_comp_overall, pop_arr, n_way, random_idx, rev_pop_order, P
             ax.text(PCA_lbls_dict[k][0], PCA_lbls_dict[k][1], PCA_lbls_dict[k][2], \
                     s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
                 fontweight='bold', fontsize = 12)
-        
     else:
         
         for i in range(n_way):
             idx_label = np.nonzero(pop_arr[:,3]==i)[0]
             ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1], s=5, \
-                      color=color_pop_dict[POP_ORDER[i]] , label = POP_ORDER[i] )
+                      color=color_pop_dict[pop_order[i]] , label = pop_order[i] )
 
-            lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
+            lgnd = ax.legend(bbox_to_anchor=(1.0,0.8))
             for l in lgnd.legendHandles:
                 l._sizes = [30]
 
@@ -61,27 +58,8 @@ def plot_embeddings(n_comp_overall, pop_arr, n_way, random_idx, rev_pop_order, P
             ax.text(PCA_lbls_dict[k][0], PCA_lbls_dict[k][1], \
                     s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
                 fontweight='bold', fontsize = 12)
-
     return ax, fig
 
-def plot_embeddings_2d_extended(X_transformed, pop_arr, pop_order_num=np.arange(7)):
-    plt.rcParams['savefig.transparent'] = True
-    fig, ax= plt.subplots(figsize=(10,12))
-
-    colors_pop = sns.color_palette("rainbow", len(pop_order_num))
-    color_pop_dict = {k:v for k,v in zip(pop_order_num, colors_pop)}
-
-    # plot it for all the continents
-    for i in pop_order_num:
-        idx_label = np.nonzero(pop_arr[:,3]==i)[0]
-        ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1], s=5,\
-                  color=color_pop_dict[i] , label = POP_ORDER[i])
-        
-        lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
-        for l in lgnd.legendHandles:
-            l._sizes = [30]
-    
-    return ax, fig
 
 def plot_coordinates_map(label, data_coordinates, rev_pop_order):
     """
@@ -157,7 +135,6 @@ def plot_changepoint_predictions(y_pred_index_np, y_pred_var, cp_pred_index_np, 
 def predictions_plot(y_vcf_idx, y_pred):
     
     fig=plt.figure(figsize=(10,12))
-    plt.rcParams['savefig.transparent'] = True
     ax= Axes3D(fig)
     ax = fig.gca(projection='3d')
 
@@ -246,136 +223,11 @@ def chm_plot(label,gcd):
     print(f' Overall gcd : {np.mean(gcd):.3f} Km')
     plt.show()
 
-
-class Plot_per_epoch(object):
-    def __init__(self, n_comp_overall, n_comp_subclass, pop_num, rev_pop_dict, pop_arr, subclass_plot="3d"):
-        self.n_comp_overall = n_comp_overall
-        self.n_comp_subclass = n_comp_subclass
-        self.pop_num = pop_num
-        self.rev_pop_dict = rev_pop_dict
-        self.pop_arr = pop_arr
-        self.subclass_plot=subclass_plot
-
-    def plot_index(self, y_pred_overall, y_pred_subclass, y_target, y_vcf_idx):
-        # for extended pca - plot the overall plot with 6 or 7 subplots for a prediction
-        # fig, ax = plt.subplots(len(self.pop_num)+1, figsize=(10,62), gridspec_kw={'height_ratios':[1]+[1]*len(self.pop_num)})
-        fig, ax = plt.subplots(figsize=(10,62))
-        plt.rcParams['savefig.transparent'] = True
-        num_labels_idx = np.unique(y_vcf_idx)
-        print(f'num_labels_idx:{num_labels_idx}')
-        colors_pop = sns.color_palette("rainbow", len(num_labels_idx))
-        j =0
-
-        gradient_cp_idx = np.unique(np.where(abs(y_pred_overall[:-1,:]-y_pred_overall[1:,:])>0.3)[0])
-            
-        # subplot for overall population
-        if self.n_comp_overall==3:
-            #ax[0] = Axes3D(fig)
-            #ax[0] = fig.gca(projection='3d')
-            ax = fig.add_subplot(8,1,1, projection='3d')
-            
-            for i, val in enumerate(num_labels_idx):
-                idx_label = np.nonzero(y_vcf_idx==val)[0]
-                pop_arr_idx = (np.where(self.pop_arr[:,1]==val)[0]).item()
-                granular_pop = self.pop_arr[pop_arr_idx,2]
-
-                ax.scatter(y_pred_overall[idx_label,0], y_pred_overall[idx_label,1], y_pred_overall[idx_label,2], s=55\
-                        ,color=colors_pop[j], label = self.rev_pop_dict[granular_pop] )
-                ax.scatter(y_target[idx_label,0], y_target[idx_label,1], y_target[idx_label,2], s=55\
-                        ,color=colors_pop[j], marker='X')    
-                j +=1
-
-                lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
-                for l in lgnd.legendHandles:
-                    l._sizes = [30]
-
-                ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-                ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-                ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-                # make the grid lines transparent
-                ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-                ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-                ax.zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-                #ax.view_init(azim=-90, elev=19)
-
-            ax.scatter(y_pred_overall[gradient_cp_idx,0], y_pred_overall[gradient_cp_idx,1], y_pred_overall[gradient_cp_idx,2], s=100,\
-                color='black', marker='v')
-            ax.set_title("Overall PCA space Predictions")
-        else:
-            ax[0] = fig.add_subplot(8,1,1)
-            ax[0].set_title("Overall PCA space Predictions")
-            for i, val in enumerate(num_labels_idx):
-                idx_label = np.nonzero(y_vcf_idx==val)[0]
-                pop_arr_idx = (np.where(self.pop_arr[:,1]==val)[0]).item()
-                granular_pop = self.pop_arr[pop_arr_idx,2]
-
-                ax[0].scatter(y_pred_overall[idx_label,0], y_pred_overall[idx_label,1], s=55\
-                        ,color=colors_pop[j], label = self.rev_pop_dict[granular_pop] )
-                ax[0].scatter(y_target[idx_label,0], y_target[idx_label,1], s=55\
-                        ,color=colors_pop[j], marker='X')    
-                j +=1
-
-                lgnd = ax[0].legend(bbox_to_anchor=(0.9,0.5+(i/20)))
-                for l in lgnd.legendHandles:
-                    l._sizes = [30]
-            
-        if self.n_comp_subclass>=2:
-            # subplots for granular populations
-            for n, pop_num_val in enumerate(self.pop_num):
-                if self.subclass_plot=='2d':
-                    ax = fig.add_subplot(8,1,n+2)
-                else:
-                    ax = fig.add_subplot(8,1,n+2, projection='3d')
-                if isinstance(pop_num_val, list):
-                    pop_name= "_".join([str(POP_ORDER[i]) for i in pop_num_val])
-                else:
-                    pop_name = POP_ORDER[pop_num_val]
-                j=0
-                for i, val in enumerate(num_labels_idx):
-                    idx_label = np.nonzero(y_vcf_idx==val)[0]
-                    pop_arr_idx = (np.where(self.pop_arr[:,1]==val)[0]).item()
-                    granular_pop = self.pop_arr[pop_arr_idx,2]
-
-                    if self.subclass_plot=='2d':
-                        ax.scatter(y_pred_subclass[idx_label,2*n], y_pred_subclass[idx_label,2*n+1], s=55\
-                                ,color=colors_pop[j] )
-                        ax.scatter(y_target[idx_label,2*n+self.n_comp_overall], y_target[idx_label,2*n+1+self.n_comp_overall], s=75\
-                                ,color=colors_pop[j], marker='X', label = self.rev_pop_dict[granular_pop])
-                    else:
-                        ax.scatter(y_pred_subclass[idx_label,2*n], y_pred_subclass[idx_label,2*n+1], y_pred_overall[idx_label,0], s=55\
-                                ,color=colors_pop[j] )
-                        ax.scatter(y_target[idx_label,2*n+self.n_comp_overall], y_target[idx_label,2*n+1+self.n_comp_overall], \
-                            y_target[idx_label,0], s=75, color=colors_pop[j], marker='X', label = self.rev_pop_dict[granular_pop])
-
-                    j +=1
-
-                    lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
-                    for l in lgnd.legendHandles:
-                        l._sizes = [30]
-
-                if self.subclass_plot=='2d':
-                    ax.scatter(y_pred_subclass[gradient_cp_idx,2*n], y_pred_subclass[gradient_cp_idx, 2*n+1], s=100,\
-                        color='black', marker='v')
-                else:
-                    ax.scatter(y_pred_subclass[gradient_cp_idx,2*n], y_pred_subclass[gradient_cp_idx, 2*n+1], \
-                        y_pred_overall[gradient_cp_idx, 0], s=100, color='black', marker='v')
-                    ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-                    ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-                    ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-                    # make the grid lines transparent
-                    ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-                    ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-                    ax.zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-                ax.set_title(f"{pop_name} PCA space Predictions")
-        
-        plt.subplots_adjust(hspace=0.1)        
-        return fig, ax
-
 class Plot_per_epoch_revised(object):
-    def __init__(self, n_comp_overall, n_comp_subclass, pop_num, rev_pop_dict, pop_arr, subclass_plot="3d"):
+    def __init__(self, n_comp_overall, n_comp_subclass, pop_order, rev_pop_dict, pop_arr, subclass_plot="3d"):
         self.n_comp_overall = n_comp_overall
         self.n_comp_subclass = n_comp_subclass
-        self.pop_num = pop_num
+        self.pop_order = pop_order
         self.rev_pop_dict = rev_pop_dict
         self.pop_arr = pop_arr
         self.subclass_plot=subclass_plot
@@ -384,7 +236,6 @@ class Plot_per_epoch_revised(object):
         # for extended pca - plot the overall plot with 6 or 7 subplots for a prediction
         # fig, ax = plt.subplots(len(self.pop_num)+1, figsize=(10,62), gridspec_kw={'height_ratios':[1]+[1]*len(self.pop_num)})
         fig, ax = plt.subplots(figsize=(10,62))
-        plt.rcParams['savefig.transparent'] = True
         num_labels_idx = np.unique(y_vcf_idx)
         colors_pop = sns.color_palette("rainbow", len(num_labels_idx))
         colors_pop_dict = {k:v for k,v in zip(num_labels_idx, colors_pop)}
@@ -443,14 +294,15 @@ class Plot_per_epoch_revised(object):
         if self.n_comp_subclass>=2:
             # subplots for granular populations
             j = 0
-            for n, pop_num_val in enumerate(self.pop_num):
+            pop_num = np.arange(self.pop_order)
+            for n, pop_num_val in enumerate(pop_num):
                 wins_sp = np.nonzero(y_pred_sp==pop_num_val)
                 if len(wins_sp)>1: 
                     wins_sp=wins_sp[1]
                     if isinstance(pop_num_val, list):
-                        pop_name= "_".join([str(POP_ORDER[i]) for i in pop_num_val])
+                        pop_name= "_".join([str(pop_order[i]) for i in pop_num_val])
                     else:
-                        pop_name = POP_ORDER[pop_num_val]
+                        pop_name = pop_order[pop_num_val]
                     ax = fig.add_subplot(8,1,j+2, projection='3d')
                     j+=1
                     ax.scatter(y_pred_subclass[wins_sp,2*n], y_pred_subclass[wins_sp,2*n+1], y_pred_overall[wins_sp,0], s=55\
@@ -476,17 +328,18 @@ class Plot_per_epoch_revised(object):
         
         return fig, ax
 
-def plot_subclass(pop_num, pop_arr, PCA_lbls_dict, n_comp_overall, n_comp_subclass, rev_pop_order, wandb):
+def plot_subclass(pop_order, pop_arr, PCA_lbls_dict, n_comp_overall, n_comp_subclass, rev_pop_order, wandb):
+    pop_num = np.arange(len(pop_order))
     for j, pop_num_val in enumerate(pop_num):
         # plot all the classes for the same subclass for train
         # randomly select 30 granular pops for the particular subpop
         
         if isinstance(pop_num_val, list):
             pop_specific_idx = np.where(np.isin(pop_arr[:,3], pop_num_val))[0]
-            tmp_pop_name = "_".join([str(POP_ORDER[i]) for i in pop_num_val])
+            tmp_pop_name = "_".join([str(pop_order[i]) for i in pop_num_val])
         else:
             pop_specific_idx = np.where(pop_arr[:,3]==pop_num_val)[0]
-            tmp_pop_name = POP_ORDER[pop_num_val]                
+            tmp_pop_name = pop_order[pop_num_val]                
         random_idx = np.random.choice(pop_arr[pop_specific_idx,1], 30)
         PCA_labels = np.array(list(PCA_lbls_dict.values()), dtype=float)
         ax1, fig = plot_embeddings_2d_extended(PCA_labels[:, n_comp_overall+n_comp_subclass*j:n_comp_overall+n_comp_subclass*(j+1)], \

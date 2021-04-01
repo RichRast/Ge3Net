@@ -9,7 +9,7 @@ from helper_funcs import load_path, save_file
 from numpy import linalg as LA
 from decorators import timer
 
-POP_ORDER = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
+# POP_ORDER = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
 
 def PCA_space(x, n_comp=3, verbose = True):
     pca=decomposition.PCA(n_components=n_comp, whiten=True, random_state=10)
@@ -32,8 +32,11 @@ def PCA_space_revised(vcf_snp, idx_lst, n_comp=3, extended_pca = False, pop_arr=
     """
     pca=decomposition.PCA(n_components=n_comp, random_state=10)
     vcf_train = vcf_snp[idx_lst[0]]
+    print(f"vcf_train shape:{vcf_train.shape}")
     vcf_valid = vcf_snp[idx_lst[1]]
+    print(f"vcf_valid shape:{vcf_valid.shape}")
     vcf_test = vcf_snp[idx_lst[2]]
+    print(f"vcf_test shape:{vcf_test.shape}")
     mean_train = np.sum(vcf_train, axis=0)/vcf_train.shape[0]
     std_train = vcf_train.std(axis=0)
     std_train[std_train==0] = 1
@@ -82,7 +85,7 @@ def PCA_space_revised(vcf_snp, idx_lst, n_comp=3, extended_pca = False, pop_arr=
     return PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train
 
 @timer
-def PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_pca = False, pop_arr=None, n_way = 7, n_comp_subclass = 2):
+def PCA_space_residual(vcf_snp, idx_lst, pop_order, n_comp=44, n_comp_overall=3, extended_pca = False, pop_arr=None, n_way = 7, n_comp_subclass = 2):
     """
     vcf_snp: entire vcf snp consisting of train, valid and test snps
     idx_list: [train_sample_map, valid_sample_map, test_sample_map]
@@ -115,13 +118,10 @@ def PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_p
 
     if extended_pca:
         pca_train_subclass = {}
-        #pop_num = [0,1,2,3,4,5,6]
-        #pop_num = [4,2,1,6,0,3,5]
-        #pop_num = [6,4,2,1,0,3,5]
-        pop_num = [4,6,2,1,0,3,5]
+        pop_num = np.arange(len(pop_order))
+        # pop_num = [4,6,2,1,0,3,5]
         # pop_num = [4,[6,2,1,0],3,5]
         # pop_num = [4,[6,2,1],0,3,5]
-        #revised_pop_order = 
         n_components = n_comp-n_comp_overall
         for i, pop_num_val in enumerate(pop_num):
             pca_subclass = decomposition.PCA(n_components=n_components, whiten=True, random_state=10)
@@ -136,19 +136,17 @@ def PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_p
             norm_residual_test = subclass_test
             if isinstance(pop_num_val, list):
                 idx_subclass = np.nonzero(np.isin(pop_arr, pop_num_val))[0]
-                tmp_pop_name = "_".join([str(POP_ORDER[j]) for j in pop_num_val])
+                tmp_pop_name = "_".join([str(pop_order[j]) for j in pop_num_val])
                 print(f'mask array, idx_subclass, subclass: {np.isin(pop_arr, pop_num_val)}, {idx_subclass}, {tmp_pop_name}')
             else:    
                 idx_subclass = np.nonzero(pop_arr==pop_num_val)[0]
-                tmp_pop_name = POP_ORDER[pop_num_val] 
+                tmp_pop_name = pop_order[pop_num_val] 
             print(f' n_components :{n_components}, norm_residual_train: {norm_residual_train.shape}, \
                 number of samples of class {tmp_pop_name} : {len(idx_subclass)}')
             pca_train_subclass[i] = pca_subclass.fit(norm_residual_train[idx_subclass])
             print(f'explained_variance_ratio for subclass {tmp_pop_name} :{pca_train_subclass[i].explained_variance_ratio_}')
             print(f'cumulative variance  {np.round( pca_train_subclass[i].explained_variance_.cumsum()[-1],2)}, and variance ratio \
             {np.round( pca_train_subclass[i].explained_variance_ratio_.cumsum()[-1]*100, 2)}%')
-            # var_choose = [i for i in pca_train_subclass[i].explained_variance_ratio_ if i >0.05]
-            # n_comp_subclass = len(var_choose)
             print(f'n_comp_subclass for subclass {tmp_pop_name} : {n_comp_subclass}')
             PCA_transform_train_subclass = pca_train_subclass[i].transform(norm_residual_train)
             PCA_transform_valid_subclass = pca_train_subclass[i].transform(norm_residual_valid)
@@ -167,12 +165,16 @@ def PCA_space_residual(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_p
         PCA_labels_valid = np.hstack((PCA_transform_valid[:,0:n_comp_overall], PCA_labels_valid_subclass))
         PCA_labels_test = np.hstack((PCA_transform_test[:,0:n_comp_overall], PCA_labels_test_subclass))
         pca_train = [pca_train, pca_train_subclass]
+    else:
+        PCA_labels_train = PCA_transform_train
+        PCA_labels_valid = PCA_transform_valid
+        PCA_labels_test = PCA_transform_test
 
     print(f'PCA_labels_train shape: {PCA_labels_train.shape}')
     return PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train
 
 @timer
-def PCA_space_extended(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_pca = False, pop_arr=None, n_way = 7, n_comp_subclass = 2):
+def PCA_space_extended(vcf_snp, idx_lst, pop_order, n_comp=44, n_comp_overall=3, extended_pca = False, pop_arr=None, n_way = 7, n_comp_subclass = 2):
     """
     vcf_snp: entire vcf snp consisting of train, valid and test snps
     idx_list: [train_sample_map, valid_sample_map, test_sample_map]
@@ -203,17 +205,17 @@ def PCA_space_extended(vcf_snp, idx_lst, n_comp=44, n_comp_overall=3, extended_p
         pca_train_subclass = {}
         # pop_num = [0,1,2,3,4,5,6]
         # pop_num = [4,2,1,6,0,3,5]
-        pop_num = [4,6,2,1,0,3,5]
-        #revised_pop_order = 
+        pop_num = np.arange(len(pop_order))
+        # pop_num = [4,6,2,1,0,3,5]
         for i,j in enumerate(pop_num):
             pca_subclass = decomposition.PCA(n_components=n_comp_subclass, whiten=True, random_state=10)
             norm_residual_train = norm_train
             norm_residual_valid = norm_valid
             norm_residual_test = norm_test
             idx_subclass = np.nonzero(pop_arr==j)[0]
-            print(f' number of samples of class {POP_ORDER[j]} : {len(idx_subclass)}')
+            print(f' number of samples of class {pop_order[j]} : {len(idx_subclass)}')
             pca_train_subclass[i] = pca_subclass.fit(norm_residual_train[idx_subclass])
-            print(f'explained_variance_ratio for subclass {POP_ORDER[j]} :{pca_train_subclass[i].explained_variance_ratio_}')
+            print(f'explained_variance_ratio for subclass {pop_order[j]} :{pca_train_subclass[i].explained_variance_ratio_}')
             print(f'cumulative variance  {np.round( pca_train_subclass[i].explained_variance_.cumsum()[-1],2)}, and variance ratio \
             {np.round( pca_train_subclass[i].explained_variance_ratio_.cumsum()[-1]*100, 2)}%')
             

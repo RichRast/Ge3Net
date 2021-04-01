@@ -121,7 +121,7 @@ def get_sample_map_data(sample_map, vcf_data, sample_weights = None):
     
     return sample_map_data
 
-def build_founders(vcf_data, genetic_map_data, sample_map_data, geno_type='humans', sample_weight=None):
+def build_founders(vcf_data, genetic_map_data, sample_map_data, sample_weight=None):
     
     """
     Returns founders - a list of Person datatype.
@@ -162,9 +162,8 @@ def build_founders(vcf_data, genetic_map_data, sample_map_data, geno_type='human
         # single ancestry assumption.
         maternal["superpop"] = np.array([i[1]["superpop"]]*chm_length_snps)
         paternal["superpop"] = np.array([i[1]["superpop"]]*chm_length_snps)
-        if geno_type == 'humans':
-            maternal["granular_pop"] = np.array([i[1]["granular_pop"]]*chm_length_snps)
-            paternal["granular_pop"] = np.array([i[1]["granular_pop"]]*chm_length_snps)
+        maternal["granular_pop"] = np.array([i[1]["granular_pop"]]*chm_length_snps)
+        paternal["granular_pop"] = np.array([i[1]["granular_pop"]]*chm_length_snps)
         maternal["vcf_idx"] = np.array([2*index for _ in range(chm_length_snps)])
         paternal["vcf_idx"] = np.array([(2*index)+1 for _ in range(chm_length_snps)])
         
