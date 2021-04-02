@@ -43,7 +43,6 @@ def filter_reference_file(ref_sample_map, criteria, geno_type, verbose=True):
     read the reference file and filter by default criteria of single_ancestry =1
     for humans. Add other criteria to filter here
     """
-    ref_sample_map['ref_idx'] = ref_sample_map.index
     print(f" Total samples before filtering : {len(ref_sample_map)}")
     if geno_type == 'humans':
         if criteria == 'Single_Ancestry':
@@ -90,7 +89,7 @@ def split_sample_maps(sample_map, split_perc, random_seed=10):
     np.random.seed(random_seed)
 
     # find the numbers of samples to split into train, val and test
-    df_pop_count = sample_map[['Sample', 'granular_pop']].groupby(['granular_pop']).count()
+    df_pop_count = sample_map[['Sample', 'superpop']].groupby(['superpop']).count()
     
     train_perc, valid_perc, test_perc = split_perc[0], split_perc[1], split_perc[2]
 
@@ -100,11 +99,11 @@ def split_sample_maps(sample_map, split_perc, random_seed=10):
     df_pop_count['Test']=total_count - (df_pop_count['Train'] + df_pop_count['Valid']).astype(int)
     df_pop_count.reset_index(inplace=True)
     
-    for i, pop_val in enumerate(df_pop_count['granular_pop'].values):
+    for i, pop_val in enumerate(df_pop_count['superpop'].values):
         
-        train_count = df_pop_count[df_pop_count['granular_pop']==pop_val]['Train'].values.item()
-        val_count = df_pop_count[df_pop_count['granular_pop']==pop_val]['Valid'].values.item()
-        sample_ids = sample_map[sample_map['granular_pop']==pop_val].values
+        train_count = df_pop_count[df_pop_count['superpop']==pop_val]['Train'].values.item()
+        val_count = df_pop_count[df_pop_count['superpop']==pop_val]['Valid'].values.item()
+        sample_ids = sample_map[sample_map['superpop']==pop_val].values
         np.random.shuffle(sample_ids)
         
         curr_l0, curr_l1, curr_l2 = np.split(sample_ids, [train_count, train_count + val_count])
@@ -183,10 +182,19 @@ def main(config):
     # check values for ref_filter_criteria
     assert config['data.ref_filter_criteria'] in ['Single_Ancestry', 'rm_anc'], " invalid filter criteria"
 
+    vcf_snp = allel.read_vcf(config['data.vcf_dir'])
+
     if config['data.geno_type']=='humans':
         ref_sample_map = pd.read_csv(config['data.reference_map'], sep="\t")
     elif config['data.geno_type']=='dogs':
         ref_sample_map = create_ref_sample_map(config['data.metadata'], config['data.reference_map'])
+    
+    #select the intersection of snps between ref map and vcf
+    sample_ref_vcf = pd.DataFrame(vcf_snp['samples'])
+    sample_ref_vcf.columns=['Sample']
+    sample_ref_vcf['ref_idx'] = sample_ref_vcf.index
+    #merge sample_ref with ref_sample_map
+    ref_sample_map = ref_sample_map.merge(sample_ref_vcf, how="inner", on="Sample")
 
     master_ref = filter_reference_file(ref_sample_map, config['data.ref_filter_criteria'], \
         config['data.geno_type'])
@@ -211,26 +219,19 @@ def main(config):
         else:
             vcf_data = vcf2npy(config['data.vcf_dir'])
 
-        vcf_snp = allel.read_vcf(config['data.vcf_dir'])
         #for train labels
         # pop_arr_xx is defined with column 0: 'sample_id'
         # col 1: vcf_ref_idx, col2: granular_pop_num
         # col3: superpop_num
-        
-        # match the sample id of pop_arr_train and vcf file
-        # and get the train_vcf_idx as the indices in the vcf file that match the sample id of train sample map
-        
-        train_sample_map = train_sample_map[np.in1d(train_sample_map['Sample'], vcf_snp['samples'])]
+
         pop_arr_train = repeat_pop_arr(train_sample_map)
         train_vcf_idx = list(pop_arr_train[:,1])
         
         #for valid labels
-        valid_sample_map = valid_sample_map[np.in1d(valid_sample_map['Sample'], vcf_snp['samples'])]
         pop_arr_valid = repeat_pop_arr(valid_sample_map)
         valid_vcf_idx = list(pop_arr_valid[:,1])
         
         #for test labels
-        test_sample_map = test_sample_map[np.in1d(test_sample_map['Sample'], vcf_snp['samples'])]
         pop_arr_test = repeat_pop_arr(test_sample_map)
         test_vcf_idx = list(pop_arr_test[:,1])
 
