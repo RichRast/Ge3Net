@@ -6,4 +6,3 @@ Notebooks/Other_Notebooks
 slurm*
 wandb/
 .vscode/
-Batch_job_scripts/submit_build*
