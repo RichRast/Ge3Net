@@ -29,9 +29,9 @@ parser.add_argument('--data.data_out', type=str, default=os.environ.get('OUT_PAT
                         help='directory where output data is stored')                      
 parser.add_argument('--data.geno_type', type=str, default='humans', metavar='genotype',
                 help="genotype of humans or dogs")
-parser.add_argument('--data.params_dir', type=str, default=osp.join(os.environ.get('USER_PATH'), 'experiments/pca/exp_A1'), metavar='working_dir',
+parser.add_argument('--data.params_dir', type=str, default='', metavar='working_dir',
                     help='directory where json file for model hyperparameters are stored')
-parser.add_argument('--data.labels_dir', type=str, default=osp.join(os.environ.get('IN_PATH'), 'reference_files/pca_labels'), metavar='pca_labels_dir',
+parser.add_argument('--data.labels_dir', type=str, default='', metavar='pca_labels_dir',
                     help='pca labels built with maf 0.09')
 parser.add_argument('--data.vcf_dir', type=str, default=osp.join(os.environ.get('IN_PATH'), 'master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr22.vcf.gz'), metavar='vcf_dir',
                     help='directory where vcf file for the particular chm is saved')
@@ -45,9 +45,9 @@ parser.add_argument('--data.experiment_name', type=str, default='unsupervised_la
                     help='name of experiment')
 parser.add_argument('--data.seed', type=int, default=1234, metavar='SEED',
                 help='numpy seed')
-parser.add_argument('--data.metadata', type=str, help='directory for metadata for dogs')
+parser.add_argument('--data.metadata', type=str, default='', help='directory for metadata for dogs')
 parser.add_argument('--data.pop_order', type=str, help='directory for a specific pop order')
-parser.add_argument('--data.ref_filter_criteria', type=str, default='Single_Ancestry', 
+parser.add_argument('--data.ref_filter_criteria', type=str, default='', 
                 help='criteria to filter the reference map')
 parser.add_argument('--data.n_comp_overall', type=int, default=3, 
                 help='overall components of pca')
@@ -83,7 +83,7 @@ parser.add_argument('--model.expt_id', type=int, default=1, metavar='model_expt_
                     help='experiment id for Ge2Net model')
 parser.add_argument('--model.pretrained', type=distutils.util.strtobool, default='False',
                     help='specify whether to load pretrained model')
-parser.add_argument('--model.pretrained_version', type=str, default='Model_L_1', metavar='pretrained_version',
+parser.add_argument('--model.pretrained_version', type=str, default='', metavar='pretrained_version',
                     help='specify the version of pretrained model')
 parser.add_argument('--cuda', type=str, default='cuda:0', metavar='CUDA_DEVICE',
                     help='which cuda device to use')
@@ -101,15 +101,12 @@ def parse_args():
     # Load the parameters from json file
     args, unknown = parser.parse_known_args()
     config = vars(args)
-    json_path = osp.join(config['data.params_dir'], 'params.json')
-    assert osp.isfile(json_path), "No json configuration file found at {}".format(json_path)
-    params = Params(json_path)
     
     # ToDo remove this later 
     os.environ["WANDB_SILENT"] = "true"
     os.environ["WANDB_DIR"] = config['log.wandb_dir']
     
-    return config, params
+    return config
 
 
 # Todo: Too risky to automate this for now, after stress testing, this can be automated

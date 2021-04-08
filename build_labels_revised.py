@@ -38,19 +38,13 @@ def create_ref_sample_map(metadata_filename, sa_sample_filename):
 
     return ref_sample_map
 
-def filter_reference_file(ref_sample_map, criteria, geno_type, verbose=True):
+def filter_reference_file(ref_sample_map, verbose=True):
     """
     read the reference file and filter by default criteria of single_ancestry =1
     for humans. Add other criteria to filter here
     """
     print(f" Total samples before filtering : {len(ref_sample_map)}")
-    if geno_type == 'humans':
-        if criteria == 'Single_Ancestry':
-            ref_sample_map = ref_sample_map[ref_sample_map['Single_Ancestry']==1].reset_index(drop=True)
-    elif geno_type == 'dogs':
-        if criteria == 'rm_anc':
-            rm_ancestry = ['Wolf', 'Coyote']
-            ref_sample_map = ref_sample_map[~ref_sample_map['Superpopulation code'].isin(rm_ancestry)]
+    ref_sample_map = ref_sample_map[ref_sample_map['Single_Ancestry']==1].reset_index(drop=True)
     
     if verbose:
         print(f"Total {len(ref_sample_map)} number of samples selected")
@@ -85,41 +79,37 @@ def split_sample_maps(sample_map, split_perc, random_seed=10):
     split_perc: [train_perc, valid_perc, test_perc]
     return : tsv for train, valid and test sample maps
     """
-
     np.random.seed(random_seed)
-
     # find the numbers of samples to split into train, val and test
-    df_pop_count = sample_map[['Sample', 'superpop']].groupby(['superpop']).count()
-    
+    df_pop_count = sample_map[['Sample', 'granular_pop']].groupby(['granular_pop']).count()
     train_perc, valid_perc, test_perc = split_perc[0], split_perc[1], split_perc[2]
-
     total_count = df_pop_count['Sample'].values
     df_pop_count['Train']=np.rint(train_perc*total_count).astype(int)
     df_pop_count['Valid']=np.rint((valid_perc/(1-train_perc))*(total_count - df_pop_count['Train'])).astype(int)
     df_pop_count['Test']=total_count - (df_pop_count['Train'] + df_pop_count['Valid']).astype(int)
     df_pop_count.reset_index(inplace=True)
     
-    for i, pop_val in enumerate(df_pop_count['superpop'].values):
-        
-        train_count = df_pop_count[df_pop_count['superpop']==pop_val]['Train'].values.item()
-        val_count = df_pop_count[df_pop_count['superpop']==pop_val]['Valid'].values.item()
-        sample_ids = sample_map[sample_map['superpop']==pop_val].values
+    l = [None]*3
+    for i, pop_val in enumerate(df_pop_count['granular_pop'].values):  
+        train_count = df_pop_count[df_pop_count['granular_pop']==pop_val]['Train'].values.item()
+        val_count = df_pop_count[df_pop_count['granular_pop']==pop_val]['Valid'].values.item()
+        sample_ids = sample_map[sample_map['granular_pop']==pop_val].values
         np.random.shuffle(sample_ids)
+        curr = np.split(sample_ids, [train_count, train_count + val_count])
+        for j in range(len(curr)): l[j] = np.concatenate((l[j], curr[j])) if i>0 else curr[j]
         
-        curr_l0, curr_l1, curr_l2 = np.split(sample_ids, [train_count, train_count + val_count])
+        # if i>0:
+        #     l0 = np.concatenate((l0, curr_l0))
+        #     l1 = np.concatenate((l1, curr_l1))
+        #     l2 = np.concatenate((l2, curr_l2))
+        # else:
+        #     l0 = curr_l0
+        #     l1 = curr_l1
+        #     l2 = curr_l2
         
-        if i>0:
-            l0 = np.concatenate((l0, curr_l0))
-            l1 = np.concatenate((l1, curr_l1))
-            l2 = np.concatenate((l2, curr_l2))
-        else:
-            l0 = curr_l0
-            l1 = curr_l1
-            l2 = curr_l2
-        
-    train_sample_map = pd.DataFrame(l0, columns=sample_map.columns)
-    valid_sample_map = pd.DataFrame(l1, columns=sample_map.columns)
-    test_sample_map = pd.DataFrame(l2, columns=sample_map.columns)
+    train_sample_map = pd.DataFrame(l[0], columns=sample_map.columns)
+    valid_sample_map = pd.DataFrame(l[1], columns=sample_map.columns)
+    test_sample_map = pd.DataFrame(l[2], columns=sample_map.columns)
     
     return train_sample_map, valid_sample_map, test_sample_map
 
@@ -149,8 +139,8 @@ def repeat_pop_arr(sample_map):
 def main(config):
     
     # print the configurations in the log directory
-    # for k, v in config.items():
-    #     print(f"config for {k} : {v}")
+    for k, v in config.items():
+        print(f"config for {k} : {v}")
         
     # set seed 
     seed = config['data.seed']
@@ -175,19 +165,13 @@ def main(config):
     else:
         print("logging to wandb")
 
-    # Note1: Throughout vcf_idx and filter_idx refer to 2i and 2i+1 
+    # Note1: Throughout vcf_idx refers to 2i and 2i+1 
     # Note1: and ref_idx refers to the reference idx in reference sample map
     print("Reading reference map")
 
-    # check values for ref_filter_criteria
-    assert config['data.ref_filter_criteria'] in ['Single_Ancestry', 'rm_anc'], " invalid filter criteria"
-
     vcf_snp = allel.read_vcf(config['data.vcf_dir'])
 
-    if config['data.geno_type']=='humans':
-        ref_sample_map = pd.read_csv(config['data.reference_map'], sep="\t")
-    elif config['data.geno_type']=='dogs':
-        ref_sample_map = create_ref_sample_map(config['data.metadata'], config['data.reference_map'])
+    ref_sample_map = pd.read_csv(config['data.reference_map'], sep="\t")
     
     #select the intersection of snps between ref map and vcf
     sample_ref_vcf = pd.DataFrame(vcf_snp['samples'])
@@ -196,8 +180,10 @@ def main(config):
     #merge sample_ref with ref_sample_map
     ref_sample_map = ref_sample_map.merge(sample_ref_vcf, how="inner", on="Sample")
 
-    master_ref = filter_reference_file(ref_sample_map, config['data.ref_filter_criteria'], \
-        config['data.geno_type'])
+    if config['data.geno_type']=='humans':
+        master_ref = filter_reference_file(ref_sample_map)
+    else:
+        master_ref = ref_sample_map
     pop_sample_map, granular_pop_dict, superpop_dict = get_sample_map(master_ref, config['data.pop_order'])
     
     # save the above three
@@ -283,26 +269,26 @@ def main(config):
         random_idx = np.random.choice(train_vcf_idx, 30)
         # dict with key as granular_pop_num, and value as string of granular_pop
         rev_pop_order={v:k for k,v in granular_pop_dict.items()}
-        ax, fig1 = plot_embeddings(n_comp_overall, pop_arr_train, config['data.n_way'], \
+        lgd, fig1 = plot_embeddings(n_comp_overall, pop_arr_train, config['data.n_way'], \
             random_idx, rev_pop_order, config['data.pop_order'], PCA_lbls_train_dict )
         plt.title('train_overall_pca')
         plt.show()
-        fig1.savefig(osp.join(data_out_path, 'train overall_pca.png'))
+        fig1.savefig(osp.join(data_out_path, 'train overall_pca.png'), bbox_extra_artists=(lgd,), bbox_inches='tight')
 
         random_idx = np.random.choice(valid_vcf_idx, 30)
-        ax, fig2 = plot_embeddings(n_comp_overall, pop_arr_valid, config['data.n_way'], \
+        lgd, fig2 = plot_embeddings(n_comp_overall, pop_arr_valid, config['data.n_way'], \
             random_idx, rev_pop_order, config['data.pop_order'], PCA_lbls_valid_dict) 
         plt.title('valid_overall_pca')
         plt.show()
-        fig2.savefig(osp.join(data_out_path, 'valid overall_pca.png'))
+        fig2.savefig(osp.join(data_out_path, 'valid overall_pca.png'), bbox_extra_artists=(lgd,), bbox_inches='tight')
 
         random_idx = np.random.choice(test_vcf_idx, 30)
-        ax, fig3 = plot_embeddings(n_comp_overall, pop_arr_test, config['data.n_way'], \
+        lgd, fig3 = plot_embeddings(n_comp_overall, pop_arr_test, config['data.n_way'], \
             random_idx, rev_pop_order, config['data.pop_order'], PCA_lbls_test_dict)
         plt.title('test_overall_pca')
         plt.show()
         # save .png for overall pca
-        fig3.savefig(osp.join(data_out_path, 'test overall_pca.png'))
+        fig3.savefig(osp.join(data_out_path, 'test overall_pca.png'), bbox_extra_artists=(lgd,), bbox_inches='tight')
 
         if config['data.extended_pca']:
             # pop_order = list(superpop_dict.keys())
@@ -327,7 +313,7 @@ def main(config):
             wandb.log({f"PCA train overall plot":fig_image_train_overall})
             wandb.log({f"PCA valid overall plot":fig_image_valid_overall})
             wandb.log({f"PCA test overall plot":fig_image_test_overall})
-        plt.close('all')
+    plt.close('all')
     
     if config['data.simulate']:
         print("Forming the dataset with simulation")
@@ -344,5 +330,5 @@ def main(config):
             sample_map_lst[i], save_path, admixed_num_per_gen[i], config['data.gens_to_ret'])
 
 if __name__=="__main__":
-    config,_ = parse_args()
+    config = parse_args()
     main(config)

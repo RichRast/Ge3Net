@@ -1,3 +1,4 @@
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.patches as mpatches
@@ -25,7 +26,8 @@ def plot_embeddings(n_comp_overall, pop_arr, n_way, random_idx, rev_pop_order, p
             ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1],X_transformed[idx_label,2], s=5,\
                     color=color_pop_dict[pop_order[i]] , label = pop_order[i])
             
-            lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
+            handles, labels = ax.get_legend_handles_labels()
+            lgnd = ax.legend(handles, labels, bbox_to_anchor=(0.9,0.5+(i/20)))
             for l in lgnd.legendHandles:
                 l._sizes = [30]
 
@@ -49,7 +51,8 @@ def plot_embeddings(n_comp_overall, pop_arr, n_way, random_idx, rev_pop_order, p
             ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1], s=5, \
                       color=color_pop_dict[pop_order[i]] , label = pop_order[i] )
 
-            lgnd = ax.legend(bbox_to_anchor=(1.0,0.8))
+            handles, labels = ax.get_legend_handles_labels()
+            lgnd = ax.legend(handles, labels, bbox_to_anchor=(1.0,0.8))
             for l in lgnd.legendHandles:
                 l._sizes = [30]
 
@@ -58,8 +61,26 @@ def plot_embeddings(n_comp_overall, pop_arr, n_way, random_idx, rev_pop_order, p
             ax.text(PCA_lbls_dict[k][0], PCA_lbls_dict[k][1], \
                     s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
                 fontweight='bold', fontsize = 12)
-    return ax, fig
+    return lgnd, fig
 
+def plot_embeddings_2d_extended(X_transformed, pop_arr, pop_order):
+    plt.rcParams['savefig.transparent'] = True
+    fig, ax= plt.subplots(figsize=(10,12))
+
+    colors_pop = sns.color_palette("rainbow", len(pop_order))
+    color_pop_dict = {k:v for k,v in zip(pop_order, colors_pop)}
+
+    # plot it for all the continents
+    for i in range(len(pop_order)):
+        idx_label = np.nonzero(pop_arr[:,3]==i)[0]
+        ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1], s=5,\
+                  color=color_pop_dict[i] , label = pop_order[i])
+        
+        lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
+        for l in lgnd.legendHandles:
+            l._sizes = [30]
+    
+    return ax, fig
 
 def plot_coordinates_map(label, data_coordinates, rev_pop_order):
     """
@@ -132,7 +153,7 @@ def plot_changepoint_predictions(y_pred_index_np, y_pred_var, cp_pred_index_np, 
     # plt.show()
     return fig
 
-def predictions_plot(y_vcf_idx, y_pred):
+def predictions_plot(y_vcf_idx, y_pred, granular_pop_dict, pop_arr, PCA_lbls_dict):
     
     fig=plt.figure(figsize=(10,12))
     ax= Axes3D(fig)
@@ -300,9 +321,9 @@ class Plot_per_epoch_revised(object):
                 if len(wins_sp)>1: 
                     wins_sp=wins_sp[1]
                     if isinstance(pop_num_val, list):
-                        pop_name= "_".join([str(pop_order[i]) for i in pop_num_val])
+                        pop_name= "_".join([str(self.pop_order[i]) for i in pop_num_val])
                     else:
-                        pop_name = pop_order[pop_num_val]
+                        pop_name = self.pop_order[pop_num_val]
                     ax = fig.add_subplot(8,1,j+2, projection='3d')
                     j+=1
                     ax.scatter(y_pred_subclass[wins_sp,2*n], y_pred_subclass[wins_sp,2*n+1], y_pred_overall[wins_sp,0], s=55\
@@ -343,7 +364,7 @@ def plot_subclass(pop_order, pop_arr, PCA_lbls_dict, n_comp_overall, n_comp_subc
         random_idx = np.random.choice(pop_arr[pop_specific_idx,1], 30)
         PCA_labels = np.array(list(PCA_lbls_dict.values()), dtype=float)
         ax1, fig = plot_embeddings_2d_extended(PCA_labels[:, n_comp_overall+n_comp_subclass*j:n_comp_overall+n_comp_subclass*(j+1)], \
-            pop_arr)
+            pop_arr, pop_order)
         
         for k in random_idx:
             idx_pop_arr=np.where(pop_arr[:,1]==k)[0][0]

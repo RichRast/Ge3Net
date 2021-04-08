@@ -2,7 +2,8 @@
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
-# sample command ./Batch_job_scripts/submit_build_labels.sh -gt=dogs -e=2 -sim -bl -n_o=3 -f=rm_anc
+# sample command ./Batch_job_scripts/submit_build_labels.sh -gt=dogs -e=3 -sim -bl -n_o=3 -vt=custom -s=1234
+# vcf_type for dogs can be expt1_filtered, expt2_subset, expt2_biallelic, expt2_subset_pruned, expt2_biallelic_pruned, unfiltered
 
 Help()
 {
@@ -10,6 +11,7 @@ Help()
     echo "Syntax: scriptTemplate [-gt|e|s|ext|p_o|s|bl|n_o|n_s|f|h]"
     echo "options:"
     echo "-gt|--geno_type       Specify the genotype as humans or dogs"
+    echo "-vt|--vcf_type        Specify the vcf_type"
     echo "-e|--exp_id           Specify the experiment id"
     echo "-s|--seed             Specify the seed for splitting train/valid/test"
     echo "-ext|--extended_pca   Specify whether to compute pca or extended pca"
@@ -23,7 +25,7 @@ Help()
     echo
 }
 
-for argument in "$@"; do #syntactic sugar for: for argument in "$@"; do
+for argument in "$@"; do 
     key=${argument%%=*}
     value=${argument#*=}
 
@@ -33,6 +35,7 @@ for argument in "$@"; do #syntactic sugar for: for argument in "$@"; do
 
     case "$key" in
         -gt|--geno_type )          geno_type=$value;;
+        -vt|--vcf_type )           vcf_type=$value;;
         -e|--exp_id )              exp_id=$value;;
         -s|--seed )                seed=$value;;
         -ext|--extended_pca )      ext_pca="True";;
@@ -60,7 +63,7 @@ if [[ -z ${pop_order} ]]; then echo "Setting pop order to default from the super
 if [[ -z $simulate ]]; then echo "No admixture simulation will be performed"; simulate="False"; fi
 if [[ -z ${create_lbls} ]]; then echo " no labels will be created"; $create_lbls="False"; fi
 if [[ -z ${n_comp_overall} ]]; then echo " overall pca components set to default of 3"; n_comp_overall=3; fi
-if [[ -z ${n_comp_subclass} ]]; then echo "subclass components set to default of 2"; n_comp_subclass=2; fi
+if [[ (${ext_pca} = "True") && (-z ${n_comp_subclass})]]; then echo "subclass components set to default of 2"; n_comp_subclass=2; fi
 if [[  (${ext_pca} = "False") && (${n_comp_subclass} >=0) ]]; then echo "Invalid combination of extended pca and pca subclass components set"; exit 1; fi
 if [[ ($simulate = "False") && (${create_lbls} = "False") ]]; then echo "Invalid combination of simulate and create labels set"; exit 1; fi
 if [[ -z $seed ]]; then seed=$RANDOM; echo "seed not specified, setting to a random seed = $seed "; fi
@@ -75,16 +78,32 @@ metadata='' ;
 filter_criteria='Single_Ancestry';
 all_chm_snps='$OUT_PATH/${geno_type}/combined_chm/all_chm_combined_snps_variance_filter_0.3.npy';
 n_comp=44;
-elif [[ ${geno_type} = 'dogs' ]]; then
+elif [[ (${geno_type} = 'dogs') && (${vcf_type} = "expt1_filtered") ]]; then
 vcf_dir='$IN_PATH/dogs/chr22/chr22_expt1_filtered.vcf.gz';
 ref_map='$IN_PATH/dogs/expt1.txt';
 gen_map='$IN_PATH/dogs/chr22/chr22_average_canFam3.1.txt';
-metadata='$IN_PATH/dogs/Metadata_May2018.xlsx';
-filter_criteria='rm_anc';
+metadata='';
+filter_criteria='';
 all_chm_snps='$OUT_PATH/dogs/filtered_var_0.0/all_chm_combined_snps_variance_filter_0.0.npy';
 n_comp=23;
+elif [[ (${geno_type} = 'dogs') && (${vcf_type} = "unfiltered") ]]; then
+vcf_dir='$IN_PATH/dogs/chr22/chr22_unfiltered.vcf.gz';
+ref_map='$OUT_PATH/dogs/expt2_ref_sample.tsv';
+gen_map='$IN_PATH/dogs/chr22/chr22_average_canFam3.1.txt';
+metadata='';
+filter_criteria='';
+all_chm_snps='$OUT_PATH/dogs/unfiltered/all_chm_combined_snps_variance_filter_0.0.npy';
+n_comp=23;
+elif [[ (${geno_type} = 'dogs') && (${vcf_type} = "custom") ]]; then
+vcf_dir='$OUT_PATH/dogs/chr1/chr1_biallelic.vcf.gz';
+ref_map='$OUT_PATH/dogs/ref_map_keep.tsv';
+gen_map='$IN_PATH/dogs/chr1/chr1_average_canFam3.1.txt';
+metadata='';
+filter_criteria='';
+all_chm_snps='$OUT_PATH/dogs/expt2_biallelic_pruned/all_chm_combined_snps_variance_filter_0.0.npy';
+n_comp=23;
 else
-echo "${geno_type} not supported"
+echo "${geno_type} not supported"; exit 1 ;
 fi
 
 echo "Starting build_labels for geno type ${geno_type} experiment ${exp_id}"
@@ -94,9 +113,9 @@ sbatch<<EOT
 #!/bin/sh
 #SBATCH -p bigmem
 #SBATCH -c 1
-#SBATCH --mem=800G
+#SBATCH --mem=1000G
 #SBATCH -t 24:00:00
-#SBATCH --output=$OUT_PATH/gt_${geno_type}_exp_${exp_id}_seed_$seed.out
+#SBATCH --output=$OUT_PATH/build_labels_gt_${geno_type}_exp_${exp_id}_seed_$seed.out
 
 ml load py-pytorch/1.4.0_py36
 ml load py-scipy/1.4.1_py36
@@ -110,14 +129,12 @@ python3 build_labels_revised.py --data.seed $seed \
 --data.reference_map ${ref_map} \
 --data.vcf_dir ${vcf_dir} \
 --data.genetic_map ${gen_map} \
---data.metadata ${metadata} \
 --data.geno_type ${geno_type} \
 --data.extended_pca ${ext_pca} \
 --data.simulate ${simulate} \
 --data.create_labels ${create_lbls} \
 --data.n_comp_overall ${n_comp_overall} \
 --data.n_comp_subclass ${n_comp_subclass} \
---data.ref_filter_criteria ${filter_criteria} \
 --data.n_comp ${n_comp} \
 --data.all_chm_snps ${all_chm_snps}
 EOT
@@ -125,4 +142,4 @@ EOT
 sleep .5
 squeue -u richras
 sleep .5
-less +F $OUT_PATH/gt_${geno_type}_exp_${exp_id}_seed_$seed.out
+less +F $OUT_PATH/build_labels_gt_${geno_type}_exp_${exp_id}_seed_$seed.out
