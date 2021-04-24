@@ -22,6 +22,10 @@ from torch.utils.tensorboard import SummaryWriter
 import wandb
 from decorators import timer
 
+class CustomDataParallel(torch.nn.DataParallel):
+    def __getattr__(self, name):
+        return getattr(self.module, name)
+
 @timer
 def main(config, params, trial=None):
     # use GPU if available
@@ -49,6 +53,7 @@ def main(config, params, trial=None):
     # configure device
     params.device = torch.device(config['cuda'] if params.cuda else 'cpu')
 
+    #============================= Create and load datasets ===============================#
     # Create the input data pipeline
     logging.info("Loading the datasets...")
 
@@ -62,6 +67,7 @@ def main(config, params, trial=None):
     validation_generator = torch.utils.data.DataLoader(validation_dataset, batch_size=params.batch_size, num_workers=0)
      
     # Initiate the class for plotting per epoch
+    plot_obj=None
     if params.plotting:
         pop_dict = load_path(osp.join(dataset_path, 'granular_pop.pkl'), en_pickle=True)
         rev_pop_dict = {v:k for k,v in pop_dict.items()}
@@ -69,7 +75,7 @@ def main(config, params, trial=None):
         pop_arr = repeat_pop_arr(pop_sample_map)
         plot_obj = Plot_per_epoch_revised(params.n_comp_overall, params.n_comp_subclass, config['data.pop_order'], rev_pop_dict, pop_arr)
         
-         
+    #============================= Create and load the model ===============================#    
     # Create the model
     model_subclass, model_basics = MODEL_CLASS[params.model]
     
@@ -79,7 +85,13 @@ def main(config, params, trial=None):
     for i, model_basic in enumerate(model_basics):
         params_dict={}
         # instantiate the model class
-        m = eval(model_basic)(params).to(params.device)
+        m = eval(model_basic)(params)
+        # use parallel GPU's
+        if torch.cuda.device_count() > 1:
+            print("Using", torch.cuda.device_count(), "GPUs")
+            m = torch.nn.DataParallel(m, dim=0)
+        m.to(params.device)
+        print(f"is the model on cuda? : {next(m.parameters()).is_cuda}")
         middle_models.append(m)
         print(f'model {model_subclass} : {model_basic}')
         # assign the corresponding model parameters
@@ -92,6 +104,8 @@ def main(config, params, trial=None):
     for m in middle_models:
         m.apply(weight_int)
         
+    # Total number of parameters
+
     if config['log.verbose']:
         #watch all the models
         for m in middle_models:
@@ -112,7 +126,8 @@ def main(config, params, trial=None):
 def training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, plot_obj, wandb):
      # optimizer
     optimizer = torch.optim.Adam(model_params)
-    #custom_optimizer = custom_opt(optimizer, d_model=params.att['input_size'], warmup_steps=params.att['warmup_steps'], factor=params.att['factor'], groups=params.lr_groups)
+    #custom_optimizer = custom_opt(optimizer, d_model=params.att['input_size'], \
+    # warmup_steps=params.att['warmup_steps'], factor=params.att['factor'], groups=params.lr_groups)
     
     # learning rate scheduler
     exp_lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = params.lr_steps_decay, verbose=True)
@@ -131,8 +146,6 @@ def training_loop(model, model_params, middle_models, params, config, training_g
 
             wandb.log({"train_metrics":train_result.accr._asdict(), "epoch":epoch})
             wandb.log({"valid_metrics":eval_result.accr._asdict(), "epoch":epoch})
-            eval_result_dict = eval_result.accr._asdict()
-            wandb.log({"valid_weighted_loss":eval_result_dict["l1_loss"], "epoch": epoch})
 
         # every step in the scheduler is per epoch
         exp_lr_scheduler.step(eval_result.accr.weighted_loss)
@@ -179,7 +192,10 @@ def training_loop(model, model_params, middle_models, params, config, training_g
 
     
 if __name__=="__main__":
-    config, params = parse_args()
+    config = parse_args()
+    json_path = osp.join(config['data.params_dir'], 'params.json')
+    assert osp.isfile(json_path), "No json configuration file found at {}".format(json_path)
+    params = Params(json_path)
     config['model_version'] = ''.join([str(params.model), '_', str(params.major_version), \
         '.', str(params.minor_version), '.', str(config['model.expt_id'])])
     main(config, params)

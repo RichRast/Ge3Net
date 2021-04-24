@@ -79,12 +79,13 @@ filter_criteria='Single_Ancestry';
 all_chm_snps='$OUT_PATH/${geno_type}/combined_chm/all_chm_combined_snps_variance_filter_0.3.npy';
 n_comp=44;
 elif [[ (${geno_type} = 'dogs') && (${vcf_type} = "expt1_filtered") ]]; then
-vcf_dir='$IN_PATH/dogs/chr22/chr22_expt1_filtered.vcf.gz';
-ref_map='$IN_PATH/dogs/expt1.txt';
-gen_map='$IN_PATH/dogs/chr22/chr22_average_canFam3.1.txt';
+vcf_dir='$IN_PATH/dogs/chr1/chr1_expt1_filtered.vcf.gz';
+ref_map='$OUT_PATH/dogs/ref_map_expt1.tsv';
+gen_map='$IN_PATH/dogs/chr1/chr1_average_canFam3.1.txt';
 metadata='';
 filter_criteria='';
-all_chm_snps='$OUT_PATH/dogs/filtered_var_0.0/all_chm_combined_snps_variance_filter_0.0.npy';
+all_chm_snps='None';
+# all_chm_snps='$OUT_PATH/dogs/filtered_var_0.0/all_chm_combined_snps_variance_filter_0.0.npy';
 n_comp=23;
 elif [[ (${geno_type} = 'dogs') && (${vcf_type} = "unfiltered") ]]; then
 vcf_dir='$IN_PATH/dogs/chr22/chr22_unfiltered.vcf.gz';
@@ -92,15 +93,16 @@ ref_map='$OUT_PATH/dogs/expt2_ref_sample.tsv';
 gen_map='$IN_PATH/dogs/chr22/chr22_average_canFam3.1.txt';
 metadata='';
 filter_criteria='';
-all_chm_snps='$OUT_PATH/dogs/unfiltered/all_chm_combined_snps_variance_filter_0.0.npy';
+all_chm_snps='None';
 n_comp=23;
 elif [[ (${geno_type} = 'dogs') && (${vcf_type} = "custom") ]]; then
-vcf_dir='$OUT_PATH/dogs/chr1/chr1_biallelic.vcf.gz';
-ref_map='$OUT_PATH/dogs/ref_map_keep.tsv';
+vcf_dir='$IN_PATH/dogs/chr1/chr1_expt1_filtered.vcf.gz';
+ref_map='$OUT_PATH/dogs/ref_map_expt1.tsv';
 gen_map='$IN_PATH/dogs/chr1/chr1_average_canFam3.1.txt';
 metadata='';
 filter_criteria='';
-all_chm_snps='$OUT_PATH/dogs/expt2_biallelic_pruned/all_chm_combined_snps_variance_filter_0.0.npy';
+all_chm_snps='$OUT_PATH/dogs/filtered_var_0.0/all_chm_combined_snps_variance_filter_0.0.npy';
+# all_chm_snps='$OUT_PATH/dogs/expt2_biallelic/all_chm_combined_snps_variance_filter_0.0_sample_win_100.npy';
 n_comp=23;
 else
 echo "${geno_type} not supported"; exit 1 ;

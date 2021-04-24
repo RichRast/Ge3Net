@@ -8,13 +8,12 @@ import os.path as osp
 from decorators import timer
 
 class Haplotype(Dataset):
-    def __init__(self, dataset_type, path_prefix, params, labels_path, geno_type):
+    def __init__(self, dataset_type, path_prefix, params, labels_path):
         if dataset_type not in ["train", "valid", "test", "no_label"]:
             raise ValueError
         
         self.params = params
-        self.geno_type = geno_type
-
+        
         if dataset_type=="train":
             self.gens_to_ret =  self.params.train_gens
         elif dataset_type=="valid":
@@ -29,7 +28,7 @@ class Haplotype(Dataset):
 
         if labels_path is None:
             print(f'Loading snps data')
-            snps = load_path(osp.join(path_prefix, str(dataset_type),'mat_vcf_2d.npy'))
+            self.snps = load_path(osp.join(path_prefix, str(dataset_type),'mat_vcf_2d.npy'))
             self.data['X'] = torch.tensor(self.snps[:,0:self.params.chmlen])
             print(f"snps data shape : {self.data['X'].shape}")
         else:
@@ -48,7 +47,7 @@ class Haplotype(Dataset):
                     self.vcf_idx = curr_vcf_idx
    
             pop_sample_map = pd.read_csv(osp.join(labels_path, self.params.pop_sample_map), sep='\t')
-            self.pop_arr = repeat_pop_arr(pop_sample_map, self.geno_type)
+            self.pop_arr = repeat_pop_arr(pop_sample_map)
             self.coordinates = load_path(osp.join(labels_path, self.params.coordinates), en_pickle=True)
             self.load_data()
         
@@ -78,14 +77,11 @@ class Haplotype(Dataset):
         
         result = np.zeros((y_vcf.shape[0], y_vcf.shape[1])).astype(float)
         if type=='superpop':
-            if self.geno_type == 'humans':
-                col_num=3
-            elif self.geno_type == 'dogs':
-                col_num=2
-            for k in np.unique(y_vcf):
-                idx = np.nonzero(y_vcf==k)
-                pop_arr_idx = np.nonzero(pop_arr[:,1]==k)[0]
-                result[idx[0], idx[1]]=pop_arr[pop_arr_idx, col_num]
+            col_num=3
+        for k in np.unique(y_vcf):
+            idx = np.nonzero(y_vcf==k)
+            pop_arr_idx = np.nonzero(pop_arr[:,1]==k)[0]
+            result[idx[0], idx[1]]=pop_arr[pop_arr_idx, col_num]
         result = torch.tensor(result).float()
         return result
 

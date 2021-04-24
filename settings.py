@@ -39,7 +39,7 @@ parser.add_argument('--data.genetic_map', type=str, default=osp.join( os.environ
                     help='directory where genetic map is saved')
 parser.add_argument('--data.reference_map', type=str, default=osp.join(os.environ.get('IN_PATH'), 'reference_files/reference_panel_metadata.tsv'), metavar='ref_file_path',
                 help="reference sample map")
-parser.add_argument('--data.experiment_id', type=int, default=1, metavar='experiment_id',
+parser.add_argument('--data.experiment_id', type=str, default=1, metavar='experiment_id',
                     help='unique experiment identifier seed')
 parser.add_argument('--data.experiment_name', type=str, default='unsupervised_labels', metavar='experiment_name',
                     help='name of experiment')
@@ -49,6 +49,8 @@ parser.add_argument('--data.metadata', type=str, default='', help='directory for
 parser.add_argument('--data.pop_order', type=str, help='directory for a specific pop order')
 parser.add_argument('--data.ref_filter_criteria', type=str, default='', 
                 help='criteria to filter the reference map')
+parser.add_argument('--data.method', type=str, default='pca', 
+                help='method to create labels')
 parser.add_argument('--data.n_comp_overall', type=int, default=3, 
                 help='overall components of pca')
 parser.add_argument('--data.n_comp_subclass', type=int, default=2, 
@@ -85,7 +87,7 @@ parser.add_argument('--model.pretrained', type=distutils.util.strtobool, default
                     help='specify whether to load pretrained model')
 parser.add_argument('--model.pretrained_version', type=str, default='', metavar='pretrained_version',
                     help='specify the version of pretrained model')
-parser.add_argument('--cuda', type=str, default='cuda:0', metavar='CUDA_DEVICE',
+parser.add_argument('--cuda', type=str, default='cuda', metavar='CUDA_DEVICE',
                     help='which cuda device to use')
 # log args
 parser.add_argument('--log.verbose', type=distutils.util.strtobool, default='True',

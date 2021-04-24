@@ -8,7 +8,6 @@ from decorators import timer
 from helper_funcs import activate_mc_dropout, split_batch, square_normalize, get_gradient, Running_Average, form_mask
 from evaluation import SmoothL1Loss, Weighted_Loss, gradient_reg, eval_cp_batch, class_accuracy
 
-
 cp_accr = namedtuple('cp_accr', ['cp_loss', 'Precision', 'Recall', 'Balanced_Accuracy'])
 accr = namedtuple('accr', ['l1_loss', 'mse_loss', 'smoothl1_loss', 'weighted_loss', 'cp_accr', 'sp_accr'])
 accr.__new__.defaults__=(None,)*len(accr._fields)
@@ -27,7 +26,6 @@ class model_D(object):
         self.weighted_loss_accr = Weighted_Loss(reduction='sum', alpha=self.params.weightLoss_alpha)
         
     def train(self, optimizer, training_generator, plot_obj, writer=None, wandb=None):
-
         self.aux_network.train()
         self.main_network.train()
         self.cp_network.train()
@@ -35,11 +33,6 @@ class model_D(object):
         self.residual_network.train()
         
         cp_pred = None
-        reg_loss = 0.0
-        cp_pred_loss = 0.0
-        cp_pred_loss_chunk = 0.0
-        sp_pred_loss_chunk = 0.0
-        residual_loss_chunk = 0.0
         
         accr_avg=[]
         for a in accr._fields:
@@ -54,6 +47,11 @@ class model_D(object):
             n_comp = self.params.n_comp_overall + self.params.n_comp_subclass
 
         for i, train_gen in enumerate(training_generator):
+            reg_loss = 0.0
+            cp_pred_loss = 0.0
+            cp_pred_loss_chunk = 0.0
+            sp_pred_loss_chunk = 0.0
+            residual_loss_chunk = 0.0
             preds, target, y_pred_list, cp_pred_list, cp_target_list, cp_pred_logits_list, \
                 sp_pred_list, residual_list = [[] for _ in range(8)]
             train_x, train_y, vcf_idx, cps, superpop = train_gen
@@ -87,7 +85,6 @@ class model_D(object):
                 
                 for x_chunk, batch_label_chunk, cps_chunk, sp_chunk in zip(bptt_batch_chunks, batch_label, batch_cps_chunks, sp_chunks):
                     x_chunk = V(x_chunk, requires_grad=True)
-                    
                     train_vec_64, train_vector, rnn_state = self.main_network(x_chunk, rnn_state)
                     cp_mask_chunk = (cps_chunk==0).float()
 
@@ -127,21 +124,24 @@ class model_D(object):
                     
                     # after doing back prob, detach rnn state to implement TBPTT
                     # now rnn_state was detached and chain of gradients was broken
-                    rnn_state = self.main_network._detach_rnn_state(rnn_state)
+                    if torch.cuda.device_count() > 1:
+                        rnn_state = self.main_network.module._detach_rnn_state(rnn_state)
+                    else:
+                        rnn_state = self.main_network._detach_rnn_state(rnn_state)
                     y_pred_list.append(train_vector)
                 
                 # concatenating across windows because training was done in chunks of windows
-                y_pred = torch.cat(y_pred_list,1)
+                y_pred = torch.cat(y_pred_list,1).detach()
                 if self.params.residual:
                     residual_out = torch.cat(residual_list, 1)
-                cp_pred_out = torch.cat(cp_pred_list,1)
-                cp_target_out = torch.cat(cp_target_list, 1)
-                cp_pred_out_logits =  torch.cat(cp_pred_logits_list, 1)
-                cp_pred_loss = F.binary_cross_entropy_with_logits(cp_pred_out_logits, cp_target_out).item()
+                cp_pred_out = torch.cat(cp_pred_list,1).detach()
+                cp_target_out = torch.cat(cp_target_list, 1).detach()
+                cp_pred_out_logits =  torch.cat(cp_pred_logits_list, 1).detach()
+                cp_pred_loss = F.binary_cross_entropy_with_logits(cp_pred_out_logits, cp_target_out).detach().item()
 
 
                 if self.params.superpop_predict:
-                    sp_pred_out = torch.cat(sp_pred_list,1)
+                    sp_pred_out = torch.cat(sp_pred_list,1).detach()
                     superpop = superpop.detach().cpu().numpy()
 
                 if self.params.superpop_mask:
@@ -203,23 +203,24 @@ class model_D(object):
                 wandb.log({"train_cp_accr":train_accr.cp_accr._asdict(), "batch_num":i})
                 if self.params.residual:
                     wandb.log({"train_residual_loss":residual_loss_chunk, "batch_num":i})
-                # randomly or non-randomly select an index and plot the output
-                if i==0:
-                    idx = 71
-                    y_target_idx = train_labels[idx,:,:].detach().cpu().numpy().reshape(-1, self.params.dataset_dim)
-                    y_pred_idx = y_pred[idx,:,0:self.params.n_comp_overall].detach().cpu().numpy().reshape(-1, self.params.n_comp_overall)
-                    if self.params.residual:
-                        y_subclass_idx = residual_out[idx,:,:].detach().cpu().numpy().reshape(self.params.n_win, -1)
-                    else:
-                        y_subclass_idx = y_pred[idx,:,-self.params.n_comp_subclass:].detach().cpu().numpy().reshape(self.params.n_win, -1)
-                    
-                    if self.params.superpop_predict:
-                        y_sp_idx = sp_pred_out[idx,:].detach().cpu().numpy().reshape(1,-1)
-                    else:
-                        y_sp_idx=None
-                    train_vcf_idx = vcf_idx[idx,:].detach().cpu().numpy().reshape(-1, 1)
-                    fig, ax = plot_obj.plot_index(y_pred_idx, y_subclass_idx, y_sp_idx, y_target_idx, train_vcf_idx)
-                    wandb.log({f" Train Image for idx {idx} ":wandb.Image(fig)})
+                if self.params.plotting:
+                    # randomly or non-randomly select an index and plot the output
+                    if i==0:
+                        idx = 71
+                        y_target_idx = train_labels[idx,:,:].detach().cpu().numpy().reshape(-1, self.params.dataset_dim)
+                        y_pred_idx = y_pred[idx,:,0:self.params.n_comp_overall].detach().cpu().numpy().reshape(-1, self.params.n_comp_overall)
+                        if self.params.residual:
+                            y_subclass_idx = residual_out[idx,:,:].detach().cpu().numpy().reshape(self.params.n_win, -1)
+                        else:
+                            y_subclass_idx = y_pred[idx,:,-self.params.n_comp_subclass:].detach().cpu().numpy().reshape(self.params.n_win, -1)
+                        
+                        if self.params.superpop_predict:
+                            y_sp_idx = sp_pred_out[idx,:].detach().cpu().numpy().reshape(1,-1)
+                        else:
+                            y_sp_idx=None
+                        train_vcf_idx = vcf_idx[idx,:].detach().cpu().numpy().reshape(-1, 1)
+                        fig, ax = plot_obj.plot_index(y_pred_idx, y_subclass_idx, y_sp_idx, y_target_idx, train_vcf_idx)
+                        wandb.log({f" Train Image for idx {idx} ":wandb.Image(fig)})
         
         # preds for tbptt will need to have a separate logic
         train_result=results(accr = train_accr, pred=[y_pred, cp_pred, None])
@@ -360,26 +361,26 @@ class model_D(object):
                         wandb.log({"val_sp_loss":sp_pred_loss, "batch_num":j})
                     if self.params.residual:
                         wandb.log({"val_residual_loss":residual_loss, "batch_num":j})
-                    
-                    # randomly or non-randomly select an index and plot the output
-                    if j==0:
-                        
-                        idx = [30,44,48,54,71]
-                        for k in idx:
-                            y_target_idx = val_labels[k,:,:].detach().cpu().numpy().reshape(-1, self.params.dataset_dim)
-                            y_pred_idx = outputs_cat[k,:,0:self.params.n_comp_overall].detach().cpu().numpy().reshape(-1, self.params.n_comp_overall)
-                            if self.params.residual:
-                                y_subclass_idx = residual_pred[k,:,:].detach().cpu().numpy().reshape(self.params.n_win, -1)
-                            else:
-                                y_subclass_idx = outputs_cat[k,:,-self.params.n_comp_subclass:].detach().cpu().numpy().reshape(self.params.n_win, -1)
+                    if self.params.plotting:
+                        # randomly or non-randomly select an index and plot the output
+                        if j==0:
                             
-                            if self.params.superpop_predict:
-                                y_sp_idx = sp_pred[k,:].detach().cpu().numpy().reshape(1,-1)
-                            else:
-                                y_sp_idx = None
-                            val_vcf_idx = vcf_idx[k,:].detach().cpu().numpy().reshape(-1, 1)
-                            fig, ax = plot_obj.plot_index(y_pred_idx, y_subclass_idx, y_sp_idx, y_target_idx, val_vcf_idx)
-                            wandb.log({ f"Val Image for idx {k}":wandb.Image(fig)})
+                            idx = [30,44,48,54,71]
+                            for k in idx:
+                                y_target_idx = val_labels[k,:,:].detach().cpu().numpy().reshape(-1, self.params.dataset_dim)
+                                y_pred_idx = outputs_cat[k,:,0:self.params.n_comp_overall].detach().cpu().numpy().reshape(-1, self.params.n_comp_overall)
+                                if self.params.residual:
+                                    y_subclass_idx = residual_pred[k,:,:].detach().cpu().numpy().reshape(self.params.n_win, -1)
+                                else:
+                                    y_subclass_idx = outputs_cat[k,:,-self.params.n_comp_subclass:].detach().cpu().numpy().reshape(self.params.n_win, -1)
+                                
+                                if self.params.superpop_predict:
+                                    y_sp_idx = sp_pred[k,:].detach().cpu().numpy().reshape(1,-1)
+                                else:
+                                    y_sp_idx = None
+                                val_vcf_idx = vcf_idx[k,:].detach().cpu().numpy().reshape(-1, 1)
+                                fig, ax = plot_obj.plot_index(y_pred_idx, y_subclass_idx, y_sp_idx, y_target_idx, val_vcf_idx)
+                                wandb.log({ f"Val Image for idx {k}":wandb.Image(fig)})
                     
             eval_result = results(accr = accuracy, pred = [y_pred, cp_pred, y_pred_var])
 
@@ -473,8 +474,7 @@ class model_D(object):
 
         return test_result
 
-    def evaluate_accuracy(self, accr_avg, sample_size, *y):
-    
+    def evaluate_accuracy(self, accr_avg, sample_size, *y):   
         [preds, target] = y
         
         pred_y = preds[0]
@@ -525,7 +525,6 @@ class model_D(object):
         return accuracy
 
     def get_superpop_mask(self, superpop, pop_num, dim):
-
         superpop = superpop.detach().cpu().numpy()
         sp_mask = np.zeros((superpop.shape[0], superpop.shape[1], dim))
 

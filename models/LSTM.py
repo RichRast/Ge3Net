@@ -40,6 +40,10 @@ class BiRNN(nn.Module):
         h0 = torch.zeros(self.num_layers * (1+1*self.bidirectional), x.size(0), self.hidden_size).to(self.device)
         c0 = torch.zeros(self.num_layers * (1+1*self.bidirectional), x.size(0), self.hidden_size).to(self.device)
 
+        # to supress this warning when using data parallel
+        # RNN module weights are not part of single contiguous chunk of memory. This means they need to be 
+        # compacted at every call, possibly greatly increasing memory usage. To compact weights again call flatten_parameters().
+        # self.rnn.flatten_parameters()
         # truncated backprop - detach the state after n steps and use it for the next sequence
         if self.tbptt:
             out1, rnn_state = self.rnn(x, rnn_state)

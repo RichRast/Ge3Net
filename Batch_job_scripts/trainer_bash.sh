@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# sample command ./Batch_job_scripts/trainer_bash.sh -gt dogs -e 7 -d 12_test -m D7_dogs_chr22
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
@@ -42,7 +43,7 @@ sbatch << EOT
 #SBATCH -p gpu
 #SBATCH -c 10
 #SBATCH -G 1
-#SBATCH -C GPU_MEM:32GB
+#SBATCH -C GPU_MEM:11GB
 #SBATCH --mem=80G
 #SBATCH -t 24:00:00
 #SBATCH --output=$OUT_PATH/logs/gt_${geno_type}_exp_${expt_id}_${model_type}_data_id_${data_id}.out
@@ -56,11 +57,11 @@ ml load git-lfs/2.4.0
 ml load system nvtop
 
 python3 trainer.py --data.experiment_id $data_id \
---data.params_dir '$USER_PATH/experiments/pca/exp_$model_type/' \
+--data.params_dir '$USER_PATH/experiments/coordinates/exp_$model_type/' \
 --data.experiment_name 'unsupervised_labels' \
 --data.geno_type $geno_type \
 --model.expt_id $expt_id \
---model.working_dir '$OUT_PATH/$geno_type/pca_models_dir' \
+--model.working_dir '$OUT_PATH/$geno_type/models_dir' \
 --data.labels_dir '$OUT_PATH/$geno_type/unsupervised_labels/$data_id'
 EOT
 
@@ -69,8 +70,6 @@ echo "status of all jobs"
 squeue -u richras
 sleep .5
 echo "status of this job"
-
-
 
 echo log_dir: $OUT_PATH/logs/gt_${geno_type}_exp_${expt_id}_${model_type}_data_id_${data_id}.out
 less +F $OUT_PATH/logs/gt_${geno_type}_exp_${expt_id}_${model_type}_data_id_${data_id}.out

@@ -170,7 +170,6 @@ def main(config):
     print("Reading reference map")
 
     vcf_snp = allel.read_vcf(config['data.vcf_dir'])
-
     ref_sample_map = pd.read_csv(config['data.reference_map'], sep="\t")
     
     #select the intersection of snps between ref map and vcf
@@ -204,7 +203,7 @@ def main(config):
             vcf_data = load_path(config['data.all_chm_snps'])
         else:
             vcf_data = vcf2npy(config['data.vcf_dir'])
-
+        print(f" vcf for PCA shape:{vcf_data.shape}")
         #for train labels
         # pop_arr_xx is defined with column 0: 'sample_id'
         # col 1: vcf_ref_idx, col2: granular_pop_num
@@ -239,7 +238,8 @@ def main(config):
         if config['data.pop_order'] is None:
             config['data.pop_order'] = list(superpop_dict.keys())
 
-        print("Computing pca")
+        print("Creating labels using {config['data.method']}")
+        
         
         PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = \
             PCA_space_residual(vcf_data, idx_lst, config['data.pop_order'], n_comp=config['data.n_comp'], n_comp_overall=config['data.n_comp_overall'], \

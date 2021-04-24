@@ -14,7 +14,6 @@ from settings import parse_args, MODEL_CLASS
 import torch
 import numpy as np
 from collections import namedtuple
-from torch.utils.tensorboard import SummaryWriter
 import wandb
 from decorators import timer
 

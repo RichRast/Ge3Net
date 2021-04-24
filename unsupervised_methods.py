@@ -8,17 +8,11 @@ from sklearn.metrics.pairwise import euclidean_distances
 from helper_funcs import load_path, save_file
 from numpy import linalg as LA
 from decorators import timer
+import umap
+from sklearn.manifold import SpectralEmbedding
+from sklearn.manifold import TSNE
 
 # POP_ORDER = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
-
-def PCA_space(x, n_comp=3, verbose = True):
-    pca=decomposition.PCA(n_components=n_comp, whiten=True, random_state=10)
-    #x = np.where(x==0,-1,1)
-    centered_data = x-(np.sum(x, axis=0)/x.shape[0])
-    #Standardized_data=StandardScaler().fit_transform(x)
-    pca_data=pca.fit_transform(centered_data)
-    print(f'explained_variance_ratio_:{pca.explained_variance_ratio_}')
-    return pca_data
 
 @timer
 def PCA_space_revised(vcf_snp, idx_lst, n_comp=3, extended_pca = False, pop_arr=None, n_way = 7, n_comp_subclass = 2):
@@ -240,6 +234,16 @@ def PCA_space_extended(vcf_snp, idx_lst, pop_order, n_comp=44, n_comp_overall=3,
     print(f'PCA_labels_train shape: {PCA_labels_train.shape}')
     return PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train
 
+def sPCA(vcf_snp, idx_lst, pop_order, n_comp, n_comp_overall):
+    pca=decomposition.PCA(n_components=n_comp, whiten=True, random_state=10)
+    [vcf_train, vcf_valid, vcf_test] = [vcf_snp[idx_lst[i]] for i in range(len(idx_lst))]
+    mean_train = np.sum(vcf_train, axis=0)/vcf_train.shape[0]
+    std_train = vcf_train.std(axis=0)
+    std_train[std_train==0] = 1
+    # pearson correlation coeficiant for each pair of snps
+    
+
+
 def get_hamming_matrix(x):
     Hamming_matrix = scipy.spatial.distance.cdist(x,x, metric="hamming")
     return Hamming_matrix
@@ -286,3 +290,17 @@ def MDS_space(x, distance_matrix, data_folder, verbose = True):
     save_file(path, X_transformed)
     
     return X_transformed, dissimilarity_matrix
+
+def Umap_space(X, n_comp):
+    reducer = umap.UMAP(random_state=42)
+    reducer.fit(X)
+    embedding = reducer.transform(X)
+    # Verify that the result of calling transform is
+    # idenitical to accessing the embedding_ attribute
+    assert(np.all(embedding == reducer.embedding_))
+    print(f"embedding shape :{embedding.shape}")
+
+def TSNE_space(X, n_comp):
+    embedding = TSNE(n_components = n_comp)
+    X_transformed = embedding.fit_transform(X)
+    print(f"X_transformed shape: {X_transformed.shape}")

@@ -245,14 +245,13 @@ def chm_plot(label,gcd):
     plt.show()
 
 class Plot_per_epoch_revised(object):
-    def __init__(self, n_comp_overall, n_comp_subclass, pop_order, rev_pop_dict, pop_arr, subclass_plot="3d"):
+    def __init__(self, n_comp_overall, n_comp_subclass, pop_order, rev_pop_dict, pop_arr):
         self.n_comp_overall = n_comp_overall
         self.n_comp_subclass = n_comp_subclass
         self.pop_order = pop_order
         self.rev_pop_dict = rev_pop_dict
         self.pop_arr = pop_arr
-        self.subclass_plot=subclass_plot
-
+        
     def plot_index(self, y_pred_overall, y_pred_subclass, y_pred_sp, y_target, y_vcf_idx):
         # for extended pca - plot the overall plot with 6 or 7 subplots for a prediction
         # fig, ax = plt.subplots(len(self.pop_num)+1, figsize=(10,62), gridspec_kw={'height_ratios':[1]+[1]*len(self.pop_num)})
@@ -296,22 +295,21 @@ class Plot_per_epoch_revised(object):
             ax.set_title("Overall PCA space Predictions")
         else:
             ax = fig.add_subplot(8,1,1)
-            ax[0].set_title("Overall PCA space Predictions")
             for i, val in enumerate(num_labels_idx):
                 idx_label = np.nonzero(y_vcf_idx==val)[0]
                 pop_arr_idx = (np.where(self.pop_arr[:,1]==val)[0]).item()
                 granular_pop = self.pop_arr[pop_arr_idx,2]
 
-                ax[0].scatter(y_pred_overall[idx_label,0], y_pred_overall[idx_label,1], s=55\
+                ax.scatter(y_pred_overall[idx_label,0], y_pred_overall[idx_label,1], s=55\
                         ,color=colors_pop[j], label = self.rev_pop_dict[granular_pop] )
-                ax[0].scatter(y_target[idx_label,0], y_target[idx_label,1], s=55\
+                ax.scatter(y_target[idx_label,0], y_target[idx_label,1], s=55\
                         ,color=colors_pop[j], marker='X')    
                 j +=1
 
-                lgnd = ax[0].legend(bbox_to_anchor=(0.9,0.5+(i/20)))
+                lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
                 for l in lgnd.legendHandles:
                     l._sizes = [30]
-            
+            ax.set_title("Overall PCA space Predictions")
         if self.n_comp_subclass>=2:
             # subplots for granular populations
             j = 0

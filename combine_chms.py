@@ -22,11 +22,13 @@ parser.add_argument('--data.variance_filter', type=float, default=0.09, metavar=
                     help="variance filter threshold for filtering snps")
 parser.add_argument('--data.choose_k', type=float, default=None, metavar='choose_k_snps',
                     help="choose the top k snps with the most variance")
+parser.add_argument('--data.sample_win', type=int, default=0, metavar='sample_win',
+                    help="subsample window size")
 parser.add_argument('--log.verbose', type=bool, default=True, metavar='verbose',
                     help='verbose')
 
 
-def process_filter_chm(vcf_filenames, save_path, combine, filter_thresh=None, verbose=True):
+def process_filter_chm(vcf_filenames, save_path, combine, sample_win, filter_thresh=None, verbose=True):
     
     for i, vcf_file in enumerate(vcf_filenames):
         #parse the chm # from the vcf filename
@@ -38,6 +40,10 @@ def process_filter_chm(vcf_filenames, save_path, combine, filter_thresh=None, ve
         print(f'chm:{chm}')
         if combine:
             mat_vcf_np = vcf2npy(vcf_file) 
+            # subsample 1 out of every x snps 
+            print(f'mat_vcf_np shape before subsample:{mat_vcf_np.shape}')
+            mat_vcf_np=mat_vcf_np[:,1::sample_win] if sample_win>0 else mat_vcf_np
+            print(f'mat_vcf_np shape after subsample:{mat_vcf_np.shape}')
             if filter_thresh == 0.0:
                 print("combining all chms with no threshold")
                 if i==0:
@@ -69,14 +75,14 @@ def process_filter_chm(vcf_filenames, save_path, combine, filter_thresh=None, ve
         else:
             filtered_vcf = filter_vcf(vcf_file, filter_thresh)
             #save each filtered vcf file
-            filtered_save_filename = ''.join([save_path, '/filtered_var_', str(filter_thresh) ,'chm_', str(chm), '.vcf.gz'])
+            filtered_save_filename = ''.join([save_path, '/filtered_var_', str(filter_thresh) ,'chm_', str(chm), '_sample_win_', str(sample_win),'.vcf.gz'])
             print(f"saving filtered vcf for chm {chm} at {str(filtered_save_filename)} \n")
             save_file(filtered_save_filename, filtered_vcf, en_pickle=True)
             
     # if combine, then save the combined snps npy 
     if combine:
         print(f'combined_snps shape:{filtered_vcf.shape}')
-        combined_snps_save_filename = ''.join([save_path, '/all_chm_combined_snps_variance_filter_', str(config['data.variance_filter']), '.npy'])
+        combined_snps_save_filename = ''.join([save_path, '/all_chm_combined_snps_variance_filter_', str(filter_thresh), '_sample_win_', str(sample_win), '.npy'])
         print(f"saving combined filtered vcf at {str(combined_snps_save_filename)}")
         save_file(combined_snps_save_filename, filtered_vcf) 
     
@@ -89,7 +95,7 @@ def main(config):
     thresh = config['data.variance_filter']
     # choose_k = config['data.choose_k']
     
-    process_filter_chm(config['data.vcf_filenames'], config['data.save_path'], config['data.combine'], thresh)
+    process_filter_chm(config['data.vcf_filenames'], config['data.save_path'], config['data.combine'], config['data.sample_win'], thresh)
 
 if __name__=="__main__":
     config, unknown = parser.parse_known_args()
