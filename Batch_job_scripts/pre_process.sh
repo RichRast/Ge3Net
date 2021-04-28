@@ -45,7 +45,7 @@ sbatch<<EOT
 #SBATCH -c 1
 #SBATCH --mem=1000G
 #SBATCH -t 24:00:00
-#SBATCH --output=$OUT_PATH/dogs/preprocess_vcf_${start_chm}_${end_chm}_combine_${combine}_ld_prune_${ld_prune}.out
+#SBATCH --output=$OUT_PATH/dogs/preprocess_vcf_sm_${sample_map}_${start_chm}_${end_chm}_combine_${combine}_ld_prune_${ld_prune}.out
 
 ml load biology
 ml load plink/2.0a2
@@ -58,10 +58,10 @@ if ./Batch_job_scripts/pre_process_loop.sh ${start_chm} ${end_chm} ${geno} ${maf
 else echo "Fail"; fi
 if [[ ($combine = "True") ]] ; then
     echo "Launching the combine script for pruned data "
-    if ./Batch_job_scripts/filter_combine_vcf.sh -gt ${geno_type} -vt ${sample_map} -f 0.0 -st_chm 1 -ed_chm 38 -s_win 0 -ld ${ld_prune} -c; then echo "Success";
+    if ./Batch_job_scripts/filter_combine_vcf.sh -gt ${geno_type} -sm ${sample_map} -f 0.0 -st_chm 1 -ed_chm 38 -s_win 0 -ld ${ld_prune} -c; then echo "Success";
     else echo "Fail combine script"; fi 
     echo "Launching the combine script for unpruned and unfiltered data"
-    if ./Batch_job_scripts/filter_combine_vcf.sh -gt ${geno_type} -vt ${sample_map} -f 0.0 -st_chm 1 -ed_chm 38 -s_win 0 -c ; then echo "Success";
+    if ./Batch_job_scripts/filter_combine_vcf.sh -gt ${geno_type} -sm ${sample_map} -f 0.0 -st_chm 1 -ed_chm 38 -s_win 0 -c ; then echo "Success";
     else echo "Fail combine script"; fi 
 else echo "Finished without combining";
 fi

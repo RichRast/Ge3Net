@@ -31,12 +31,12 @@ parser.add_argument('--data.geno_type', type=str, default='humans', metavar='gen
                 help="genotype of humans or dogs")
 parser.add_argument('--data.params_dir', type=str, default='', metavar='working_dir',
                     help='directory where json file for model hyperparameters are stored')
-parser.add_argument('--data.labels_dir', type=str, default='', metavar='pca_labels_dir',
-                    help='pca labels built with maf 0.09')
 parser.add_argument('--data.vcf_dir', type=str, default=osp.join(os.environ.get('IN_PATH'), 'master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr22.vcf.gz'), metavar='vcf_dir',
                     help='directory where vcf file for the particular chm is saved')
 parser.add_argument('--data.genetic_map', type=str, default=osp.join( os.environ.get('IN_PATH'), 'reference_files/allchrs.b38.gmap'), metavar='genetic_map_dir',
                     help='directory where genetic map is saved')
+parser.add_argument('--data.sample_map', type=str, default='', metavar='sample_map_type',
+                help="type of sample map such as expt1, a, b or c")
 parser.add_argument('--data.reference_map', type=str, default=osp.join(os.environ.get('IN_PATH'), 'reference_files/reference_panel_metadata.tsv'), metavar='ref_file_path',
                 help="reference sample map")
 parser.add_argument('--data.experiment_id', type=str, default=1, metavar='experiment_id',
@@ -45,7 +45,6 @@ parser.add_argument('--data.experiment_name', type=str, default='unsupervised_la
                     help='name of experiment')
 parser.add_argument('--data.seed', type=int, default=1234, metavar='SEED',
                 help='numpy seed')
-parser.add_argument('--data.metadata', type=str, default='', help='directory for metadata for dogs')
 parser.add_argument('--data.pop_order', type=str, help='directory for a specific pop order')
 parser.add_argument('--data.ref_filter_criteria', type=str, default='', 
                 help='criteria to filter the reference map')

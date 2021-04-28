@@ -316,8 +316,10 @@ def form_mask(input_tensor, device):
 
     return mask
         
-# function for custom learning rate
 class custom_opt():
+    """
+    class for custom learning rate
+    """
     def __init__(self, optimizer, d_model, warmup_steps, factor, groups=[2,3]):
         self.optimizer = optimizer
         self.d_model = d_model
@@ -340,3 +342,10 @@ class custom_opt():
             step_num=self._step_num
         return self.factor * (self.d_model**(-0.5)*min(step_num**(-0.5),\
                                                        step_num*(self.warmup_steps**(-1.5))))
+
+def getValueBySelection(arr, col1, val1, col2):
+    """
+    This function returns the value of col2 for the row
+    where col1 value matches val1 for a given 2d array arr
+    """
+    return arr[np.where(arr[:,col1]==val1)[0],col2]

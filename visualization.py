@@ -7,80 +7,80 @@ import numpy as np
 from helper_funcs import load_path
 import seaborn as sns
 
-# POP_ORDER = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
 
-def plot_embeddings(n_comp_overall, pop_arr, n_way, random_idx, rev_pop_order, pop_order, PCA_lbls_dict):
-    fig, ax = plt.subplots(figsize=(10,12))
 
-    colors_pop = sns.color_palette("rainbow", len(pop_order))
-    color_pop_dict = {k:v for k,v in zip(pop_order, colors_pop)}
+# def plot_embeddings(n_comp_overall, pop_arr, n_way, random_idx, rev_pop_order, pop_order, PCA_lbls_dict):
+#     fig, ax = plt.subplots(figsize=(10,12))
 
-    X_transformed = np.array(list(PCA_lbls_dict.values()))[:,0:n_comp_overall]
+#     colors_pop = sns.color_palette("rainbow", len(pop_order))
+#     color_pop_dict = {k:v for k,v in zip(pop_order, colors_pop)}
 
-    if n_comp_overall==3:
-        # ax= Axes3D(fig)
-        # ax = fig.gca(projection='3d')
-        ax = plt.subplot(111, projection='3d')
-        for i in range(n_way):
-            idx_label = np.nonzero(pop_arr[:,3]==i)[0]
-            ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1],X_transformed[idx_label,2], s=5,\
-                    color=color_pop_dict[pop_order[i]] , label = pop_order[i])
+#     X_transformed = np.array(list(PCA_lbls_dict.values()))[:,0:n_comp_overall]
+
+#     if n_comp_overall==3:
+#         # ax= Axes3D(fig)
+#         # ax = fig.gca(projection='3d')
+#         ax = plt.subplot(111, projection='3d')
+#         for i in range(n_way):
+#             idx_label = np.nonzero(pop_arr[:,3]==i)[0]
+#             ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1],X_transformed[idx_label,2], s=5,\
+#                     color=color_pop_dict[pop_order[i]] , label = pop_order[i])
             
-            handles, labels = ax.get_legend_handles_labels()
-            lgnd = ax.legend(handles, labels, bbox_to_anchor=(0.9,0.5+(i/20)))
-            for l in lgnd.legendHandles:
-                l._sizes = [30]
+#             handles, labels = ax.get_legend_handles_labels()
+#             lgnd = ax.legend(handles, labels, bbox_to_anchor=(0.9,0.5+(i/20)))
+#             for l in lgnd.legendHandles:
+#                 l._sizes = [30]
 
-            ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-            ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-            ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-            # make the grid lines transparent
-            ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-            ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-            ax.zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+#             ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+#             ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+#             ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+#             # make the grid lines transparent
+#             ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+#             ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+#             ax.zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
 
-        for k in random_idx:
-            idx_pop_arr=np.where(pop_arr[:,1]==k)[0][0]
-            ax.text(PCA_lbls_dict[k][0], PCA_lbls_dict[k][1], PCA_lbls_dict[k][2], \
-                    s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
-                fontweight='bold', fontsize = 12)
-    else:
+#         for k in random_idx:
+#             idx_pop_arr=np.where(pop_arr[:,1]==k)[0][0]
+#             ax.text(PCA_lbls_dict[k][0], PCA_lbls_dict[k][1], PCA_lbls_dict[k][2], \
+#                     s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
+#                 fontweight='bold', fontsize = 12)
+#     else:
         
-        for i in range(n_way):
-            idx_label = np.nonzero(pop_arr[:,3]==i)[0]
-            ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1], s=5, \
-                      color=color_pop_dict[pop_order[i]] , label = pop_order[i] )
+#         for i in range(n_way):
+#             idx_label = np.nonzero(pop_arr[:,3]==i)[0]
+#             ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1], s=5, \
+#                       color=color_pop_dict[pop_order[i]] , label = pop_order[i] )
 
-            handles, labels = ax.get_legend_handles_labels()
-            lgnd = ax.legend(handles, labels, bbox_to_anchor=(1.0,0.8))
-            for l in lgnd.legendHandles:
-                l._sizes = [30]
+#             handles, labels = ax.get_legend_handles_labels()
+#             lgnd = ax.legend(handles, labels, bbox_to_anchor=(1.0,0.8))
+#             for l in lgnd.legendHandles:
+#                 l._sizes = [30]
 
-        for k in random_idx:
-            idx_pop_arr=np.where(pop_arr[:,1]==k)[0][0]
-            ax.text(PCA_lbls_dict[k][0], PCA_lbls_dict[k][1], \
-                    s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
-                fontweight='bold', fontsize = 12)
-    return lgnd, fig
+#         for k in random_idx:
+#             idx_pop_arr=np.where(pop_arr[:,1]==k)[0][0]
+#             ax.text(PCA_lbls_dict[k][0], PCA_lbls_dict[k][1], \
+#                     s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
+#                 fontweight='bold', fontsize = 12)
+#     return lgnd, fig
 
-def plot_embeddings_2d_extended(X_transformed, pop_arr, pop_order):
-    plt.rcParams['savefig.transparent'] = True
-    fig, ax= plt.subplots(figsize=(10,12))
+# def plot_embeddings_2d_extended(X_transformed, pop_arr, pop_order):
+#     plt.rcParams['savefig.transparent'] = True
+#     fig, ax= plt.subplots(figsize=(10,12))
 
-    colors_pop = sns.color_palette("rainbow", len(pop_order))
-    color_pop_dict = {k:v for k,v in zip(pop_order, colors_pop)}
+#     colors_pop = sns.color_palette("rainbow", len(pop_order))
+#     color_pop_dict = {k:v for k,v in zip(pop_order, colors_pop)}
 
-    # plot it for all the continents
-    for i in range(len(pop_order)):
-        idx_label = np.nonzero(pop_arr[:,3]==i)[0]
-        ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1], s=5,\
-                  color=color_pop_dict[i] , label = pop_order[i])
+#     # plot it for all the continents
+#     for i in range(len(pop_order)):
+#         idx_label = np.nonzero(pop_arr[:,3]==i)[0]
+#         ax.scatter(X_transformed[idx_label,0], X_transformed[idx_label,1], s=5,\
+#                   color=color_pop_dict[i] , label = pop_order[i])
         
-        lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
-        for l in lgnd.legendHandles:
-            l._sizes = [30]
+#         lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
+#         for l in lgnd.legendHandles:
+#             l._sizes = [30]
     
-    return ax, fig
+#     return ax, fig
 
 def plot_coordinates_map(label, data_coordinates, rev_pop_order):
     """
@@ -347,31 +347,31 @@ class Plot_per_epoch_revised(object):
         
         return fig, ax
 
-def plot_subclass(pop_order, pop_arr, PCA_lbls_dict, n_comp_overall, n_comp_subclass, rev_pop_order, wandb):
-    pop_num = np.arange(len(pop_order))
-    for j, pop_num_val in enumerate(pop_num):
-        # plot all the classes for the same subclass for train
-        # randomly select 30 granular pops for the particular subpop
+# def plot_subclass(pop_order, pop_arr, PCA_lbls_dict, n_comp_overall, n_comp_subclass, rev_pop_order, wandb):
+#     pop_num = np.arange(len(pop_order))
+#     for j, pop_num_val in enumerate(pop_num):
+#         # plot all the classes for the same subclass for train
+#         # randomly select 30 granular pops for the particular subpop
         
-        if isinstance(pop_num_val, list):
-            pop_specific_idx = np.where(np.isin(pop_arr[:,3], pop_num_val))[0]
-            tmp_pop_name = "_".join([str(pop_order[i]) for i in pop_num_val])
-        else:
-            pop_specific_idx = np.where(pop_arr[:,3]==pop_num_val)[0]
-            tmp_pop_name = pop_order[pop_num_val]                
-        random_idx = np.random.choice(pop_arr[pop_specific_idx,1], 30)
-        PCA_labels = np.array(list(PCA_lbls_dict.values()), dtype=float)
-        ax1, fig = plot_embeddings_2d_extended(PCA_labels[:, n_comp_overall+n_comp_subclass*j:n_comp_overall+n_comp_subclass*(j+1)], \
-            pop_arr, pop_order)
+#         if isinstance(pop_num_val, list):
+#             pop_specific_idx = np.where(np.isin(pop_arr[:,3], pop_num_val))[0]
+#             tmp_pop_name = "_".join([str(pop_order[i]) for i in pop_num_val])
+#         else:
+#             pop_specific_idx = np.where(pop_arr[:,3]==pop_num_val)[0]
+#             tmp_pop_name = pop_order[pop_num_val]                
+#         random_idx = np.random.choice(pop_arr[pop_specific_idx,1], 30)
+#         PCA_labels = np.array(list(PCA_lbls_dict.values()), dtype=float)
+#         ax1, fig = plot_embeddings_2d_extended(PCA_labels[:, n_comp_overall+n_comp_subclass*j:n_comp_overall+n_comp_subclass*(j+1)], \
+#             pop_arr, pop_order)
         
-        for k in random_idx:
-            idx_pop_arr=np.where(pop_arr[:,1]==k)[0][0]
-            ax1.text(PCA_lbls_dict[k][n_comp_overall+n_comp_subclass*j], PCA_lbls_dict[k][n_comp_overall+1+n_comp_subclass*j], \
-                    s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
-                fontweight='bold', fontsize = 12)
+#         for k in random_idx:
+#             idx_pop_arr=np.where(pop_arr[:,1]==k)[0][0]
+#             ax1.text(PCA_lbls_dict[k][n_comp_overall+n_comp_subclass*j], PCA_lbls_dict[k][n_comp_overall+1+n_comp_subclass*j], \
+#                     s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
+#                 fontweight='bold', fontsize = 12)
 
-        plt.title(f" subclass : {tmp_pop_name}")
-        plt.show()
-        if wandb is not None:
-            fig_image_subclass = wandb.Image(fig)
-            wandb.log({f"subclass for {tmp_pop_name}":fig_image_subclass})
+#         plt.title(f" subclass : {tmp_pop_name}")
+#         plt.show()
+#         if wandb is not None:
+#             fig_image_subclass = wandb.Image(fig)
+#             wandb.log({f"subclass for {tmp_pop_name}":fig_image_subclass})

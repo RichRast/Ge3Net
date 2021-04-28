@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# sample command: ./Batch_job_scripts/filter_combine_vcf.sh -gt dogs -vt expt2_biallelic -f 0.0 -st_chm 1 -ed_chm 38 -s_win 100 -c
-# or ./Batch_job_scripts/filter_combine_vcf.sh -gt dogs -vt expt1_filtered -f 0.0 -st_chm 1 -ed_chm 38 -c -ld 0.2
-# vcf_type for dogs can be expt1_filtered, expt2_subset, expt2_biallelic, expt2_subset_pruned, expt2_biallelic_pruned, unfiltered
+# sample command: ./Batch_job_scripts/filter_combine_vcf.sh -gt dogs -sm expt1 -f 0.0 -st_chm 1 -ed_chm 38 -s_win 100 -c
+# or ./Batch_job_scripts/filter_combine_vcf.sh -gt dogs -sm expt1 -f 0.0 -st_chm 1 -ed_chm 38 -c -ld 0.2
+# sample_map for dogs can be expt1, a, b, c
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
@@ -13,7 +13,7 @@ Help()
     echo "Syntax: scriptTemplate [-gt|vt|f|c|s_win|st_chm|ed_chm|h]"
     echo "options:"
     echo "-gt|--geno_type            Specify whether the genotype is 'humans' or 'dogs"
-    echo "-vt|--vcf_type             Specify the name/type of vcf file used, ex- for dogs - expt1_filtered vs unfiltered"
+    echo "-sm|--sample_map           Specify the name of sample_map used, ex- for dogs - expt1 or a,b,c"
     echo "-f|--variance_filter       Specify thethreshold for variance above which the snps are discarded"
     echo "-c|--combine               Specify whether the vcf of individual chms need to be combined"
     echo "-s_win|--sample_win        Specify the subsample window size for removing neighbouring correlated snps"
@@ -26,7 +26,7 @@ Help()
 while [[ $# -gt 0 ]]; do
     case $1 in 
     -gt|--geno_type ) shift ; geno_type=$1 ;;
-    -vt|--vcf_type ) shift ; vcf_type=$1 ;;
+    -sm|--sample_map ) shift ; sample_map=$1 ;;
     -f|--variance_filter ) shift ; filter=$1 ;;
     -c|--combine  ) shift 1 ; combine="True" ;;
     -s_win|--sample_win ) shift 1; sample_win=$1 ;;
@@ -45,7 +45,7 @@ if [[ -z $filter ]] ; then echo "Missing variance filter, no filtering will be p
 if [[ -z $combine ]] ; then echo "Missing combine argument, no chms will be combined" ; combine="False"; fi
 if [[ -z $start_chm ]] ; then echo "Missing start chm number" ; exit 1; fi
 if [[ -z $end_chm ]] ; then echo "Missing end chm number" ; exit 1; fi
-if [[ (-z $vcf_type) && ($geno_type = "dogs") ]] ; then echo "Missing the vcf type" ; exit 1; fi
+if [[ (-z $sample_map) && ($geno_type = "dogs") ]] ; then echo "Missing the vcf type" ; exit 1; fi
 if [[ ($combine == "False") && ($filter == 0.0) ]] ; then echo "Invalid arguments, exiting" ; exit 1 ; fi
 if [[ -z $sample_win ]] ; then echo "subsample option not selected, setting sample_win to default of 0 "; sample_win=0 ; fi
 if [[ -z $ld_prune ]] ; then echo "ld pruning not selected"; ld_prune="False" ; fi
@@ -60,14 +60,14 @@ for chm in $(seq ${start_chm} ${end_chm})
         if [[ ${geno_type} = "humans" ]] ; then
         vcf_filename+=($IN_PATH/${geno_type}/master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr$chm.vcf.gz)
         elif [[ ($geno_type = "dogs") && (${ld_prune} = "False") ]] ; then
-        vcf_filename+=($OUT_PATH/dogs/chr$chm/chr${chm}_biallelic_${vcf_type}.vcf.gz)
+        vcf_filename+=($OUT_PATH/dogs/sm_${sample_map}/chr$chm/chr${chm}_biallelic.vcf.gz)
         elif [[ ($geno_type = "dogs")]] ; then
-        vcf_filename+=($OUT_PATH/dogs/chr$chm/vcf_${vcf_type}_pruned_chr$chm.vcf)
+        vcf_filename+=($OUT_PATH/dogs/sm_${sample_map}/chr$chm/vcf_pruned_chr$chm.vcf)
         fi
     done
 echo ${vcf_filename[*]}
 
-save_path=$OUT_PATH/${geno_type}/${vcf_type}
+save_path=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_${ld_prune}
 echo "save path: ${save_path}"
 mkdir -p ${save_path}
 
@@ -79,7 +79,7 @@ sbatch<<EOT
 #SBATCH -c 1
 #SBATCH --mem=500G
 #SBATCH -t 24:00:00
-#SBATCH --output=$OUT_PATH/$geno_type/vcf_${vcf_type}_chm_${filter}_combine_${combine}_chm_${start_chm}_chm_${end_chm}_sample_win_${sample_win}_ld_prune_${ld_prune}.out
+#SBATCH --output=$OUT_PATH/$geno_type/sm_${sample_map}_chm_${filter}_combine_${combine}_chm_${start_chm}_chm_${end_chm}_sample_win_${sample_win}_ld_prune_${ld_prune}.out
 
 ml load py-pytorch/1.4.0_py36
 ml load py-scipy/1.4.1_py36
@@ -93,7 +93,7 @@ cd /home/users/richras/Ge2Net_Repo
 
 # also combine into a vcf file using bcftools
 echo "bcftools concateninating"
-bcftools concat ${vcf_filename[*]} -O z -o ${save_path}_combined.vcf.gz
+bcftools concat ${vcf_filename[*]} -O z -o ${save_path}/combined.vcf.gz
 
 echo "Launching python script to combine"
 python3 combine_chms.py --data.variance_filter $filter \
@@ -107,5 +107,5 @@ EOT
 sleep .5
 squeue -u richras
 
-echo log_dir:$OUT_PATH/$geno_type/vcf_${vcf_type}_chm_${filter}_combine_${combine}_chm_${start_chm}_chm_${end_chm}_sample_win_${sample_win}.out
+echo log_dir:$OUT_PATH/$geno_type/sm_${sample_map}_chm_${filter}_combine_${combine}_chm_${start_chm}_chm_${end_chm}_sample_win_${sample_win}_ld_prune_${ld_prune}.out
 exit 0

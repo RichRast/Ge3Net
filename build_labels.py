@@ -1,22 +1,16 @@
-import argparse
 import numpy as np
-import random
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import os.path as osp
-import sys
 import allel
-import wandb
 
 from helper_funcs import load_path, save_file, vcf2npy
-from unsupervised_methods import PCA_space_residual
-from visualization import plot_embeddings, plot_subclass
+from unsupervised_methods import pcaSpace, spectralEmbeddingSpace, umapSpace, \
+    tsneSpace, residualPca, thinningPcaSpace
 from settings import parse_args
 
 from pyadmix.utils import get_chm_info, build_founders, create_non_rec_dataset, write_output 
-
-# POP_ORDER = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
 
 def create_ref_sample_map(metadata_filename, sa_sample_filename):
     """
@@ -98,21 +92,11 @@ def split_sample_maps(sample_map, split_perc, random_seed=10):
         curr = np.split(sample_ids, [train_count, train_count + val_count])
         for j in range(len(curr)): l[j] = np.concatenate((l[j], curr[j])) if i>0 else curr[j]
         
-        # if i>0:
-        #     l0 = np.concatenate((l0, curr_l0))
-        #     l1 = np.concatenate((l1, curr_l1))
-        #     l2 = np.concatenate((l2, curr_l2))
-        # else:
-        #     l0 = curr_l0
-        #     l1 = curr_l1
-        #     l2 = curr_l2
-        
     train_sample_map = pd.DataFrame(l[0], columns=sample_map.columns)
     valid_sample_map = pd.DataFrame(l[1], columns=sample_map.columns)
     test_sample_map = pd.DataFrame(l[2], columns=sample_map.columns)
     
     return train_sample_map, valid_sample_map, test_sample_map
-
 
 def get_admixed_samples(genetic_map_path, vcf_founders, sample_map, save_path, num_samples, gens_to_ret, random_seed=10):
     """
@@ -137,7 +121,6 @@ def repeat_pop_arr(sample_map):
     return pop_arr
 
 def main(config):
-    
     # print the configurations in the log directory
     for k, v in config.items():
         print(f"config for {k} : {v}")
@@ -150,20 +133,13 @@ def main(config):
     # check values for geno_type
     assert config['data.geno_type'] in ['humans', 'dogs'], " invalid value of geno type"
 
-    data_out_path = osp.join(str(config['data.data_out']), config['data.geno_type'], config['data.experiment_name'], str(config['data.experiment_id']))
+    data_out_path = osp.join(str(config['data.data_out']), config['data.geno_type'], \
+        ''.join(['sm_', config['data.sample_map']]), config['data.experiment_name'], \
+            str(config['data.experiment_id']))
     print(f"data_out_path : {str(data_out_path)}")
     if not osp.exists(data_out_path):
         print(f"dataset out dir doesn't exist, making {str(data_out_path)}")
         os.makedirs(data_out_path , exist_ok=True)
-
-    try:
-        wandb.init(project="Build_labels")
-    except Exception as e:
-        print(e)
-        print("wandb could not be initialized")
-        wandb = None
-    else:
-        print("logging to wandb")
 
     # Note1: Throughout vcf_idx refers to 2i and 2i+1 
     # Note1: and ref_idx refers to the reference idx in reference sample map
@@ -184,13 +160,55 @@ def main(config):
     else:
         master_ref = ref_sample_map
     pop_sample_map, granular_pop_dict, superpop_dict = get_sample_map(master_ref, config['data.pop_order'])
-    
+    rev_pop_dict={v:k for k,v in granular_pop_dict.items()}
     # save the above three
     save_file(osp.join(data_out_path, 'pop_sample_map.tsv'), pop_sample_map, en_df=True)
     save_file(osp.join(data_out_path, 'granular_pop.pkl'), granular_pop_dict, en_pickle=True)
     save_file(osp.join(data_out_path, 'superpop.pkl'), superpop_dict, en_pickle=True)
     
     if config['data.create_labels']:
+        print("Loading vcf file for unsupervised methods")
+        if str(config['data.all_chm_snps'])!= 'None':
+            vcf_data = load_path(config['data.all_chm_snps'])
+        else:
+            vcf_data = vcf2npy(config['data.vcf_dir'])
+        print(f" vcf shape for unsupervised method:{vcf_data.shape}")
+
+        config['data.n_way'] = len(superpop_dict.items())
+        pop_arr = repeat_pop_arr(pop_sample_map)
+        
+        print("Computing labels")
+
+        # define custom and default pop order, pop_num to use everywhere
+        if config['data.pop_order'] is None:
+            config['data.pop_order'] = list(superpop_dict.keys())
+
+        print("Creating labels using {config['data.method']}")
+        assert config['data.method'].lower() in ["pca", "residual_pca", "tsne", "umap", \
+            "spectral_embedding", "plink_pca"], "Invalid method selected"
+        if config['data.method'].lower()=="plink_pca":
+            unsupMethod=thinningPcaSpace(data_out_path, pop_sample_map)
+            sh_args=['whole genome', config['data.sample_map'], 'dogs']
+            unsupMethod(sh_args)
+        elif config['data.method'].lower()=="residual_pca":
+            unsupMethod=residualPca(config['data.n_comp'], data_out_path, \
+            config['data.n_comp_overall'], config['data.n_comp_subclass'],\
+            pop_arr, config['data.pop_order'],config['data.seed'])
+        elif config['data.method'].lower()=="pca":
+            unsupMethod=pcaSpace(config['data.n_comp'], data_out_path, \
+            config['data.pop_order'], config['data.seed'])
+        elif config['data.method'].lower()=="umap":
+            unsupMethod=umapSpace(config['data.n_comp'], data_out_path, 
+            config['data.pop_order'], config['data.seed'])
+        elif config['data.method'].lower()=="tsne":
+            unsupMethod=tsneSpace(config['data.n_comp'], data_out_path, \
+            config['data.pop_order'], config['data.seed'])
+        elif config['data.method'].lower()=="spectral_embedding":
+            unsupMethod=spectralEmbeddingSpace(config['data.n_comp'], data_out_path, \
+            config['data.pop_order'], config['data.seed'])
+        unsupMethod(vcf_data, rev_pop_dict, pop_arr)
+                    
+    if config['data.simulate']:
         print("Split into train, valid and test data")
         #split into train, val and test dataset
         split_perc = config['data.split_perc']
@@ -198,12 +216,6 @@ def main(config):
         # to get a different split, set the config['data.seed'] argument before running the script
         train_sample_map, valid_sample_map, test_sample_map = split_sample_maps(pop_sample_map, split_perc, seed)
 
-        print("Loading vcf file for PCA/MDS")
-        if str(config['data.all_chm_snps'])!= 'None':
-            vcf_data = load_path(config['data.all_chm_snps'])
-        else:
-            vcf_data = vcf2npy(config['data.vcf_dir'])
-        print(f" vcf for PCA shape:{vcf_data.shape}")
         #for train labels
         # pop_arr_xx is defined with column 0: 'sample_id'
         # col 1: vcf_ref_idx, col2: granular_pop_num
@@ -219,6 +231,11 @@ def main(config):
         pop_arr_test = repeat_pop_arr(test_sample_map)
         test_vcf_idx = list(pop_arr_test[:,1])
 
+        #save the sample_maps
+        save_file(osp.join(data_out_path, 'train_sample_map.tsv'), train_sample_map, en_df=True)
+        save_file(osp.join(data_out_path, 'valid_sample_map.tsv'), valid_sample_map, en_df=True)
+        save_file(osp.join(data_out_path, 'test_sample_map.tsv'), test_sample_map, en_df=True)
+
         # save the train, valid and test sample maps
         # create admixed samples
         dataset_type = ['train', 'valid', 'test']
@@ -226,96 +243,6 @@ def main(config):
         idx_lst = [train_vcf_idx, valid_vcf_idx, test_vcf_idx]
         admixed_num_per_gen = config['data.samples_per_type']
 
-        config['data.n_way'] = len(superpop_dict.items())
-
-        print("Computing labels from PCA/MDS")
-        # pca_train is the pca object to be used for transform for new data
-        n_comp_overall=3
-        n_comp_subclass=2
-        n_comp=44
-
-        # define custom and default pop order, pop_num to use everywhere
-        if config['data.pop_order'] is None:
-            config['data.pop_order'] = list(superpop_dict.keys())
-
-        print("Creating labels using {config['data.method']}")
-        
-        
-        PCA_labels_train, PCA_labels_valid, PCA_labels_test, pca_train = \
-            PCA_space_residual(vcf_data, idx_lst, config['data.pop_order'], n_comp=config['data.n_comp'], n_comp_overall=config['data.n_comp_overall'], \
-            extended_pca = config['data.extended_pca'], pop_arr=pop_arr_train[:,3], n_way = config['data.n_way'],\
-            n_comp_subclass = config['data.n_comp_subclass'])
-        
-        PCA_lbls_train_dict = {k:v for k,v in zip(train_vcf_idx, PCA_labels_train)}
-        PCA_lbls_valid_dict = {k:v for k,v in zip(valid_vcf_idx, PCA_labels_valid)}
-        PCA_lbls_test_dict = {k:v for k,v in zip(test_vcf_idx, PCA_labels_test)}
-
-        PCA_lbls_dict = {**PCA_lbls_train_dict, **PCA_lbls_valid_dict, **PCA_lbls_test_dict}
-        
-        # save PCA labels corresponding to the reference index
-        save_file(osp.join(data_out_path, 'PCA_labels_train.pkl'), PCA_lbls_train_dict, en_pickle=True)
-        save_file(osp.join(data_out_path, 'PCA_labels_valid.pkl'), PCA_lbls_valid_dict, en_pickle=True)
-        save_file(osp.join(data_out_path, 'PCA_labels_test.pkl'), PCA_lbls_test_dict, en_pickle=True)
-        save_file(osp.join(data_out_path, 'PCA_labels.pkl'), PCA_lbls_dict, en_pickle=True)
-        # save_file(osp.join(data_out_path, 'PCA_train.pkl'), pca_train, en_pickle=True)
-
-        #save the sample_maps
-        save_file(osp.join(data_out_path, 'train_sample_map.tsv'), train_sample_map, en_df=True)
-        save_file(osp.join(data_out_path, 'valid_sample_map.tsv'), valid_sample_map, en_df=True)
-        save_file(osp.join(data_out_path, 'test_sample_map.tsv'), test_sample_map, en_df=True)
-            
-        # print randomly 30 granular pop on the PCA plot of train 
-        # random_idx refers to vcf_ref_idx
-        random_idx = np.random.choice(train_vcf_idx, 30)
-        # dict with key as granular_pop_num, and value as string of granular_pop
-        rev_pop_order={v:k for k,v in granular_pop_dict.items()}
-        lgd, fig1 = plot_embeddings(n_comp_overall, pop_arr_train, config['data.n_way'], \
-            random_idx, rev_pop_order, config['data.pop_order'], PCA_lbls_train_dict )
-        plt.title('train_overall_pca')
-        plt.show()
-        fig1.savefig(osp.join(data_out_path, 'train overall_pca.png'), bbox_extra_artists=(lgd,), bbox_inches='tight')
-
-        random_idx = np.random.choice(valid_vcf_idx, 30)
-        lgd, fig2 = plot_embeddings(n_comp_overall, pop_arr_valid, config['data.n_way'], \
-            random_idx, rev_pop_order, config['data.pop_order'], PCA_lbls_valid_dict) 
-        plt.title('valid_overall_pca')
-        plt.show()
-        fig2.savefig(osp.join(data_out_path, 'valid overall_pca.png'), bbox_extra_artists=(lgd,), bbox_inches='tight')
-
-        random_idx = np.random.choice(test_vcf_idx, 30)
-        lgd, fig3 = plot_embeddings(n_comp_overall, pop_arr_test, config['data.n_way'], \
-            random_idx, rev_pop_order, config['data.pop_order'], PCA_lbls_test_dict)
-        plt.title('test_overall_pca')
-        plt.show()
-        # save .png for overall pca
-        fig3.savefig(osp.join(data_out_path, 'test overall_pca.png'), bbox_extra_artists=(lgd,), bbox_inches='tight')
-
-        if config['data.extended_pca']:
-            # pop_order = list(superpop_dict.keys())
-            # pop_order = ['EAS', 'SAS', 'WAS', 'OCE', 'AFR', 'AMR', 'EUR']
-            # pop_num = np.arange(len(config['data.pop_order']))
-            # pop_num = [4,6,2,1,0,3,5]
-
-            print("Train subclasses")
-            plot_subclass(config['data.pop_order'], pop_arr_train, PCA_lbls_train_dict, n_comp_overall, n_comp_subclass,\
-                 rev_pop_order, wandb)
-            print("Valid subclasses")
-            plot_subclass(config['data.pop_order'], pop_arr_valid, PCA_lbls_valid_dict, n_comp_overall, n_comp_subclass, \
-                rev_pop_order, wandb)
-            print("Test subclasses")
-            plot_subclass(config['data.pop_order'], pop_arr_test, PCA_lbls_test_dict, n_comp_overall, n_comp_subclass,\
-                 rev_pop_order, wandb)
-                    
-        if wandb is not None:
-            fig_image_train_overall = wandb.Image(fig1)
-            fig_image_valid_overall = wandb.Image(fig2)
-            fig_image_test_overall = wandb.Image(fig3)
-            wandb.log({f"PCA train overall plot":fig_image_train_overall})
-            wandb.log({f"PCA valid overall plot":fig_image_valid_overall})
-            wandb.log({f"PCA test overall plot":fig_image_test_overall})
-    plt.close('all')
-    
-    if config['data.simulate']:
         print("Forming the dataset with simulation")
         
         selected_idx={}
