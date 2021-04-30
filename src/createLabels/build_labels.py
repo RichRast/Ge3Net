@@ -12,25 +12,25 @@ from settings import parse_args
 
 from pyadmix.utils import get_chm_info, build_founders, create_non_rec_dataset, write_output 
 
-def create_ref_sample_map(metadata_filename, sa_sample_filename):
-    """
-    create reference sample map for dogs, with columns = 'Sample',
-    'Population' for granular pop and 'Superpopulation code' for superpop.
-    These samples have been pre-filetered with the criteria of Single Ancestry = 1
-    """
-    metadata = pd.read_excel(open(metadata_filename, 'rb'), engine='openpyxl')
-    sa_sample = pd.read_csv(sa_sample_filename, delimiter = "\t", header=None)
-    sa_sample.columns=['Sample', 'Population']
-    ref_map_filtered = metadata[np.in1d(metadata['Name_ID'].values, sa_sample['Sample'])]
-    ref_sample_map = ref_map_filtered[['Name_ID', 'Breed/CommonName']]
+# def create_ref_sample_map(metadata_filename, sa_sample_filename):
+#     """
+#     create reference sample map for dogs, with columns = 'Sample',
+#     'Population' for granular pop and 'Superpopulation code' for superpop.
+#     These samples have been pre-filetered with the criteria of Single Ancestry = 1
+#     """
+#     metadata = pd.read_excel(open(metadata_filename, 'rb'), engine='openpyxl')
+#     sa_sample = pd.read_csv(sa_sample_filename, delimiter = "\t", header=None)
+#     sa_sample.columns=['Sample', 'Population']
+#     ref_map_filtered = metadata[np.in1d(metadata['Name_ID'].values, sa_sample['Sample'])]
+#     ref_sample_map = ref_map_filtered[['Name_ID', 'Breed/CommonName']]
 
-    ref_sample_map = ref_sample_map.merge(sa_sample[['Sample','Population']], how='left', \
-        left_on='Name_ID', right_on='Sample')
-    ref_sample_map.drop(columns=['Sample'], inplace=True)
-    ref_sample_map.rename(columns={'Name_ID': 'Sample', 'Population':'Superpopulation code', \
-                               'Breed/CommonName': 'Population'}, inplace=True)
+#     ref_sample_map = ref_sample_map.merge(sa_sample[['Sample','Population']], how='left', \
+#         left_on='Name_ID', right_on='Sample')
+#     ref_sample_map.drop(columns=['Sample'], inplace=True)
+#     ref_sample_map.rename(columns={'Name_ID': 'Sample', 'Population':'Superpopulation code', \
+#                                'Breed/CommonName': 'Population'}, inplace=True)
 
-    return ref_sample_map
+#     return ref_sample_map
 
 def filter_reference_file(ref_sample_map, verbose=True):
     """
@@ -134,7 +134,7 @@ def main(config):
     assert config['data.geno_type'] in ['humans', 'dogs'], " invalid value of geno type"
 
     data_out_path = osp.join(str(config['data.data_out']), config['data.geno_type'], \
-        ''.join(['sm_', config['data.sample_map']]), config['data.experiment_name'], \
+        ''.join(['sm_', str(config['data.sample_map'])]), config['data.experiment_name'], \
             str(config['data.experiment_id']))
     print(f"data_out_path : {str(data_out_path)}")
     if not osp.exists(data_out_path):
@@ -172,7 +172,7 @@ def main(config):
             vcf_data = load_path(config['data.all_chm_snps'])
         else:
             vcf_data = vcf2npy(config['data.vcf_dir'])
-        print(f" vcf shape for unsupervised method:{vcf_data.shape}")
+        print(f"vcf shape for unsupervised method:{vcf_data.shape}")
 
         config['data.n_way'] = len(superpop_dict.items())
         pop_arr = repeat_pop_arr(pop_sample_map)
@@ -183,30 +183,33 @@ def main(config):
         if config['data.pop_order'] is None:
             config['data.pop_order'] = list(superpop_dict.keys())
 
-        print("Creating labels using {config['data.method']}")
+        print(f"Creating labels using {config['data.method']}")
         assert config['data.method'].lower() in ["pca", "residual_pca", "tsne", "umap", \
             "spectral_embedding", "plink_pca"], "Invalid method selected"
         if config['data.method'].lower()=="plink_pca":
-            unsupMethod=thinningPcaSpace(data_out_path, pop_sample_map)
-            sh_args=['whole genome', config['data.sample_map'], 'dogs']
-            unsupMethod(sh_args)
-        elif config['data.method'].lower()=="residual_pca":
-            unsupMethod=residualPca(config['data.n_comp'], data_out_path, \
-            config['data.n_comp_overall'], config['data.n_comp_subclass'],\
-            pop_arr, config['data.pop_order'],config['data.seed'])
-        elif config['data.method'].lower()=="pca":
-            unsupMethod=pcaSpace(config['data.n_comp'], data_out_path, \
-            config['data.pop_order'], config['data.seed'])
-        elif config['data.method'].lower()=="umap":
-            unsupMethod=umapSpace(config['data.n_comp'], data_out_path, 
-            config['data.pop_order'], config['data.seed'])
-        elif config['data.method'].lower()=="tsne":
-            unsupMethod=tsneSpace(config['data.n_comp'], data_out_path, \
-            config['data.pop_order'], config['data.seed'])
-        elif config['data.method'].lower()=="spectral_embedding":
-            unsupMethod=spectralEmbeddingSpace(config['data.n_comp'], data_out_path, \
-            config['data.pop_order'], config['data.seed'])
-        unsupMethod(vcf_data, rev_pop_dict, pop_arr)
+            unsupMethod=thinningPcaSpace(data_out_path, master_ref)
+            sh_args=['whole_genome', config['data.sample_map'], config['data.geno_type']]
+            plink_path=osp.join(str(config['data.data_out']), config['data.geno_type'],\
+                'plink', ''.join(['sm_', str(config['data.sample_map'])]))
+            unsupMethod(sh_args, plink_path)
+        else:    
+            if config['data.method'].lower()=="residual_pca":
+                unsupMethod=residualPca(config['data.n_comp_overall'], data_out_path, \
+                config['data.n_comp_overall'], config['data.n_comp_subclass'],\
+                pop_arr, config['data.pop_order'],config['data.seed'])
+            elif config['data.method'].lower()=="pca":
+                unsupMethod=pcaSpace(config['data.n_comp_overall'], data_out_path, \
+                config['data.pop_order'], config['data.seed'])
+            elif config['data.method'].lower()=="umap":
+                unsupMethod=umapSpace(config['data.n_comp_overall'], data_out_path, \
+                config['data.pop_order'], config['data.seed'])
+            elif config['data.method'].lower()=="tsne":
+                unsupMethod=tsneSpace(config['data.n_comp_overall'], data_out_path, \
+                config['data.pop_order'], config['data.seed'])
+            elif config['data.method'].lower()=="spectral_embedding":
+                unsupMethod=spectralEmbeddingSpace(config['data.n_comp_overall'], data_out_path, \
+                config['data.pop_order'], config['data.seed'])
+            unsupMethod(vcf_data, rev_pop_dict, pop_arr)
                     
     if config['data.simulate']:
         print("Split into train, valid and test data")

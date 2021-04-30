@@ -60,8 +60,8 @@ parser.add_argument('--data.n_comp', type=int, default=44,
 #form labels
 parser.add_argument('--data.create_labels', type=distutils.util.strtobool, default='True',
                     help='set True if you want to form labels')
-parser.add_argument('--data.extended_pca', type=distutils.util.strtobool, default='True',
-                    help='set True if you want to compute extended pca')
+parser.add_argument('--data.labels_dir', type=str, default='',
+                    help='dir for labels')
 
 # admixed simulation
 parser.add_argument('--data.simulate', type=distutils.util.strtobool, default='True',

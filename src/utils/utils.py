@@ -349,3 +349,13 @@ def getValueBySelection(arr, col1, val1, col2):
     where col1 value matches val1 for a given 2d array arr
     """
     return arr[np.where(arr[:,col1]==val1)[0],col2]
+
+def getWinInfo(chmLen, winSize):
+    """
+    Given the raw chm length and the window size, truncate the 
+    last window snps and return the truncated chm length and
+    number of windows
+    """
+    nWin = int(chmLen/winSize)
+    chmLen = winSize*nWin
+    return chmLen, nWin

@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd 
 import torch 
-from torch.utils.data import Dataset, DataLoader
-from helper_funcs import load_path
-from build_labels_revised import repeat_pop_arr
+from torch.utils.data import Dataset
+from utils import load_path
+from build_labels import repeat_pop_arr
 import os.path as osp
 from decorators import timer
 

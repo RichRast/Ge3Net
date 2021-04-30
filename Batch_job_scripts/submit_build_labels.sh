@@ -35,7 +35,7 @@ for argument in "$@"; do
 
     case "$key" in
         -gt|--geno_type )          geno_type=$value;;
-        -sm|--sample_map )           sample_map=$value;;
+        -sm|--sample_map )         sample_map=$value;;
         -e|--exp_id )              exp_id=$value;;
         -s|--seed )                seed=$value;;
         -ext|--extended_pca )      ext_pca="True";;
@@ -69,24 +69,23 @@ if [[  (${ext_pca} = "False") && (${n_comp_subclass} >=0) ]]; then echo "Invalid
 if [[ ($simulate = "False") && (${create_lbls} = "False") ]]; then echo "Invalid combination of simulate and create labels set"; exit 1; fi
 if [[ -z $seed ]]; then seed=$RANDOM; echo "seed not specified, setting to a random seed = $seed "; fi
 if [[ (-z ${unsupMethod}) && (${create_lbls} = "True") ]]; then echo "No unsup method defined"; exit 1; fi
+if [[ (-z ${sample_map}) ]]; then echo "No sample map specified"; exit 1; fi
 
 # set the vcf, genetic map and ref map according to genotype
 echo "Setting variables for ${geno_type}"
 if [[ ${geno_type} = 'humans' ]]; then
-vcf_dir='$IN_PATH/${geno_type}/master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr22.vcf.gz';
-ref_map='$IN_PATH/${geno_type}/reference_files/reference_panel_metadata.tsv';
-gen_map='$IN_PATH/${geno_type}/reference_files/allchrs.b38.gmap';
-metadata='' ;
+vcf_dir=$IN_PATH/${geno_type}/master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr22.vcf.gz;
+ref_map=$IN_PATH/${geno_type}/reference_files/reference_panel_metadata.tsv;
+gen_map=$IN_PATH/${geno_type}/reference_files/allchrs.b38.gmap;
 filter_criteria='Single_Ancestry';
-all_chm_snps='$OUT_PATH/${geno_type}/combined_chm/all_chm_combined_snps_variance_filter_0.3.npy';
+all_chm_snps=$OUT_PATH/${geno_type}/combined_chm/all_chm_combined_snps_variance_filter_0.3.npy;
 n_comp=44;
 elif [[  ${geno_type} = 'dogs' ]]; then
-vcf_dir='$OUT_PATH/dogs/sm_${sample_map}/chr22/chr22_biallelic.vcf.gz';
-ref_map='$OUT_PATH/dogs/ref_map_${sample_map}.tsv';
-gen_map='$IN_PATH/dogs/chr22/chr22_average_canFam3.1.txt';
-metadata='';
+vcf_dir=$OUT_PATH/dogs/sm_${sample_map}/chr22/chr22_filtered.vcf;
+ref_map=$OUT_PATH/dogs/ref_map_${sample_map}.tsv;
+gen_map=$IN_PATH/dogs/chr22/chr22_average_canFam3.1.txt;
 filter_criteria='';
-all_chm_snps='$OUT_PATH/dogs/sm_${sample_map}/ld_False/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy';
+all_chm_snps=$OUT_PATH/dogs/sm_${sample_map}/ld_0.5/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy;
 # all_chm_snps='$OUT_PATH/dogs/expt2_biallelic/all_chm_combined_snps_variance_filter_0.0_sample_win_100.npy';
 n_comp=23;
 else

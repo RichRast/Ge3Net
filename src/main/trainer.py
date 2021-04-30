@@ -7,18 +7,16 @@ import copy
 
 from models import LSTM, AuxiliaryTask, Conv, Attention, Transformer, BasicBlock, Model_A, Model_B, Model_C, Model_D, Model_E, \
 Model_F, Seq2Seq, Model_G, Model_H, Model_I, Model_J, Model_K, Model_L, Model_M, Model_N, Model_O
-from helper_funcs import save_checkpoint, set_logger, load_model, early_stopping, Params, weight_int, custom_opt, load_path
+from utils import save_checkpoint, set_logger, load_model, early_stopping, Params, weight_int, custom_opt, load_path
 from dataset import Haplotype
 from settings import parse_args, MODEL_CLASS
 from visualization import Plot_per_epoch_revised
-from build_labels_revised import repeat_pop_arr
+from build_labels import repeat_pop_arr
 import matplotlib.pyplot as plt
 
 import torch
 import numpy as np
 import pandas as pd
-from collections import namedtuple
-from torch.utils.tensorboard import SummaryWriter
 import wandb
 from decorators import timer
 
@@ -57,7 +55,8 @@ def main(config, params, trial=None):
     # Create the input data pipeline
     logging.info("Loading the datasets...")
 
-    dataset_path = osp.join(str(config['data.data_out']), config['data.geno_type'], config['data.experiment_name'], str(config['data.experiment_id']))
+    dataset_path = osp.join(str(config['data.data_out']), config['data.geno_type'], ''.join(['sm_', 'expt1']), \
+        config['data.experiment_name'], str(config['data.experiment_id']))
     labels_path = config['data.labels_dir']
     training_dataset = Haplotype('train', dataset_path, params, labels_path)
     validation_dataset = Haplotype('valid', dataset_path, params, labels_path)
@@ -182,10 +181,8 @@ def training_loop(model, model_params, middle_models, params, config, training_g
             trial.report(eval_result.accr.weighted_loss, epoch)
             if trial.should_prune():
                 raise optuna.exceptions.TrialPruned()
-            
             return best_val_accr
         
-
     del train_result, eval_result, model, middle_models, model_params, \
         training_generator, validation_generator
     torch.cuda.empty_cache()

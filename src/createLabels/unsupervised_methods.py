@@ -1,4 +1,6 @@
 from abc import abstractmethod
+
+from pandas.core.base import NoNewAttributesMixin
 import numpy as np
 import pandas as pd
 from sklearn import decomposition
@@ -49,6 +51,9 @@ class UnsupervisedSpace(ABC):
     @timer
     def fit_transform(self, X):
         self.labels = self.reducer.fit_transform(X)
+        mean = self.labels.mean(axis=0)
+        std = self.labels.std(axis=0)
+        self.labels = (self.labels-mean)/std
  
     def _plot3dEmbeddings(self, pop_arr, random_idx, rev_pop_dict):
         fig, ax = plt.subplots(figsize=(10,12))
@@ -150,6 +155,11 @@ class pcaSpace(UnsupervisedSpace):
         # eigenvecs (singular vecs across samples)
         self.labels /= self.singularValues
 
+    @timer
+    def fit_transform(self, X):
+        self.fit(X)
+        self.transform(X)
+
 class sPca(pcaSpace):
         pass
 
@@ -247,10 +257,13 @@ class thinningPcaSpace(UnsupervisedSpace):
         self.name = "Thinning_PCA_plink"
         self.pop_sample_map = pop_sample_map
 
-    def fit_transform(self, sh_args):
+    def fit_transform(self, sh_args, plink_path):
         assert isinstance(sh_args, list), "Invalid args passed for plink pca"
-        subprocess.Popen(["./Batch_job_scripts/plink_pca.sh", *sh_args ], shell=True)
-        eigenvecs = pd.read_csv(osp.join(self.data_out_path, 'plink', str(sh_args[1]), 'plinkpca.eigenvec'), sep="\t")
+        os.chdir(os.environ.get('USER_PATH'))
+        print("Executing command : \n")
+        print(' '.join(["/Batch_job_scripts/plink_pca.sh", *sh_args ]))
+        subprocess.check_call(' '.join(["./Batch_job_scripts/plink_pca.sh", *sh_args ]), shell=True)
+        eigenvecs = pd.read_csv(osp.join(plink_path, 'plinkpca.eigenvec'), sep="\t")
         self.labels  = self.pop_sample_map.merge(eigenvecs, how="inner", \
             left_on="Sample", right_on="IID").reset_index(drop=True)
         
@@ -263,18 +276,18 @@ class thinningPcaSpace(UnsupervisedSpace):
         # raise NotImplemented Error
 
     def plot_embeddings(self):
-        random_idx= np.random.choice(self.labels, 30)
+        random_idx= np.random.choice(len(self.labels), 30)
         fig, ax = plot3dEmbeddingsGeneric(self.labels, random_idx)
         plt.title("Thinning PCA whole genome")
         plt.show()
-        fig.savefig(osp.join(self.save_path, f'labels.png'), bbox_extra_artists=(ax.legend,), bbox_inches='tight')
+        fig.savefig(osp.join(self.save_path, f'labels.png'), bbox_inches='tight')
         plt.close('all')
 
     def saveLabels(self):
-        self.labels.to_csv(osp.join(self.save_path, 'labelsBySample.tsv'), sep="\t", index=NotImplementedError)
+        self.labels.to_csv(osp.join(self.save_path, 'labelsBySample.tsv'), sep="\t", index=None)
     
-    def __call__(self, sh_args):
-        self.fit_transform(sh_args)
+    def __call__(self, sh_args, plink_path):
+        self.fit_transform(sh_args, plink_path)
         self._setSavePath()
         self.plot_embeddings()
         self.saveLabels()

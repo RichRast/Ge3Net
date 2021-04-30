@@ -62,7 +62,7 @@ python3 trainer.py --data.experiment_id $data_id \
 --data.geno_type $geno_type \
 --model.expt_id $expt_id \
 --model.working_dir '$OUT_PATH/$geno_type/models_dir' \
---data.labels_dir '$OUT_PATH/$geno_type/unsupervised_labels/$data_id'
+--data.labels_dir '$OUT_PATH/$geno_type/sm_expt1/unsupervised_labels/$data_id'
 EOT
 
 sleep .5

@@ -6,12 +6,7 @@ from collections import namedtuple
 from decorators import timer
 
 from helper_funcs import activate_mc_dropout, split_batch, square_normalize, get_gradient, Running_Average, form_mask
-from evaluation import SmoothL1Loss, Weighted_Loss, gradient_reg, eval_cp_batch, class_accuracy
-
-cp_accr = namedtuple('cp_accr', ['cp_loss', 'Precision', 'Recall', 'Balanced_Accuracy'])
-accr = namedtuple('accr', ['l1_loss', 'mse_loss', 'smoothl1_loss', 'weighted_loss', 'cp_accr', 'sp_accr'])
-accr.__new__.defaults__=(None,)*len(accr._fields)
-results = namedtuple('results', ['accr', 'pred'])
+from evaluation import SmoothL1Loss, Weighted_Loss, gradient_reg, eval_cp_batch, class_accuracy, accr, cp_accr, results
 
 class model_D(object):
     def __init__(self, *args, params):
@@ -413,7 +408,7 @@ class model_D(object):
                 else:
                     accr_avg.append(Running_Average(len(cp_accr._fields)))  
 
-            for j, test_gen in enumerate(test_generator):
+            for j, test_gen in enumerate(data_generator):
                 x = test_gen
                 x = x[:, 0:self.params.chmlen].float().to(self.params.device)
                 output_list, vec_64_list, cp_pred_list = [], [], []
@@ -425,13 +420,13 @@ class model_D(object):
                     assert self.params.mc_samples==1, "MC dropout disabled"
 
                 for _ in range(self.params.mc_samples):
-                    out1, out2, _ , out4 = self.aux_network(val_x)
+                    out1, out2, _ , out4 = self.aux_network(x)
                     
                     x_sample = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
                     aux_diff = get_gradient(out4)
 
                     test_lstm = torch.cat((x_sample, aux_diff), dim =2)
-                    vec_64, test_outputs, _ = self.main_network(val_lstm)
+                    vec_64, test_outputs, _ = self.main_network(test_lstm)
                     output_list.append(test_outputs)
                     vec_64_list.append(vec_64)
                     

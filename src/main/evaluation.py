@@ -1,7 +1,8 @@
 import numpy as np
 import torch
 
-from helper_funcs import get_gradient
+from utils import get_gradient
+from collections import namedtuple
 
 EARTH_RADIUS = 6371
 
@@ -196,3 +197,8 @@ def class_accuracy(y_pred, y_test):
     acc = correct_pred.sum() / (n * w)
     acc = acc * 100
     return acc
+
+cp_accr = namedtuple('cp_accr', ['cp_loss', 'Precision', 'Recall', 'Balanced_Accuracy'])
+accr = namedtuple('accr', ['l1_loss', 'mse_loss', 'smoothl1_loss', 'weighted_loss', 'cp_accr', 'sp_accr'])
+accr.__new__.defaults__=(None,)*len(accr._fields)
+results = namedtuple('results', ['accr', 'pred'])
