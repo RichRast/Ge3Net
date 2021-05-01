@@ -1,6 +1,4 @@
 from abc import abstractmethod
-
-from pandas.core.base import NoNewAttributesMixin
 import numpy as np
 import pandas as pd
 from sklearn import decomposition
@@ -13,7 +11,7 @@ from scipy.spatial import distance
 from sklearn.metrics.pairwise import euclidean_distances
 from helper_funcs import load_path, save_file, getValueBySelection
 from numpy import linalg as LA
-from decorators import timer
+from utils.decorators import timer
 import umap
 from sklearn.manifold import SpectralEmbedding
 from sklearn.manifold import TSNE
@@ -204,12 +202,10 @@ class residualPca(pcaSpace):
         self.labels = np.hstack((self.pca_overall.labels, subclass_labels))
 
     def fit(self, X):
-        pass
-        # raise NotImplemented Error
+        raise NotImplementedError
 
     def transform(self, X):
-        pass
-        # raise NotImplemented Error
+        raise NotImplementedError
 
     def plot_embeddings(self, rev_pop_dict):
         lgnd, fig = self.pca_overall._plot3dEmbeddings(rev_pop_dict, self.pop_arr, self.pop_order)
@@ -268,12 +264,10 @@ class thinningPcaSpace(UnsupervisedSpace):
             left_on="Sample", right_on="IID").reset_index(drop=True)
         
     def fit(self, X):   
-        pass
-        # raise NotImplemented Error
+        raise NotImplementedError
 
     def transform(self, X):   
-        pass
-        # raise NotImplemented Error
+        raise NotImplementedError
 
     def plot_embeddings(self):
         random_idx= np.random.choice(len(self.labels), 30)

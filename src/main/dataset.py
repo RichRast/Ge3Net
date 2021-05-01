@@ -3,9 +3,9 @@ import pandas as pd
 import torch 
 from torch.utils.data import Dataset
 from utils import load_path
-from build_labels import repeat_pop_arr
+from utils.labelUtil import repeat_pop_arr
 import os.path as osp
-from decorators import timer
+from utils.decorators import timer
 
 class Haplotype(Dataset):
     def __init__(self, dataset_type, path_prefix, params, labels_path):

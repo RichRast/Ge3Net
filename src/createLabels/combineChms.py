@@ -1,12 +1,8 @@
 import numpy as np
 import argparse
-import os
-import os.path as osp
-import sys
 import distutils.util 
 
-sys.path.insert(1, '/home/users/richras/GeNet_Repo')
-from helper_funcs import vcf2npy, filter_snps, save_file, filter_vcf
+from utils.dataUtil import vcf2npy, filter_snps, save_file, filter_vcf
 from visualization import plot_dist
 
 

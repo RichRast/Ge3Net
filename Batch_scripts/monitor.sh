@@ -4,7 +4,7 @@
 # if given the option to watch the output file, will open up the output file 
 # for that job_id
 
-# sample script ./Batch_job_scripts/monitor.sh j_id=21823514 -w
+# sample script ./Batch_scripts/monitor.sh j_id=21823514 -w
 username='richras'
 
 for arg in "$@" ; do

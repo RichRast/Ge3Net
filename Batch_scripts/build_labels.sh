@@ -2,7 +2,7 @@
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
-# sample command ./Batch_job_scripts/submit_build_labels.sh -gt=dogs -e=14 -sim -bl -n_o=3 -sm=expt1 -s=1234 -um=umap
+# sample command ./Batch_scripts/build_labels.sh -gt=dogs -e=14 -sim -bl -n_o=3 -sm=expt1 -s=1234 -um=umap
 # sample_map for dogs can be expt1, a, b, c
 
 Help()
@@ -110,7 +110,7 @@ ml load py-matplotlib/3.2.1_py36
 ml load py-pandas/1.0.3_py36
 
 cd /home/users/richras/Ge2Net_Repo
-python3 build_labels.py --data.seed $seed \
+python3 buildLabels.py --data.seed $seed \
 --data.experiment_id ${exp_id} \
 --data.reference_map ${ref_map} \
 --data.sample_map ${sample_map} \

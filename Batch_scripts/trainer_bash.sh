@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# sample command ./Batch_job_scripts/trainer_bash.sh -gt dogs -e 7 -d 12_test -m D7_dogs_chr22
+# sample command ./Batch_scripts/trainer_bash.sh -gt dogs -e 7 -d 12_test -m D7_dogs_chr22
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
@@ -55,6 +55,8 @@ ml load py-pandas/1.0.3_py36
 ml load cuda/10.1.168
 ml load git-lfs/2.4.0
 ml load system nvtop
+
+# copy yaml params to the path where logs and model are stored
 
 python3 trainer.py --data.experiment_id $data_id \
 --data.params_dir '$USER_PATH/experiments/coordinates/exp_$model_type/' \

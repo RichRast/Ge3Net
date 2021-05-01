@@ -1,6 +1,6 @@
 #!/bin/bash
-# sample command: ./Batch_job_scripts/plink_pca.sh <chm> <sample_map> <geno_type>
-# ./Batch_job_scripts/plink_pca.sh whole_genome expt1 dogs
+# sample command: ./Batch_scripts/plink_pca.sh <chm> <sample_map> <geno_type>
+# ./Batch_scripts/plink_pca.sh whole_genome expt1 dogs
 # sample_map can be "expt1" or "a" or "b" or "c"
 
 cd /home/users/richras/Ge2Net_Repo

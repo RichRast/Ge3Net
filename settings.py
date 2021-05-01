@@ -3,7 +3,6 @@ import argparse
 import os
 import os.path as osp
 import distutils.util
-from helper_funcs import Params
 
 MODEL_CLASS = {'Model_A' : [['Model_A.model_A'],['AuxiliaryTask.AuxNetwork', 'BasicBlock.logits_Block']],
                     'Model_B' : [['Model_B.model_B'],['AuxiliaryTask.AuxNetwork', 'LSTM.BiRNN']],
@@ -39,10 +38,8 @@ parser.add_argument('--data.sample_map', type=str, default='', metavar='sample_m
                 help="type of sample map such as expt1, a, b or c")
 parser.add_argument('--data.reference_map', type=str, default=osp.join(os.environ.get('IN_PATH'), 'reference_files/reference_panel_metadata.tsv'), metavar='ref_file_path',
                 help="reference sample map")
-parser.add_argument('--data.experiment_id', type=str, default=1, metavar='experiment_id',
+parser.add_argument('--data.expt_id', type=str, default=1, metavar='experiment_id',
                     help='unique experiment identifier seed')
-parser.add_argument('--data.experiment_name', type=str, default='unsupervised_labels', metavar='experiment_name',
-                    help='name of experiment')
 parser.add_argument('--data.seed', type=int, default=1234, metavar='SEED',
                 help='numpy seed')
 parser.add_argument('--data.pop_order', type=str, help='directory for a specific pop order')
@@ -69,8 +66,6 @@ parser.add_argument('--data.simulate', type=distutils.util.strtobool, default='T
 
 parser.add_argument('--data.all_chm_snps', type=str, default=osp.join(os.environ.get('IN_PATH'), 'combined_chm/all_chm_combined_snps_variance_filter_0.3.npy'), metavar='all_chm',
                     help='numpy files with combined chm whose var>0.09')
-parser.add_argument('--data.n_way', type=int, default=7, metavar='continent_way',
-                    help='n_way classification for continent labels')
 parser.add_argument('--data.samples_per_type', type=list, default=[400, 400, 400], metavar='num_samples',
                     help='num_samples per gen for each of train, valid and test')
 parser.add_argument('--data.split_perc', type=list, default=[0.7, 0.2, 0.1], metavar='split_perc',
@@ -91,10 +86,8 @@ parser.add_argument('--cuda', type=str, default='cuda', metavar='CUDA_DEVICE',
 # log args
 parser.add_argument('--log.verbose', type=distutils.util.strtobool, default='True',
                     help='verbose')
-parser.add_argument('--log.train', type=str, default=osp.join( os.environ.get('OUT_PATH'), 'logs'), metavar='log_train',
-                    help='logging for training')
-parser.add_argument('--log.valid', type=str, default=osp.join( os.environ.get('OUT_PATH'), 'logs'), metavar='log_valid',
-                    help='logging for validation')
+parser.add_argument('--log.dir', type=str, default=osp.join( os.environ.get('OUT_PATH'), 'logs'), metavar='log_dir',
+                    help='logging directory')
 parser.add_argument('--log.wandb_dir', type=str, default=osp.join( os.environ.get('USER_SCRATCH_PATH'), 'Batch_jobs/wandb'), metavar='wandb_dir',
                     help='wandb logging dir')
 

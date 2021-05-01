@@ -1,7 +1,5 @@
 import torch
-import sys
-sys.path.insert(1, '/home/users/richras/Ge2Net_Repo')
-from decorators import timer
+from utils.decorators import timer
 
 class BOCD(object):
     def __init__(self, recomb_rate, T, likelihood_model, batch_size):

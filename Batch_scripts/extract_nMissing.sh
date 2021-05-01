@@ -3,8 +3,8 @@
 # This script calculates the stats for each chm of dogs and extracts the sample
 # with the nMissing per chm
 
-# sample command: ./Batch_job_scripts/extract_nMissing.sh <geno_type> <sample_map> <start_chm> <end_chm>
-# ./Batch_job_scripts/extract_nMissing.sh dogs a 1 38
+# sample command: ./Batch_scripts/extract_nMissing.sh <geno_type> <sample_map> <start_chm> <end_chm>
+# ./Batch_scripts/extract_nMissing.sh dogs a 1 38
 
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh

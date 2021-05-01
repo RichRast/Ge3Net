@@ -1,28 +1,23 @@
-import sys
-import argparse
-import os
 import os.path as osp
 import logging
-import copy
 
 from models import LSTM, AuxiliaryTask, Conv, Attention, Transformer, BasicBlock, Model_A, Model_B, Model_C, Model_D, Model_E, \
 Model_F, Seq2Seq, Model_G, Model_H, Model_I, Model_J, Model_K, Model_L, Model_M, Model_N, Model_O
-from utils import save_checkpoint, set_logger, load_model, early_stopping, Params, weight_int, custom_opt, load_path
+from utils.modelUtil import save_checkpoint, load_model, early_stopping, Params,\
+     weight_int, custom_opt, CustomDataParallel
+from utils.dataUtil import set_logger, load_path
 from dataset import Haplotype
 from settings import parse_args, MODEL_CLASS
 from visualization import Plot_per_epoch_revised
-from build_labels import repeat_pop_arr
+from createLabels.build_labels import repeat_pop_arr
 import matplotlib.pyplot as plt
 
 import torch
 import numpy as np
 import pandas as pd
 import wandb
-from decorators import timer
+from utils.decorators import timer
 
-class CustomDataParallel(torch.nn.DataParallel):
-    def __getattr__(self, name):
-        return getattr(self.module, name)
 
 @timer
 def main(config, params, trial=None):
@@ -84,6 +79,8 @@ def main(config, params, trial=None):
     for i, model_basic in enumerate(model_basics):
         params_dict={}
         # instantiate the model class
+        # if not params.dict.get(model_basic):
+        #     continue
         m = eval(model_basic)(params)
         # use parallel GPU's
         if torch.cuda.device_count() > 1:

@@ -2,8 +2,7 @@ import torch
 import numpy as np
 from torch.autograd import Variable as V
 import torch.nn.functional as F
-from collections import namedtuple
-from decorators import timer
+from utils.decorators import timer
 
 from helper_funcs import activate_mc_dropout, split_batch, square_normalize, get_gradient, Running_Average, form_mask
 from evaluation import SmoothL1Loss, Weighted_Loss, gradient_reg, eval_cp_batch, class_accuracy, accr, cp_accr, results
@@ -119,10 +118,10 @@ class model_D(object):
                     
                     # after doing back prob, detach rnn state to implement TBPTT
                     # now rnn_state was detached and chain of gradients was broken
-                    if torch.cuda.device_count() > 1:
-                        rnn_state = self.main_network.module._detach_rnn_state(rnn_state)
-                    else:
-                        rnn_state = self.main_network._detach_rnn_state(rnn_state)
+                    # if torch.cuda.device_count() > 1:
+                    #     rnn_state = self.main_network.module._detach_rnn_state(rnn_state)
+                    # else:
+                    rnn_state = self.main_network._detach_rnn_state(rnn_state)
                     y_pred_list.append(train_vector)
                 
                 # concatenating across windows because training was done in chunks of windows

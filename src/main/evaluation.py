@@ -1,10 +1,15 @@
 import numpy as np
 import torch
 
-from utils import get_gradient
+from utils.dataUtil import get_gradient
 from collections import namedtuple
 
 EARTH_RADIUS = 6371
+
+cp_accr = namedtuple('cp_accr', ['cp_loss', 'Precision', 'Recall', 'Balanced_Accuracy'])
+accr = namedtuple('accr', ['l1_loss', 'mse_loss', 'smoothl1_loss', 'weighted_loss', 'cp_accr', 'sp_accr'])
+accr.__new__.defaults__=(None,)*len(accr._fields)
+results = namedtuple('results', ['accr', 'pred'])
 
 def eval_cp_matrix(true_cps, pred_cps, seq_len = 317, win_tol=2):
     """
@@ -179,16 +184,19 @@ class Changepoint_mc_drop(Changepoint_Metrics):
         cp_mc_pred[cp_mc_idx[:,0], cp_mc_idx[:,1]]=1
         return cp_mc_pred
 
-def gcd_loss(y_pred, y, mask=None):
-    """
-    returns sum of gcd given prediction label y_pred of shape (n_samples x n_windows)
-    and target label y of shape (n_sampled x n_windows)
-    """
-    if mask is None:
-        mask = torch.ones(y_pred.shape[0], y_pred.shape[1]).to(device)
-    eps = 1e-4
-    sum_gcd = torch.sum(torch.acos(torch.sum(y_pred * y, dim=2).clamp(-1.0 + eps, 1.0 - eps)) * mask) * EARTH_RADIUS
-    return sum_gcd
+class GcdLoss():
+    def __init__(self):
+        ...
+    def __call__(self, y_pred, y, mask=None):
+        """
+        returns sum of gcd given prediction label y_pred of shape (n_samples x n_windows)
+        and target label y of shape (n_sampled x n_windows)
+        """
+        if mask is None:
+            mask = torch.ones(y_pred.shape[0], y_pred.shape[1]).to(device)
+        eps = 1e-4
+        sum_gcd = torch.sum(torch.acos(torch.sum(y_pred * y, dim=2).clamp(-1.0 + eps, 1.0 - eps)) * mask) * EARTH_RADIUS
+        return sum_gcd
 
 def class_accuracy(y_pred, y_test):
     correct_pred = (y_pred == y_test).astype(float)
@@ -198,7 +206,28 @@ def class_accuracy(y_pred, y_test):
     acc = acc * 100
     return acc
 
-cp_accr = namedtuple('cp_accr', ['cp_loss', 'Precision', 'Recall', 'Balanced_Accuracy'])
-accr = namedtuple('accr', ['l1_loss', 'mse_loss', 'smoothl1_loss', 'weighted_loss', 'cp_accr', 'sp_accr'])
-accr.__new__.defaults__=(None,)*len(accr._fields)
-results = namedtuple('results', ['accr', 'pred'])
+class Running_Average():
+    def __init__(self, num_members):
+        self.num_members = num_members
+        if self.num_members > 1:
+            self.value = [0]*num_members
+            self.steps = [0]*num_members
+        else:
+            self.value = 0
+            self.steps = 0
+    
+    def update(self, val, step_size):
+        if self.num_members > 1:
+            self.value = [sum(x) for x in zip(val, self.value)]
+            self.steps = [sum(x) for x in zip(step_size, self.steps)]
+        else:
+            self.value += val
+            self.steps += step_size
+        
+    def __call__(self):
+        if self.num_members > 1:
+            return [x/float(y) for x,y in zip(self.value, self.steps)]
+        else:
+            return self.value/float(self.steps)
+
+

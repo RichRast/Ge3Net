@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# sample command: ./Batch_job_scripts/filter_combine_vcf.sh -gt dogs -sm expt1 -f 0.0 -st_chm 1 -ed_chm 38 -s_win 100 -c
-# or ./Batch_job_scripts/filter_combine_vcf.sh -gt dogs -sm expt1 -f 0.0 -st_chm 1 -ed_chm 38 -c -ld 0.2
+# sample command: ./Batch_scripts/filter_combine_vcf.sh -gt dogs -sm expt1 -f 0.0 -st_chm 1 -ed_chm 38 -s_win 100 -c
+# or ./Batch_scripts/filter_combine_vcf.sh -gt dogs -sm expt1 -f 0.0 -st_chm 1 -ed_chm 38 -c -ld 0.2
 # sample_map for dogs can be expt1, a, b, c
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh
@@ -96,7 +96,7 @@ echo "bcftools concateninating"
 bcftools concat ${vcf_filename[*]} -O z -o ${save_path}/combined.vcf.gz
 
 echo "Launching python script to combine"
-python3 combine_chms.py --data.variance_filter $filter \
+python3 combineChms.py --data.variance_filter $filter \
 --data.vcf_filenames ${vcf_filename[*]} \
 --data.save_path ${save_path} \
 --data.combine $combine \

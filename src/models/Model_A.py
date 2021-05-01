@@ -3,8 +3,10 @@ from torch.autograd import Variable as V
 import torch.nn.functional as F
 from collections import namedtuple
 
-from helper_funcs import activate_mc_dropout, split_batch, square_normalize, get_gradient, Running_Average
-from evaluation import SmoothL1Loss, Weighted_Loss, gradient_reg, eval_cp_batch
+from utils.modelUtil import activate_mc_dropout
+from utils.dataUtil import get_gradient
+from evaluation import SmoothL1Loss, Weighted_Loss, gradient_reg, \
+    eval_cp_batch, Running_Average
 
 cp_accr = namedtuple('cp_accr', ['cp_loss', 'Precision', 'Recall', 'Balanced_Accuracy'])
 cp_accr.__new__.defaults__=(None,)*len(cp_accr._fields)

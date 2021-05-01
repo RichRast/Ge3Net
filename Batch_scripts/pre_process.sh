@@ -2,7 +2,7 @@
 
 # script to pre-process vcf data so that it is ready to be used to 
 # create labels using unsupervised methods
-# sample script ./Batch_job_scripts/pre_process.sh st_chm=1 ed_chm=38 sm=expt1 geno=0.1 maf=0.01 ld_prune=0.5 combine geno_type=dogs
+# sample script ./Batch_scripts/pre_process.sh st_chm=1 ed_chm=38 sm=expt1 geno=0.1 maf=0.01 ld_prune=0.5 combine geno_type=dogs
 
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh
@@ -54,14 +54,14 @@ ml load vcftools/0.1.15
 
 cd /home/users/richras/Ge2Net_Repo
 
-if ./Batch_job_scripts/pre_process_loop.sh ${start_chm} ${end_chm} ${geno} ${maf} ${ld_prune} ${sample_map} ${geno_type}; then echo "Success";
+if ./Batch_scripts/pre_process_loop.sh ${start_chm} ${end_chm} ${geno} ${maf} ${ld_prune} ${sample_map} ${geno_type}; then echo "Success";
 else echo "Fail"; fi
 if [[ ($combine = "True") ]] ; then
     echo "Launching the combine script for pruned data "
-    if ./Batch_job_scripts/filter_combine_vcf.sh -gt ${geno_type} -sm ${sample_map} -f 0.0 -st_chm 1 -ed_chm 38 -s_win 0 -ld ${ld_prune} -c; then echo "Success";
+    if ./Batch_scripts/filter_combine_vcf.sh -gt ${geno_type} -sm ${sample_map} -f 0.0 -st_chm 1 -ed_chm 38 -s_win 0 -ld ${ld_prune} -c; then echo "Success";
     else echo "Fail combine script"; fi 
     echo "Launching the combine script for unpruned and unfiltered data"
-    if ./Batch_job_scripts/filter_combine_vcf.sh -gt ${geno_type} -sm ${sample_map} -f 0.0 -st_chm 1 -ed_chm 38 -s_win 0 -c ; then echo "Success";
+    if ./Batch_scripts/filter_combine_vcf.sh -gt ${geno_type} -sm ${sample_map} -f 0.0 -st_chm 1 -ed_chm 38 -s_win 0 -c ; then echo "Success";
     else echo "Fail combine script"; fi 
 else echo "Finished without combining";
 fi

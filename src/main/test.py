@@ -7,7 +7,8 @@ import copy
 
 from models import LSTM, AuxiliaryTask, Conv, Attention, Transformer, BasicBlock, Model_A, Model_B, Model_C, Model_D, Model_E, \
 Model_F, Seq2Seq, Model_G, Model_H, Model_I, Model_J, Model_K, Model_L, Model_M, Model_N, Model_O
-from utils import set_logger, load_model, Params
+from utils.dataUtil import set_logger
+from utils.modelUtil import load_model
 from dataset import Haplotype
 from settings import parse_args, MODEL_CLASS
 
