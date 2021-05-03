@@ -6,10 +6,19 @@ from collections import namedtuple
 
 EARTH_RADIUS = 6371
 
-cp_accr = namedtuple('cp_accr', ['cp_loss', 'Precision', 'Recall', 'Balanced_Accuracy'])
-accr = namedtuple('accr', ['l1_loss', 'mse_loss', 'smoothl1_loss', 'weighted_loss', 'cp_accr', 'sp_accr'])
-accr.__new__.defaults__=(None,)*len(accr._fields)
-results = namedtuple('results', ['accr', 'pred'])
+t_cp_accr = namedtuple('t_cp_accr', ['cp_loss', 'Precision', 'Recall', 'Balanced_Accuracy'])
+t_cp_accr.__new__.__defaults__=(None,)*len(t_cp_accr._fields)
+t_sp_accr = namedtuple('t_sp_accr', ['sp_loss', 'Precision', 'Recall', 'Balanced_Accuracy'])
+t_sp_accr.__new__.__defaults__=(None,)*len(t_sp_accr._fields)
+t_accr = namedtuple('t_accr', ['l1_loss', 'mse_loss', 'smoothl1_loss',\
+     'weighted_loss', 'loss_aux', 'residual_loss'])
+t_accr.__new__.__defaults__=(None,)*len(t_accr._fields)
+t_out = namedtuple('t_out', ['coord', 'cp_logits', 'y_var', 'sp'])
+t_out.__new__.__defaults__=(None,)*len(t_out._fields)
+t_results = namedtuple('t_results',['t_accr', 't_cp_accr', 't_sp_accr', 't_out'])
+t_results.__new__.__defaults__=(None,)*len(t_results._fields)
+
+
 
 def eval_cp_matrix(true_cps, pred_cps, seq_len = 317, win_tol=2):
     """
