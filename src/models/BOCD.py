@@ -1,5 +1,8 @@
 import torch
-from utils.decorators import timer
+import os
+import sys
+sys.path.insert(1, os.environ.get('USER_PATH'))
+from src.utils.decorators import timer
 
 class BOCD(object):
     def __init__(self, recomb_rate, T, likelihood_model, batch_size):

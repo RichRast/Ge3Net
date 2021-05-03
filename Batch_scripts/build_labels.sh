@@ -2,7 +2,7 @@
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
-# sample command ./Batch_scripts/build_labels.sh -gt=dogs -e=14 -sim -bl -n_o=3 -sm=expt1 -s=1234 -um=umap
+# sample command ./Batch_scripts/build_labels.sh -gt=dogs -e=1 -sim -bl -n_o=3 -sm=expt1 -s=1234 -um=umap
 # sample_map for dogs can be expt1, a, b, c
 
 Help()
@@ -92,8 +92,8 @@ else
 echo "${geno_type} not supported"; exit 1 ;
 fi
 
-echo "Starting build_labels for geno type ${geno_type} experiment ${exp_id}"
-mkdir -p $OUT_PATH/${geno_type}/unsupervised_labels/sm_${sample_map}/${exp_id}
+echo "Starting build_labels for geno type ${geno_type} experiment ${exp_id} for $unsupMethod"
+mkdir -p $OUT_PATH/${geno_type}/labels/data_id_${exp_id}_$unsupMethod
 
 sbatch<<EOT
 #!/bin/sh
@@ -101,7 +101,7 @@ sbatch<<EOT
 #SBATCH -c 1
 #SBATCH --mem=1000G
 #SBATCH -t 24:00:00
-#SBATCH --output=$OUT_PATH/build_labels_gt_${geno_type}_sm_${sample_map}_exp_${exp_id}_seed_$seed.out
+#SBATCH --output=$OUT_PATH/build_labels_gt_${geno_type}_sm_${sample_map}_exp_${exp_id}_seed_$seed_um_$unsupMethod.out
 
 ml load py-pytorch/1.4.0_py36
 ml load py-scipy/1.4.1_py36
@@ -110,7 +110,7 @@ ml load py-matplotlib/3.2.1_py36
 ml load py-pandas/1.0.3_py36
 
 cd /home/users/richras/Ge2Net_Repo
-python3 buildLabels.py --data.seed $seed \
+python3 ./src/createLabels/buildLabels.py --data.seed $seed \
 --data.experiment_id ${exp_id} \
 --data.reference_map ${ref_map} \
 --data.sample_map ${sample_map} \
@@ -130,4 +130,13 @@ EOT
 sleep .5
 squeue -u richras
 sleep .5
-less +F $OUT_PATH/build_labels_gt_${geno_type}_sm_${sample_map}_exp_${exp_id}_seed_$seed.out
+less +F $OUT_PATH/build_labels_gt_${geno_type}_sm_${sample_map}_exp_${exp_id}_seed_$seed_um_$unsupMethod.out
+
+# sample command from the terminal directly 
+# cd /home/users/richras/Ge2Net_Repo
+# source ini.sh
+# python3 ./src/createLabels/buildLabels.py --data.seed 1234 --data.experiment_id 1 --data.referen
+# ce_map $OUT_PATH/dogs/ref_map_expt1.tsv --data.sample_map expt1 --data.vcf_dir $OUT_PATH/dogs/sm_expt1/chr22/chr22_filtered.vcf --da
+# ta.genetic_map $IN_PATH/dogs/chr22/chr22_average_canFam3.1.txt --data.geno_type dogs --data.extended_pca False --data.simulate True
+# --data.create_labels True --data.n_comp_overall 3 --data.n_comp_subclass 0 --data.n_comp=23 --data.all_chm_snps $OUT_PATH/dogs/sm_ex
+# pt1/ld_0.5/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy --data.method umap

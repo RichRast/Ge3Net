@@ -21,6 +21,7 @@
 "superpop_predict":false,
 "residual":false,
 "subclass_plot":"3d",
+"geography":false,
 
 "hyper_search":false,
 "hyper_search_type":"wandb", 
@@ -34,7 +35,7 @@
 "chmlen":81000,
 "n_win" :81,
 "dataset_dim":3,
-"coordinates":"Umap/labels.pkl",  
+"coordinates":"labels.pkl",  
 
 "wandb_config":{
             "method": "random", 

@@ -1,7 +1,7 @@
 #!/bin/bash
 # sample command: ./Batch_scripts/plink_pca.sh <chm> <sample_map> <geno_type>
 # ./Batch_scripts/plink_pca.sh whole_genome expt1 dogs
-# sample_map can be "expt1" or "a" or "b" or "c"
+# sample_map can be "expt1" or "a" or "b" or "c" or "keep"
 
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh
@@ -15,7 +15,7 @@ sbatch<<EOT
 #SBATCH -c 1
 #SBATCH --mem=1000G
 #SBATCH -t 24:00:00
-#SBATCH --output=$OUT_PATH/dogs/plink_pca_${chm}_${sample_map}.out
+#SBATCH --output=$OUT_PATH/${geno_type}/plink_pca_${chm}_${sample_map}.out
 
 echo "Loading libraries for loading"
 ml load biology

@@ -1,14 +1,16 @@
 import numpy as np
 import torch
-
-from utils.dataUtil import get_gradient
+import os
+import sys
+sys.path.insert(1, os.environ.get('USER_PATH'))
+from src.utils.dataUtil import get_gradient
 from collections import namedtuple
 
 EARTH_RADIUS = 6371
 
-t_cp_accr = namedtuple('t_cp_accr', ['cp_loss', 'Precision', 'Recall', 'Balanced_Accuracy'])
+t_cp_accr = namedtuple('t_cp_accr', ['cp_loss', 'Precision', 'Recall', 'BalancedAccuracy'])
 t_cp_accr.__new__.__defaults__=(None,)*len(t_cp_accr._fields)
-t_sp_accr = namedtuple('t_sp_accr', ['sp_loss', 'Precision', 'Recall', 'Balanced_Accuracy'])
+t_sp_accr = namedtuple('t_sp_accr', ['sp_loss', 'Precision', 'Recall', 'BalancedAccuracy'])
 t_sp_accr.__new__.__defaults__=(None,)*len(t_sp_accr._fields)
 t_accr = namedtuple('t_accr', ['l1_loss', 'mse_loss', 'smoothl1_loss',\
      'weighted_loss', 'loss_aux', 'residual_loss'])
@@ -216,27 +218,15 @@ def class_accuracy(y_pred, y_test):
     return acc
 
 class Running_Average():
-    def __init__(self, num_members):
-        self.num_members = num_members
-        if self.num_members > 1:
-            self.value = [0]*num_members
-            self.steps = [0]*num_members
-        else:
-            self.value = 0
-            self.steps = 0
+    def __init__(self):
+        self.value = 0
+        self.steps = 0
     
     def update(self, val, step_size):
-        if self.num_members > 1:
-            self.value = [sum(x) for x in zip(val, self.value)]
-            self.steps = [sum(x) for x in zip(step_size, self.steps)]
-        else:
-            self.value += val
-            self.steps += step_size
+        self.value += val
+        self.steps += step_size
         
     def __call__(self):
-        if self.num_members > 1:
-            return [x/float(y) for x,y in zip(self.value, self.steps)]
-        else:
-            return self.value/float(self.steps)
+        return self.value/float(self.steps)
 
 

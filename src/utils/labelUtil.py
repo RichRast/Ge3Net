@@ -1,5 +1,8 @@
 import numpy as np
 import pandas as pd
+import sys 
+import os
+sys.path.insert(1,os.environ.get('USER_PATH'))
 from pyadmix.utils import get_chm_info, build_founders, create_non_rec_dataset, write_output 
 
 def filter_reference_file(ref_sample_map, verbose=True):

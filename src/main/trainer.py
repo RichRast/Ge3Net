@@ -1,12 +1,16 @@
+import os
 import os.path as osp
 import logging
-
-from models import LSTM, AuxiliaryTask, Conv, Attention, Transformer, BasicBlock, Model_A, Model_B, Model_C, Model_D, Model_E, \
-Model_F, Seq2Seq, Model_G, Model_H, Model_I, Model_J, Model_K, Model_L, Model_M, Model_N, Model_O
-from utils.modelUtil import save_checkpoint, load_model, early_stopping, Params,\
+import sys
+sys.path.insert(1, os.environ.get('USER_PATH'))
+from src.models import LSTM, AuxiliaryTask, Conv, Attention, Transformer, BasicBlock, Model_A
+# Model_B, Model_C, Model_D, Model_E, \
+# Model_F, Seq2Seq, Model_G, Model_H, Model_I, Model_J, Model_K, Model_L, Model_M, Model_N, Model_O
+from src.utils.modelUtil import save_checkpoint, load_model, early_stopping, Params,\
      weight_int, custom_opt, CustomDataParallel
-from utils.dataUtil import set_logger, load_path
-from utils.labelUtil import repeat_pop_arr
+from src.utils.dataUtil import set_logger, load_path
+from src.utils.labelUtil import repeat_pop_arr
+from src.utils.decorators import timer
 from dataset import Haplotype
 from settings import parse_args, MODEL_CLASS
 from visualization import Plot_per_epoch_revised
@@ -16,7 +20,7 @@ import torch
 import numpy as np
 import pandas as pd
 import wandb
-from utils.decorators import timer
+
 
 
 @timer
@@ -38,9 +42,9 @@ def main(config, params, trial=None):
         
     if config['log.verbose']:
         # Set the logger
-        set_logger(osp.join(config['log.train'], config['model_version']))
+        set_logger(osp.join(config['log.dir']))
         # use the major version only
-        wandb.init(project=''.join([str(params.model), '_', str(params.major_version)]), config=params)
+        wandb.init(project=''.join([str(params.model)]), config=params)
         params=wandb.config
 
     # configure device
@@ -50,11 +54,9 @@ def main(config, params, trial=None):
     # Create the input data pipeline
     logging.info("Loading the datasets...")
 
-    dataset_path = osp.join(str(config['data.data_out']), config['data.geno_type'], ''.join(['sm_', 'expt1']), \
-        config['data.experiment_name'], str(config['data.experiment_id']))
     labels_path = config['data.labels_dir']
-    training_dataset = Haplotype('train', dataset_path, params, labels_path)
-    validation_dataset = Haplotype('valid', dataset_path, params, labels_path)
+    training_dataset = Haplotype('train', params, labels_path)
+    validation_dataset = Haplotype('valid', params, labels_path)
     
     training_generator = torch.utils.data.DataLoader(training_dataset, batch_size=params.batch_size, shuffle=True,
                                                     num_workers=0)
@@ -63,7 +65,7 @@ def main(config, params, trial=None):
     # Initiate the class for plotting per epoch
     plot_obj=None
     if params.plotting:
-        pop_dict = load_path(osp.join(dataset_path, 'granular_pop.pkl'), en_pickle=True)
+        pop_dict = load_path(osp.join(labels_path, 'granular_pop.pkl'), en_pickle=True)
         rev_pop_dict = {v:k for k,v in pop_dict.items()}
         pop_sample_map = pd.read_csv(osp.join(labels_path, params.pop_sample_map), sep='\t')
         pop_arr = repeat_pop_arr(pop_sample_map)
@@ -133,22 +135,25 @@ def training_loop(model, model_params, middle_models, params, config, training_g
     patience = 0
 
     for epoch in range(start_epoch, params.num_epochs):
-        train_result = model.train(optimizer, training_generator, plot_obj, wandb=wandb)
+        train_result = model.train(optimizer, training_generator, plot_obj=plot_obj, wandb=wandb)
 
-        eval_result = model.valid(validation_generator, plot_obj, wandb=wandb)
+        eval_result = model.valid(validation_generator, plot_obj=plot_obj, wandb=wandb)
         plt.close('all')
         
         if config['log.verbose']:
-
             wandb.log({"train_metrics":train_result.t_accr._asdict(), "epoch":epoch})
             wandb.log({"valid_metrics":eval_result.t_accr._asdict(), "epoch":epoch})
+            wandb.log({"train_metrics":train_result.t_cp_accr._asdict(), "epoch":epoch})
+            wandb.log({"valid_metrics":eval_result.t_cp_accr._asdict(), "epoch":epoch})
+            wandb.log({"train_metrics":train_result.t_sp_accr._asdict(), "epoch":epoch})
+            wandb.log({"valid_metrics":eval_result.t_sp_accr._asdict(), "epoch":epoch})
 
         # every step in the scheduler is per epoch
         exp_lr_scheduler.step(eval_result.t_accr.weighted_loss)
         
         # logic for best model
         is_best = False
-        if (epoch==start_epoch) or (eval_result.accr.weighted_loss < best_val_accr):
+        if (epoch==start_epoch) or (eval_result.t_accr.weighted_loss < best_val_accr):
             best_val_accr = eval_result.t_accr.weighted_loss
             is_best = True
         
@@ -163,14 +168,14 @@ def training_loop(model, model_params, middle_models, params, config, training_g
         # saving a model at every epoch
         logging.info(f"Saving at epoch {epoch}")
         logging.info(f'train accr: {train_result.t_accr.weighted_loss}, val accr: {eval_result.t_accr.weighted_loss}')
-        checkpoint = osp.join(config['model.working_dir'], config['model_version'])
+        checkpoint = config['model.working_dir']
         models_state_dict = [middle_models[i].state_dict() for i in range(len(middle_models))]
 
         save_checkpoint({
             'epoch': epoch,
             'model_state_dict': models_state_dict,
             'optimizer_state_dict': optimizer.state_dict(),
-            'accr': eval_result._asdict(),
+            'val_accr': eval_result._asdict(),
             'train_accr': train_result._asdict()
             }, checkpoint, is_best=is_best)
         
@@ -190,6 +195,4 @@ if __name__=="__main__":
     json_path = osp.join(config['data.params_dir'], 'params.json')
     assert osp.isfile(json_path), "No json configuration file found at {}".format(json_path)
     params = Params(json_path)
-    config['model_version'] = ''.join([str(params.model), '_', str(params.major_version), \
-        '.', str(params.minor_version), '.', str(config['model.expt_id'])])
     main(config, params)

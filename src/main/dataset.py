@@ -2,13 +2,16 @@ import numpy as np
 import pandas as pd 
 import torch 
 from torch.utils.data import Dataset
-from utils import load_path
-from utils.labelUtil import repeat_pop_arr
+import os
 import os.path as osp
-from utils.decorators import timer
+import sys
+sys.path.insert(1, os.environ.get('USER_PATH'))
+from src.utils.dataUtil import load_path
+from src.utils.labelUtil import repeat_pop_arr
+from src.utils.decorators import timer
 
 class Haplotype(Dataset):
-    def __init__(self, dataset_type, path_prefix, params, labels_path):
+    def __init__(self, dataset_type, params, labels_path):
         if dataset_type not in ["train", "valid", "test", "no_label"]:
             raise ValueError
         
@@ -28,15 +31,15 @@ class Haplotype(Dataset):
 
         if labels_path is None:
             print(f'Loading snps data')
-            self.snps = load_path(osp.join(path_prefix, str(dataset_type),'mat_vcf_2d.npy'))
+            self.snps = load_path(osp.join(labels_path, str(dataset_type),'mat_vcf_2d.npy'))
             self.data['X'] = torch.tensor(self.snps[:,0:self.params.chmlen])
             print(f"snps data shape : {self.data['X'].shape}")
         else:
             for i, gen in enumerate(self.gens_to_ret):
                 print(f"Loading gen {gen}")
-                curr_snps = load_path(osp.join(path_prefix, str(dataset_type) ,'gen_' + str(gen), 'mat_vcf_2d.npy'))
+                curr_snps = load_path(osp.join(labels_path, str(dataset_type) ,'gen_' + str(gen), 'mat_vcf_2d.npy'))
                 print(f' snps data: {curr_snps.shape}')
-                curr_vcf_idx = load_path(osp.join(path_prefix , str(dataset_type) ,'gen_' + str(gen) ,'mat_map.npy'))
+                curr_vcf_idx = load_path(osp.join(labels_path , str(dataset_type) ,'gen_' + str(gen) ,'mat_map.npy'))
                 print(f' y_labels data :{curr_vcf_idx.shape}')
 
                 if i>0:

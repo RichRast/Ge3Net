@@ -1,6 +1,6 @@
 import time
 import functools
-from utils.dataUtil import square_normalize
+from src.utils.dataUtil import square_normalize
 
 def timer(func):
     """Print the runtime of the decorated function"""

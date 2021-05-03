@@ -3,10 +3,11 @@ import pandas as pd
 import os
 import os.path as osp
 import allel
-
-from utils.labelUtil import filter_reference_file, get_sample_map, \
+import sys
+sys.path.insert(1, os.environ.get('USER_PATH'))
+from src.utils.labelUtil import filter_reference_file, get_sample_map, \
     repeat_pop_arr, split_sample_maps, get_admixed_samples
-from utils.dataUtil import load_path, save_file, vcf2npy
+from src.utils.dataUtil import load_path, save_file, vcf2npy
 from unsupervisedMethods import pcaSpace, spectralEmbeddingSpace, umapSpace, \
     tsneSpace, residualPca, thinningPcaSpace
 from settings import parse_args
@@ -24,10 +25,10 @@ def main(config):
     # check values for geno_type
     assert config['data.geno_type'] in ['humans', 'dogs'], " invalid value of geno type"
 
-    data_out_path = osp.join(str(config['data.data_out']), 
-                            config['data.geno_type'], \
-        ''.join(['sm_', str(config['data.sample_map'])]), \
-                        str(config['data.expt_id']))
+    data_out_path = osp.join(str(config['data.data_out']), \
+                            str(config['data.geno_type']), \
+                            'labels' , \
+                ''.join(["data_id_", str(config['data.expt_id']), "_", str(config['data.method'])]))
     print(f"data_out_path : {str(data_out_path)}")
     if not osp.exists(data_out_path):
         print(f"dataset out dir doesn't exist, making {str(data_out_path)}")

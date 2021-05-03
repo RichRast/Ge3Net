@@ -79,7 +79,7 @@ sbatch<<EOT
 #SBATCH -c 1
 #SBATCH --mem=500G
 #SBATCH -t 24:00:00
-#SBATCH --output=$OUT_PATH/$geno_type/sm_${sample_map}_chm_${filter}_combine_${combine}_chm_${start_chm}_chm_${end_chm}_sample_win_${sample_win}_ld_prune_${ld_prune}.out
+#SBATCH --output=$OUT_PATH/${geno_type}/sm_${sample_map}_chm_${filter}_combine_${combine}_chm_${start_chm}_chm_${end_chm}_sample_win_${sample_win}_ld_prune_${ld_prune}.out
 
 ml load py-pytorch/1.4.0_py36
 ml load py-scipy/1.4.1_py36
@@ -96,7 +96,7 @@ echo "bcftools concateninating"
 bcftools concat ${vcf_filename[*]} -O z -o ${save_path}/combined.vcf.gz
 
 echo "Launching python script to combine"
-python3 combineChms.py --data.variance_filter $filter \
+python3 ./src/createLabels/combineChms.py --data.variance_filter $filter \
 --data.vcf_filenames ${vcf_filename[*]} \
 --data.save_path ${save_path} \
 --data.combine $combine \
@@ -107,5 +107,5 @@ EOT
 sleep .5
 squeue -u richras
 
-echo log_dir:$OUT_PATH/$geno_type/sm_${sample_map}_chm_${filter}_combine_${combine}_chm_${start_chm}_chm_${end_chm}_sample_win_${sample_win}_ld_prune_${ld_prune}.out
+echo log_dir:$OUT_PATH/${geno_type}/sm_${sample_map}_chm_${filter}_combine_${combine}_chm_${start_chm}_chm_${end_chm}_sample_win_${sample_win}_ld_prune_${ld_prune}.out
 exit 0

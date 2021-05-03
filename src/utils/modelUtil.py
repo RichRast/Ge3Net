@@ -62,9 +62,9 @@ def load_model(model_path, model_ls, optimizer=None):
         
     checkpoint = torch.load(model_path)
 
-    print(f"best val accuracy : {checkpoint['accr']['accr']}")
+    print(f"best val accuracy : {checkpoint['val_accr']['t_accr']}")
     print(f"at epoch : {checkpoint['epoch']}")
-    print(f"train accuracy: {checkpoint['train_accr']['accr']}")
+    print(f"train accuracy: {checkpoint['train_accr']['t_accr']}")
     
     for i, model_state in enumerate(checkpoint['model_state_dict']):
         model_ls[i].load_state_dict(model_state)

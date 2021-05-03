@@ -176,7 +176,9 @@ class Plot_per_epoch_revised(object):
         self.rev_pop_dict = rev_pop_dict
         self.pop_arr = pop_arr
         
-    def plot_index(self, y_pred_overall, y_pred_subclass, y_pred_sp, y_target, y_vcf_idx):
+    def plot_index(self, y_pred_overall, y_target, y_vcf_idx, **kwargs):
+        y_pred_subclass=kwargs.get('y_pred_subclass')
+        y_pred_sp=kwargs.get('y_pred_sp')
         # for extended pca - plot the overall plot with 6 or 7 subplots for a prediction
         # fig, ax = plt.subplots(len(self.pop_num)+1, figsize=(10,62), gridspec_kw={'height_ratios':[1]+[1]*len(self.pop_num)})
         fig, ax = plt.subplots(figsize=(10,62))

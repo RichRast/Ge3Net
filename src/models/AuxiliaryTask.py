@@ -2,7 +2,6 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import numpy as np
-from models import BasicBlock
 
 def swish(x):
     return x * F.sigmoid(x)

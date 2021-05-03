@@ -4,13 +4,14 @@ import argparse
 import sys
 import pickle
 import copy
-
+sys.path.insert(1, os.environ.get('USER_PATH'))
 import torch.nn as nn
 import torch.nn.functional as F
 
 import optuna
 import wandb
-import trainer
+import src.main.trainer
+
 from settings import parse_args
 
 class objective(object):

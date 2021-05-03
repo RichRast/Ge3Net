@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# sample command ./Batch_scripts/trainer_bash.sh -gt dogs -e 7 -d 12_test -m D7_dogs_chr22
+# sample command ./Batch_scripts/trainer_bash.sh -gt dogs -e 7 -d 1_PCA -m D
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
@@ -46,7 +46,7 @@ sbatch << EOT
 #SBATCH -C GPU_MEM:11GB
 #SBATCH --mem=80G
 #SBATCH -t 24:00:00
-#SBATCH --output=$OUT_PATH/logs/gt_${geno_type}_exp_${expt_id}_${model_type}_data_id_${data_id}.out
+#SBATCH --output=$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
 
 ml load py-pytorch/1.4.0_py36
 ml load py-scipy/1.4.1_py36
@@ -58,13 +58,11 @@ ml load system nvtop
 
 # copy yaml params to the path where logs and model are stored
 
-python3 trainer.py --data.experiment_id $data_id \
---data.params_dir '$USER_PATH/experiments/coordinates/exp_$model_type/' \
---data.experiment_name 'unsupervised_labels' \
+python3 trainer.py  --data.params_dir '$USER_PATH/src/main/experiments/exp_$model_type' \
 --data.geno_type $geno_type \
---model.expt_id $expt_id \
---model.working_dir '$OUT_PATH/$geno_type/models_dir' \
---data.labels_dir '$OUT_PATH/$geno_type/sm_expt1/unsupervised_labels/$data_id'
+--model.working_dir '$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/models_dir/' \
+--data.labels_dir '$OUT_PATH/$geno_type/labels/data_id_${data_id}' \
+--log.dir '$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/'
 EOT
 
 sleep .5
@@ -73,5 +71,5 @@ squeue -u richras
 sleep .5
 echo "status of this job"
 
-echo log_dir: $OUT_PATH/logs/gt_${geno_type}_exp_${expt_id}_${model_type}_data_id_${data_id}.out
-less +F $OUT_PATH/logs/gt_${geno_type}_exp_${expt_id}_${model_type}_data_id_${data_id}.out
+echo log_dir: $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
+less +F $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out

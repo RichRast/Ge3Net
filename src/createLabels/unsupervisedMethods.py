@@ -9,16 +9,18 @@ import seaborn as sns
 import scipy
 from scipy.spatial import distance
 from sklearn.metrics.pairwise import euclidean_distances
-from helper_funcs import load_path, save_file, getValueBySelection
-from numpy import linalg as LA
-from utils.decorators import timer
+import sys
+import os
+import os.path as osp
+import subprocess
+from abc import ABC, abstractmethod
+sys.path.insert(1,os.environ.get('USER_PATH'))
+from src.utils.dataUtil import load_path, save_file, getValueBySelection
+from src.utils.decorators import timer
 import umap
 from sklearn.manifold import SpectralEmbedding
 from sklearn.manifold import TSNE
-import subprocess
-from abc import ABC, abstractmethod
-import os
-import os.path as osp
+from numpy import linalg as LA
 
 class UnsupervisedSpace(ABC):
     """
@@ -32,11 +34,6 @@ class UnsupervisedSpace(ABC):
         self.pop_order = pop_order
         self.reducer = None
         self.name = None
-    
-    def _setSavePath(self):
-        self.save_path=osp.join(self.data_out_path, self.name)
-        if not osp.exists(self.save_path):
-            os.makedirs(self.save_path)
         
     @timer
     def fit(self, X):
@@ -111,23 +108,22 @@ class UnsupervisedSpace(ABC):
             lgd, fig1 = self._plot2dEmbeddings(pop_arr, \
             random_idx, rev_pop_dict)
         plt.show()
-        fig1.savefig(osp.join(self.save_path, 'labels.png'), bbox_extra_artists=(lgd,), bbox_inches='tight')
+        fig1.savefig(osp.join(self.data_out_path, 'labels.png'), bbox_extra_artists=(lgd,), bbox_inches='tight')
         plt.close('all')
 
     def saveLabels(self, pop_arr):
         # form the dict with vcf_idx and embeddings
         vcf_idx = list(pop_arr[:,1])
         self.lbls_dict = {k:v for k,v in zip(vcf_idx, self.labels)}
-        save_file(osp.join(self.save_path, 'labels.pkl'), self.lbls_dict, en_pickle=True)
+        save_file(osp.join(self.data_out_path, 'labels.pkl'), self.lbls_dict, en_pickle=True)
         labelsBySample = pd.DataFrame(columns=['Sample', 'ref_idx', 'labels'])
         labelsBySample['ref_idx']=list(self.lbls_dict.keys())
         labelsBySample['labels']=list(self.lbls_dict.values())
         labelsBySample['Sample']=labelsBySample['ref_idx'].apply(lambda x: getValueBySelection(pop_arr, 1, x, 0) )
-        labelsBySample.to_csv(osp.join(self.save_path, 'labelsBySample.tsv'), sep="\t", index=None)
+        labelsBySample.to_csv(osp.join(self.data_out_path, 'labelsBySample.tsv'), sep="\t", index=None)
     
     def __call__(self, X, rev_pop_dict, pop_arr):
         self.fit_transform(X)
-        self._setSavePath()
         self.plot_embeddings(rev_pop_dict, pop_arr)
         self.saveLabels(pop_arr)        
 
@@ -211,7 +207,7 @@ class residualPca(pcaSpace):
         lgnd, fig = self.pca_overall._plot3dEmbeddings(rev_pop_dict, self.pop_arr, self.pop_order)
         plt.title(f" Overall PCA")
         plt.show()
-        fig.savefig(osp.join(self.save_path, f'labels.png'), bbox_extra_artists=(lgnd,), bbox_inches='tight')
+        fig.savefig(osp.join(self.data_out_path, f'labels.png'), bbox_extra_artists=(lgnd,), bbox_inches='tight')
         pop_num = np.arange(len(self.pop_order))
         for j, _ in enumerate(pop_num):
             # plot all the classes for the same subclass for train
@@ -220,12 +216,11 @@ class residualPca(pcaSpace):
             lgnd, fig = self.pca_subclass[j]._plot2dEmbeddings(self.pop_arr, random_idx, rev_pop_dict, self.pop_order)
             plt.title(f" subclass : {self.pca_subclass[j].name}")
             plt.show()
-            fig.savefig(osp.join(self.save_path, f'labels_{self.pca_subclass[j].name}.png'), bbox_extra_artists=(lgnd,), bbox_inches='tight')
+            fig.savefig(osp.join(self.data_out_path, f'labels_{self.pca_subclass[j].name}.png'), bbox_extra_artists=(lgnd,), bbox_inches='tight')
         plt.close('all')
 
     def __call__(self, X, rev_pop_dict, pop_arr):
         self.fit_transform(X)
-        self._setSavePath()
         self.plot_embeddings(rev_pop_dict)
         self.saveLabels(pop_arr)
                     
@@ -274,15 +269,14 @@ class thinningPcaSpace(UnsupervisedSpace):
         fig, ax = plot3dEmbeddingsGeneric(self.labels, random_idx)
         plt.title("Thinning PCA whole genome")
         plt.show()
-        fig.savefig(osp.join(self.save_path, f'labels.png'), bbox_inches='tight')
+        fig.savefig(osp.join(self.data_out_path, f'labels.png'), bbox_inches='tight')
         plt.close('all')
 
     def saveLabels(self):
-        self.labels.to_csv(osp.join(self.save_path, 'labelsBySample.tsv'), sep="\t", index=None)
+        self.labels.to_csv(osp.join(self.data_out_path, 'labelsBySample.tsv'), sep="\t", index=None)
     
     def __call__(self, sh_args, plink_path):
         self.fit_transform(sh_args, plink_path)
-        self._setSavePath()
         self.plot_embeddings()
         self.saveLabels()
     

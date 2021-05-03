@@ -35,7 +35,7 @@ def set_logger(log_path):
     logger.setLevel(logging.INFO)
     if not osp.exists(log_path):
         print(f'Logging path does not exist, making {log_path}')
-        os.mkdir(log_path)
+        os.makedirs(log_path)
 
     if not logger.handlers:
         # Logging to a file
