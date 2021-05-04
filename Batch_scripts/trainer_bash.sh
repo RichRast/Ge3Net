@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# sample command ./Batch_scripts/trainer_bash.sh -gt dogs -e 7 -d 1_PCA -m D
+# sample command ./Batch_scripts/trainer_bash.sh -gt dogs -e 7 -d 1_umap -m D
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
@@ -58,7 +58,7 @@ ml load system nvtop
 
 # copy yaml params to the path where logs and model are stored
 
-python3 trainer.py  --data.params_dir '$USER_PATH/src/main/experiments/exp_$model_type' \
+python3 ./src/main/trainer.py  --data.params_dir '$USER_PATH/src/main/experiments/exp_$model_type' \
 --data.geno_type $geno_type \
 --model.working_dir '$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/models_dir/' \
 --data.labels_dir '$OUT_PATH/$geno_type/labels/data_id_${data_id}' \
@@ -73,3 +73,8 @@ echo "status of this job"
 
 echo log_dir: $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
 less +F $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
+
+# command from terminal directly
+# python3 ./src/main/trainer.py --data.params_dir $USER_PATH/src/main/experiments/exp_A --data.gen
+# o_type dogs --model.working_dir $OUT_PATH/dogs/training/Model_A_exp_id_1_data_id_1_umap/models_dir/ --data.labels_dir $OUT_PATH/dogs
+# /labels/data_id_1_umap --log.dir $OUT_PATH/dogs/training/Model_A_exp_id_1_data_id_1_umap

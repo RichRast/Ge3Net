@@ -20,7 +20,7 @@ class logits_Block(nn.Module):
         self.layernorm = nn.LayerNorm(params.logits_Block_hidden)
         #self.layernorm = nn.LayerNorm(params.logits_Block_in)
         self.relu = nn.ReLU()
-        if params.model=='Model_D':
+        if params.model=='Model_D' or params.model=='Model_B' or params.model=='Model_C':
             self.input = params.rnn_net_hidden * (1+1*params.rnn_net_bidirectional)
         elif params.model=='Model_K':
             self.input = params.att1_value_size 

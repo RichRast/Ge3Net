@@ -3,8 +3,9 @@ import os.path as osp
 import logging
 import sys
 sys.path.insert(1, os.environ.get('USER_PATH'))
-from src.models import LSTM, AuxiliaryTask, Conv, Attention, Transformer, BasicBlock, Model_A
-# Model_B, Model_C, Model_D, Model_E, \
+from src.models import LSTM, AuxiliaryTask, Conv, Attention, Transformer, BasicBlock, Model_A, \
+Model_B
+#Model_C, Model_D, Model_E, \
 # Model_F, Seq2Seq, Model_G, Model_H, Model_I, Model_J, Model_K, Model_L, Model_M, Model_N, Model_O
 from src.utils.modelUtil import save_checkpoint, load_model, early_stopping, Params,\
      weight_int, custom_opt, CustomDataParallel
@@ -13,7 +14,7 @@ from src.utils.labelUtil import repeat_pop_arr
 from src.utils.decorators import timer
 from dataset import Haplotype
 from settings import parse_args, MODEL_CLASS
-from visualization import Plot_per_epoch_revised
+from src.main.visualization import Plot_per_epoch_revised
 import matplotlib.pyplot as plt
 
 import torch
@@ -145,29 +146,30 @@ def training_loop(model, model_params, middle_models, params, config, training_g
             wandb.log({"valid_metrics":eval_result.t_accr._asdict(), "epoch":epoch})
             wandb.log({"train_metrics":train_result.t_cp_accr._asdict(), "epoch":epoch})
             wandb.log({"valid_metrics":eval_result.t_cp_accr._asdict(), "epoch":epoch})
-            wandb.log({"train_metrics":train_result.t_sp_accr._asdict(), "epoch":epoch})
-            wandb.log({"valid_metrics":eval_result.t_sp_accr._asdict(), "epoch":epoch})
+            if params.superpop_predict:
+                wandb.log({"train_metrics":train_result.t_sp_accr._asdict(), "epoch":epoch})
+                wandb.log({"valid_metrics":eval_result.t_sp_accr._asdict(), "epoch":epoch})
 
         # every step in the scheduler is per epoch
-        exp_lr_scheduler.step(eval_result.t_accr.weighted_loss)
+        exp_lr_scheduler.step(eval_result.t_accr.loss_main)
         
         # logic for best model
         is_best = False
-        if (epoch==start_epoch) or (eval_result.t_accr.weighted_loss < best_val_accr):
-            best_val_accr = eval_result.t_accr.weighted_loss
+        if (epoch==start_epoch) or (eval_result.t_accr.loss_main < best_val_accr):
+            best_val_accr = eval_result.t_accr.loss_main
             is_best = True
         
         if epoch!=start_epoch:
-            patience = early_stopping(eval_result.t_accr.weighted_loss, val_prev_accr, patience, params.thresh)
+            patience = early_stopping(eval_result.t_accr.loss_main, val_prev_accr, patience, params.thresh)
             if patience == params.early_stopping_thresh:
                 logging.info("Early stopping...")
                 break
         
-        val_prev_accr = eval_result.t_accr.weighted_loss
+        val_prev_accr = eval_result.t_accr.loss_main
 
         # saving a model at every epoch
         logging.info(f"Saving at epoch {epoch}")
-        logging.info(f'train accr: {train_result.t_accr.weighted_loss}, val accr: {eval_result.t_accr.weighted_loss}')
+        logging.info(f'train accr: {train_result.t_accr.loss_main}, val accr: {eval_result.t_accr.loss_main}')
         checkpoint = config['model.working_dir']
         models_state_dict = [middle_models[i].state_dict() for i in range(len(middle_models))]
 

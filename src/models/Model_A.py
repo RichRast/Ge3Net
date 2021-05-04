@@ -45,17 +45,21 @@ class model_A(object):
             train_y = train_y.to(self.params.device)
             cps = cps.to(self.params.device)
             cp_mask = (cps==0).float() # mask for transition windows
-            train_labels = t_out(coord=train_y, cp_logits=cps[:,:,0].unsqueeze(2))
+            train_labels = t_out(coord_main=train_y, cp_logits=cps[:,:,0].unsqueeze(2))
             
             # Forward pass
             # update the gradients to zero
             optimizer.zero_grad()
 
-            train_outs, (trainBatchAvg, trainCpBatchAvg) = self._outer(train_x, train_labels, \
-                mask=cp_mask, runAvgObj=trainRunAvgObj, cpRunAvgObj=trainCpRunAvgObj)
-            
+            train_outs, loss_outer = self._outer(train_x, train_labels, cp_mask)
+            sample_size=cp_mask.sum()
             # update the weights
             optimizer.step()
+
+            # evaluate other accuracy for reporting
+            trainBatchAvg, trainCpBatchAvg = self._evaluateAccuracy(train_outs, train_labels, \
+            sample_size=sample_size, batchLoss=t_accr(loss_main=loss_outer.t_accr.loss_main, loss_aux=loss_outer.t_accr.loss_aux, weighted_loss=loss_outer.t_accr.weighted_loss), \
+            batchCpLoss=loss_outer.t_cp_accr, runAvgObj=trainRunAvgObj, cpRunAvgObj=trainCpRunAvgObj)
             
             #logging
             if wandb:
@@ -63,7 +67,7 @@ class model_A(object):
                 idx = np.random.choice(train_x.shape[0],1)
                 idxSample, idxLabel, idxVcf_idx = self._getSample(out=train_outs, label=train_labels, vcf_idx=vcf_idx, idx=idx)
                 if plotObj is not None: self._plotSample(wandb, plotObj, idxSample=idxSample, \
-                    idxLabel=idxLabel, idx=idx, idxVcf_idx=idxVcf_idx, phase="train")
+                    idxLabel=idxLabel, idx=idx, idxVcf_idx=idxVcf_idx)
             del train_x, train_y, cps
     
         # delete tensors for memory optimization
@@ -86,7 +90,7 @@ class model_A(object):
                 val_x = val_x[:, 0:self.params.chmlen].float().to(self.params.device)
                 val_y = val_y.to(self.params.device)
                 cps = cps.to(self.params.device)
-                val_labels = t_out(coord=val_y, cp_logits=cps[:,:,0].unsqueeze(2))
+                val_labels = t_out(coord_main=val_y, cp_logits=cps[:,:,0].unsqueeze(2))
 
                 if self.params.mc_dropout:
                     activate_mc_dropout(*list(self.model.values()))
@@ -95,17 +99,23 @@ class model_A(object):
 
                 val_outs_list, x_nxt_list=[],[]
                 for _ in range(self.params.mc_samples):
-                    val_outs_tmp, x_nxt_tmp = self._inner(val_x)
-                    val_outs_list.append(val_outs_tmp.coord)
+                    val_outs_tmp, x_nxt_tmp, _ = self._inner(val_x, target=val_labels)
+                    # only collect and mc dropout for the main network
+                    val_outs_list.append(val_outs_tmp.coord_main)
                     x_nxt_list.append(x_nxt_tmp)
                     
                 val_outs = self._getFromMcSamples(val_outs_list)
                 x_nxt = self._getFromMcSamples(x_nxt_list)
+                
+                loss_inner=self._getLossInner(val_outs, val_labels)
                 if self.params.cp_predict: 
-                    cp_logits = self._changePointNet(x_nxt.coord)
+                    cp_logits, cp_accr = self._changePointNet(x_nxt.coord_main, target=val_labels.cp_logits)
                     val_outs=val_outs._replace(cp_logits=cp_logits)
-                (valBatchAvg,valCpBatchAvg), _ = self._getLoss(val_outs, val_labels,\
-                    runAvgObj=valRunAvgObj, cpRunAvgObj=valCpRunAvgObj)
+                
+                sample_size=val_labels.coord_main.shape[0]*val_labels.coord_main.shape[1]*val_labels.coord_main.shape[2]
+                valBatchAvg, valCpBatchAvg = self._evaluateAccuracy(val_outs, val_labels,\
+                    sample_size=sample_size, batchLoss=t_accr(loss_aux=loss_inner.loss_aux, loss_main=loss_inner.loss_main, weighted_loss=loss_inner.weighted_loss), \
+            batchCpLoss=cp_accr, runAvgObj=valRunAvgObj, cpRunAvgObj=valCpRunAvgObj)
         
                 #logging
                 if wandb:
@@ -113,7 +123,7 @@ class model_A(object):
                     idx = np.random.choice(val_x.shape[0],10)
                     idxSample, idxLabel, idxVcf_idx = self._getSample(out=val_outs, label=val_labels, vcf_idx=vcf_idx, idx=idx)
                     if plotObj is not None: self._plotSample(plotObj=plotObj, idxSample=idxSample, \
-                        idxLabel=idxLabel, idx=idx, idxVcf_idx=idxVcf_idx, phase="valid")
+                        idxLabel=idxLabel, idx=idx, idxVcf_idx=idxVcf_idx)
                 del val_x, val_y, cps, val_labels
     
         # delete tensors for memory optimization
@@ -175,48 +185,66 @@ class model_A(object):
         x_nxt = torch.cat((out1, aux_diff), dim =2)
         return out4, x_nxt
 
-    def _inner(self,x):
+    def _inner(self, x, **kwargs):
+        target=kwargs.get('target')
+        mask = kwargs.get('mask')
+        if mask is None and target is not None:
+            mask=torch.ones_like(target.coord_main, dtype=float)
         out_aux, x_nxt = self._auxNet(x)
         if self.params.geography: square_normalize(out_aux)
-        outs = t_out(coord = out_aux)
-        return outs, x_nxt
+        outs = t_out(coord_main = out_aux)
+        if target is not None:
+            loss_aux = self.criterion(out_aux*mask, target.coord_main*mask)
+            loss_inner = t_accr(loss_aux=loss_aux, loss_main=loss_aux, weighted_loss=loss_aux)
+        return outs, x_nxt, loss_inner
 
-    def _getLoss(self, y, target, **kwargs):
-        mask=kwargs.get('mask')
-        runAvgObj=kwargs.get('runAvgObj')
-        cpRunAvgObj=kwargs.get('cpRunAvgObj')
-        if mask is None:
-            mask=torch.ones_like(target.coord, dtype=float)
-        weighted_loss = self.criterion(y.coord*mask, target.coord*mask)
-        loss_sum=weighted_loss
-        if self.params.cp_predict: 
-            cp_loss= self.BCEwithLogits(y.cp_logits, target.cp_logits)
-            loss_sum += cp_loss
-            batchCpLoss=t_cp_accr(cp_loss=cp_loss)
-        # back propogate loss1 + loss 2
-        sample_size=mask.sum()
-        lossBack = loss_sum/sample_size
-        #calculate accuracy/loss to report
-        batchLoss=t_accr(weighted_loss=weighted_loss)
+    # def _getLoss(self, y, target, **kwargs):
+    #     mask=kwargs.get('mask')
+    #     runAvgObj=kwargs.get('runAvgObj')
+    #     cpRunAvgObj=kwargs.get('cpRunAvgObj')
+    #     if mask is None:
+    #         mask=torch.ones_like(target.coord, dtype=float)
+    #     weighted_loss = self.criterion(y.coord*mask, target.coord*mask)
+    #     loss_sum=weighted_loss
+    #     if self.params.cp_predict: 
+    #         cp_loss= self.BCEwithLogits(y.cp_logits, target.cp_logits)
+    #         loss_sum += cp_loss
+    #         batchCpLoss=t_cp_accr(cp_loss=cp_loss)
+    #     # back propogate loss1 + loss 2
+    #     sample_size=mask.sum()
+    #     lossBack = loss_sum/sample_size
+    #     #calculate accuracy/loss to report
+    #     batchLoss=t_accr(weighted_loss=weighted_loss)
         
-        batchAvg, batchCpAvg = self._evaluateAccuracy(y, target, sample_size=sample_size, batchLoss=batchLoss, \
-            batchCpLoss=batchCpLoss, runAvgObj=runAvgObj, cpRunAvgObj=cpRunAvgObj)
-        return (batchAvg, batchCpAvg), lossBack
+    #     batchAvg, batchCpAvg = self._evaluateAccuracy(y, target, sample_size=sample_size, batchLoss=batchLoss, \
+    #         batchCpLoss=batchCpLoss, runAvgObj=runAvgObj, cpRunAvgObj=cpRunAvgObj)
+    #     return (batchAvg, batchCpAvg), lossBack
 
-    def _outer(self, x, target, mask, **kwargs):
-        runAvgObj=kwargs.get('runAvgObj')
-        cpRunAvgObj=kwargs.get('cpRunAvgObj')
-        outs, x_nxt = self._inner(x)
+    def _getLossInner(self, x, target):
+        loss=self.criterion(x.coord_main, target.coord_main)
+        return t_accr(loss_aux=loss, loss_main=loss, weighted_loss=loss)
+
+    def _outer(self, x, target, mask):
+        outs, x_nxt, loss_inner= self._inner(x, target=target, mask=mask)
+        sample_size=mask.sum()
+        lossBack=loss_inner.loss_aux/sample_size
         if self.params.cp_predict: 
-            cp_logits = self._changePointNet(x_nxt)
+            cp_logits, cp_accr = self._changePointNet(x_nxt, target=target.cp_logits)
+            lossBack+=cp_accr.loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
             outs=outs._replace(cp_logits=cp_logits)
-        loss, lossBack = self._getLoss(outs, target, mask=mask, runAvgObj=runAvgObj, cpRunAvgObj=cpRunAvgObj) 
         lossBack.backward()
-        return outs, loss
+        return outs, t_results(t_accr=t_accr(loss_aux=loss_inner.loss_aux.item(), loss_main=loss_inner.loss_main.item(), weighted_loss=loss_inner.weighted_loss.item()),\
+            t_cp_accr=t_cp_accr(loss_cp=cp_accr.loss_cp.item(), Precision=cp_accr.Precision, Recall=cp_accr.Recall, BalancedAccuracy=cp_accr.BalancedAccuracy))
 
-    def _changePointNet(self, x):
-        cp_pred_logits = self.model['cp'](x)
-        return cp_pred_logits
+    def _changePointNet(self, x, **kwargs):
+        target=kwargs.get('target')
+        cp_logits = self.model['cp'](x)
+        loss_cp = self.BCEwithLogits(cp_logits, target)
+        cp_pred = (torch.sigmoid(cp_logits)>0.5).int()
+        cp_pred=cp_pred.squeeze(2)
+        target=target.squeeze(2)
+        precision, recall, _, _, balanced_accuracy = eval_cp_batch(target, cp_pred)
+        return cp_logits, t_cp_accr(loss_cp=loss_cp, Precision=precision, Recall=recall, BalancedAccuracy=balanced_accuracy)
     
     def _evaluateAccuracy(self, y, target, **kwargs):
         runAvgObj=kwargs.get('runAvgObj')
@@ -225,46 +253,36 @@ class model_A(object):
         batchCpLoss=kwargs.get('batchCpLoss')
         sample_size=kwargs.get('sample_size')
 
-        # calculate loss per batch
-        cp_pred_logits=y.cp_logits
-        cp_target=target.cp_logits
-        cp_pred = (torch.sigmoid(cp_pred_logits)>0.5).int()
-        cp_target=cp_target.squeeze(2)
-        cp_pred=cp_pred.squeeze(2)
-        precision, recall, _, _, balanced_accuracy = eval_cp_batch(cp_target, cp_pred)
-        
-        batchLoss=batchLoss._replace(l1_loss=self.L1Loss(y.coord, target.coord).item(),\
-            loss_aux=self.L1Loss(y.coord, target.coord).item(),\
-            mse_loss= self.MseLoss(y.coord, target.coord).item(),\
-            smoothl1_loss= self.smoothL1Loss(y.coord, target.coord, self.params.device),\
+        batchLoss=batchLoss._replace(l1_loss=self.L1Loss(y.coord_main, target.coord_main).item(),\
+            mse_loss= self.MseLoss(y.coord_main, target.coord_main).item(),\
+            smoothl1_loss= self.smoothL1Loss(y.coord_main, target.coord_main, self.params.device),\
             )
-        batchCpLoss=batchCpLoss._replace(Precision=precision,\
-            Recall=recall,\
-            BalancedAccuracy=balanced_accuracy)
-        
+
         # update the running avg object
         for key, val in runAvgObj.items():
             if getattr(batchLoss,key) is not None:
                 val.update(getattr(batchLoss,key), sample_size)
-            
         
-        cpRunAvgObj['cp_loss'].update(batchCpLoss.cp_loss, target.cp_logits.shape[0]*target.cp_logits.shape[1])
-        cpRunAvgObj['Precision'].update(batchCpLoss.Precision, 1)
-        cpRunAvgObj['Recall'].update(batchCpLoss.Recall, 1)
-        cpRunAvgObj['BalancedAccuracy'].update(batchCpLoss.BalancedAccuracy, 1)
-        
+        if self.params.cp_predict:            
+            cpRunAvgObj['loss_cp'].update(batchCpLoss.loss_cp, target.cp_logits.shape[0]*target.cp_logits.shape[1])
+            cpRunAvgObj['Precision'].update(batchCpLoss.Precision, 1)
+            cpRunAvgObj['Recall'].update(batchCpLoss.Recall, 1)
+            cpRunAvgObj['BalancedAccuracy'].update(batchCpLoss.BalancedAccuracy, 1)
+
         # get the running average for batches in this epoch so far by calling the 
         # running avg object       
-        batchAvg=t_accr(l1_loss=runAvgObj.get('l1_loss')(), \
-            loss_aux=runAvgObj.get('loss_aux')(), \
-            mse_loss=runAvgObj.get('mse_loss')(), \
-            smoothl1_loss=runAvgObj.get('smoothl1_loss')(), \
-            weighted_loss=runAvgObj.get('weighted_loss')(), \
+        batchAvg=t_accr(l1_loss=runAvgObj.get('l1_loss')() if getattr(batchLoss,'l1_loss') is not None else None, \
+            loss_aux=runAvgObj.get('loss_aux')() if getattr(batchLoss,'loss_aux') is not None else None, \
+            loss_main=runAvgObj.get('loss_main')() if getattr(batchLoss,'loss_main') is not None else None,\
+            mse_loss=runAvgObj.get('mse_loss')() if getattr(batchLoss,'mse_loss') is not None else None, \
+            smoothl1_loss=runAvgObj.get('smoothl1_loss')() if getattr(batchLoss,'smoothl1_loss') is not None else None, \
+            weighted_loss=runAvgObj.get('weighted_loss')() if getattr(batchLoss,'weighted_loss') is not None else None, \
             )
-        batchCpAvg=t_cp_accr(cp_loss=cpRunAvgObj.get('cp_loss'),\
-            Precision=cpRunAvgObj.get('Precision'),\
-            Recall=cpRunAvgObj.get('Recall'),\
-            BalancedAccuracy=cpRunAvgObj.get('Balanced_Accuracy'))
+        
+        batchCpAvg=t_cp_accr(loss_cp=cpRunAvgObj.get('loss_cp')() if getattr(batchCpLoss,'loss_cp') is not None else None,\
+            Precision=cpRunAvgObj.get('Precision')() if getattr(batchCpLoss,'Precision') is not None else None,\
+            Recall=cpRunAvgObj.get('Recall')() if getattr(batchCpLoss,'Recall') is not None else None,\
+            BalancedAccuracy=cpRunAvgObj.get('BalancedAccuracy')() if getattr(batchCpLoss,'BalancedAccuracy') is not None else None)
 
         del batchLoss, batchCpLoss
         torch.cuda.empty_cache()
@@ -274,15 +292,15 @@ class model_A(object):
         cat_outs = torch.cat(outs_list, 0).contiguous()
         mean_outs = cat_outs.view(self.params.mc_samples, -1, self.params.n_win, cat_outs.shape[-1]).mean(0)
         var_outs = cat_outs.view(self.params.mc_samples, -1, self.params.n_win, cat_outs.shape[-1]).var(0)
-        return t_out(coord=mean_outs, y_var=var_outs)
+        return t_out(coord_main=mean_outs, y_var=var_outs)
 
     def _getSample(self,**kwargs):
         idx=kwargs.get('idx')
         data_vcf_idx=kwargs.get('vcf_idx')
         target=kwargs.get('label')
         y=kwargs.get('out')
-        target_idx = target.coord[idx,...].detach().cpu().numpy().reshape(-1, self.params.dataset_dim)
-        y_idx = y.coord[idx,:,:self.params.n_comp_overall].detach().cpu().numpy().reshape(-1, self.params.n_comp_overall)
+        target_idx = target.coord_main[idx,...].detach().cpu().numpy().reshape(-1, self.params.dataset_dim)
+        y_idx = y.coord_main[idx,:,:self.params.n_comp_overall].detach().cpu().numpy().reshape(-1, self.params.n_comp_overall)
         if self.params.superpop_predict:
             y_sp_idx = y.sp[idx,:].detach().cpu().numpy().reshape(1,-1)
         vcf_idx = data_vcf_idx[idx,:].detach().cpu().numpy().reshape(-1, 1)
@@ -290,11 +308,11 @@ class model_A(object):
 
     def _plotSample(self, wandb, plotObj, *kwargs):
         idx=kwargs.get('idx')
-        phase=kwargs.get('phase')
         idxSample = kwargs.get('idxSample')
         idxLabel = kwargs.get('idxLabel')
         vcf_idx= kwargs.get('idxVcf_idx')
         fig, ax = plotObj.plot_index(idxSample, idxLabel, vcf_idx)
+        phase="train" if any([m.training for m in list(self.model.values())]) else "valid/test"
         wandb.log({f" Image for idx {idx} for {phase}":wandb.Image(fig)})
 
     def _logger(self, wandb, **kwargs):
@@ -304,7 +322,7 @@ class model_A(object):
         phase=kwargs.get('phase')
         wandb.log({f"MainTask_Loss/{phase}":batchAvg.l1_loss, "batch_num":batch_num})
         wandb.log({f"AuxTask_Loss/{phase}":batchAvg.loss_aux, "batch_num":batch_num})
-        wandb.log({f"cp_loss/{phase}":batchCpAvg.cp_loss,"batch_num":batch_num})
+        wandb.log({f"loss_cp/{phase}":batchCpAvg.loss_cp,"batch_num":batch_num})
         wandb.log({f"cp_accr/{phase}":batchCpAvg._asdict(), "batch_num":batch_num})
         if self.params.residual:
             wandb.log({f"residual_loss/{phase}":batchAvg.residual_loss, "batch_num":batch_num})

@@ -8,14 +8,14 @@ from collections import namedtuple
 
 EARTH_RADIUS = 6371
 
-t_cp_accr = namedtuple('t_cp_accr', ['cp_loss', 'Precision', 'Recall', 'BalancedAccuracy'])
+t_cp_accr = namedtuple('t_cp_accr', ['loss_cp', 'Precision', 'Recall', 'BalancedAccuracy'])
 t_cp_accr.__new__.__defaults__=(None,)*len(t_cp_accr._fields)
-t_sp_accr = namedtuple('t_sp_accr', ['sp_loss', 'Precision', 'Recall', 'BalancedAccuracy'])
+t_sp_accr = namedtuple('t_sp_accr', ['loss_sp', 'Precision', 'Recall', 'BalancedAccuracy'])
 t_sp_accr.__new__.__defaults__=(None,)*len(t_sp_accr._fields)
-t_accr = namedtuple('t_accr', ['l1_loss', 'mse_loss', 'smoothl1_loss',\
-     'weighted_loss', 'loss_aux', 'residual_loss'])
+t_accr = namedtuple('t_accr', ['l1_loss', 'mse_loss', 'smoothl1_loss', 'weighted_loss',\
+     'loss_main', 'loss_aux', 'residual_loss'])
 t_accr.__new__.__defaults__=(None,)*len(t_accr._fields)
-t_out = namedtuple('t_out', ['coord', 'cp_logits', 'y_var', 'sp'])
+t_out = namedtuple('t_out', ['coord_aux','coord_main', 'cp_logits', 'y_var', 'sp'])
 t_out.__new__.__defaults__=(None,)*len(t_out._fields)
 t_results = namedtuple('t_results',['t_accr', 't_cp_accr', 't_sp_accr', 't_out'])
 t_results.__new__.__defaults__=(None,)*len(t_results._fields)
