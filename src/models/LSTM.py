@@ -5,7 +5,10 @@ import numpy as np
 class BiRNN(nn.Module):
     def __init__(self, params, rnn='lstm'):
         super(BiRNN, self).__init__()
-        self.input_size = params.aux_net_hidden + params.rnn_net_out
+        if params.model=="Model_C":
+            self.input_size = params.aux_net_out + params.rnn_net_out
+        else:
+            self.input_size = params.aux_net_hidden + params.rnn_net_out
         self.hidden_size = params.rnn_net_hidden
         self.num_layers = params.rnn_net_n_layers
         self.output = params.rnn_net_out

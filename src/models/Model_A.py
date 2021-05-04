@@ -1,4 +1,5 @@
 import torch
+import random
 import numpy as np
 from collections import namedtuple
 import os
@@ -64,9 +65,10 @@ class model_A(object):
             #logging
             if wandb:
                 self._logger(wandb, batchAvg=trainBatchAvg, batchCpAvg=trainCpBatchAvg, batch_num=i)
-                idx = np.random.choice(train_x.shape[0],1)
+                # idx = np.random.choice(train_x.shape[0],1)[0]
+                idx=30
                 idxSample, idxLabel, idxVcf_idx = self._getSample(out=train_outs, label=train_labels, vcf_idx=vcf_idx, idx=idx)
-                if plotObj is not None: self._plotSample(wandb, plotObj, idxSample=idxSample, \
+                if plotObj is not None and random.uniform(0,1)>0.5: self._plotSample(wandb, plotObj, idxSample=idxSample, \
                     idxLabel=idxLabel, idx=idx, idxVcf_idx=idxVcf_idx)
             del train_x, train_y, cps
     
@@ -120,9 +122,10 @@ class model_A(object):
                 #logging
                 if wandb:
                     self._logger(wandb, batchAvg=valBatchAvg, batchCpAvg=valCpBatchAvg, batch_num=i)
-                    idx = np.random.choice(val_x.shape[0],10)
+                    # idx = np.random.choice(val_x.shape[0],1)[0]
+                    idx=30
                     idxSample, idxLabel, idxVcf_idx = self._getSample(out=val_outs, label=val_labels, vcf_idx=vcf_idx, idx=idx)
-                    if plotObj is not None: self._plotSample(plotObj=plotObj, idxSample=idxSample, \
+                    if plotObj is not None : self._plotSample(wandb, plotObj, idxSample=idxSample, \
                         idxLabel=idxLabel, idx=idx, idxVcf_idx=idxVcf_idx)
                 del val_x, val_y, cps, val_labels
     
@@ -197,28 +200,6 @@ class model_A(object):
             loss_aux = self.criterion(out_aux*mask, target.coord_main*mask)
             loss_inner = t_accr(loss_aux=loss_aux, loss_main=loss_aux, weighted_loss=loss_aux)
         return outs, x_nxt, loss_inner
-
-    # def _getLoss(self, y, target, **kwargs):
-    #     mask=kwargs.get('mask')
-    #     runAvgObj=kwargs.get('runAvgObj')
-    #     cpRunAvgObj=kwargs.get('cpRunAvgObj')
-    #     if mask is None:
-    #         mask=torch.ones_like(target.coord, dtype=float)
-    #     weighted_loss = self.criterion(y.coord*mask, target.coord*mask)
-    #     loss_sum=weighted_loss
-    #     if self.params.cp_predict: 
-    #         cp_loss= self.BCEwithLogits(y.cp_logits, target.cp_logits)
-    #         loss_sum += cp_loss
-    #         batchCpLoss=t_cp_accr(cp_loss=cp_loss)
-    #     # back propogate loss1 + loss 2
-    #     sample_size=mask.sum()
-    #     lossBack = loss_sum/sample_size
-    #     #calculate accuracy/loss to report
-    #     batchLoss=t_accr(weighted_loss=weighted_loss)
-        
-    #     batchAvg, batchCpAvg = self._evaluateAccuracy(y, target, sample_size=sample_size, batchLoss=batchLoss, \
-    #         batchCpLoss=batchCpLoss, runAvgObj=runAvgObj, cpRunAvgObj=cpRunAvgObj)
-    #     return (batchAvg, batchCpAvg), lossBack
 
     def _getLossInner(self, x, target):
         loss=self.criterion(x.coord_main, target.coord_main)
@@ -306,7 +287,7 @@ class model_A(object):
         vcf_idx = data_vcf_idx[idx,:].detach().cpu().numpy().reshape(-1, 1)
         return y_idx, target_idx, vcf_idx
 
-    def _plotSample(self, wandb, plotObj, *kwargs):
+    def _plotSample(self, wandb, plotObj, **kwargs):
         idx=kwargs.get('idx')
         idxSample = kwargs.get('idxSample')
         idxLabel = kwargs.get('idxLabel')
@@ -319,7 +300,7 @@ class model_A(object):
         batch_num=kwargs.get('batch_num')
         batchAvg=kwargs.get('batchAvg')
         batchCpAvg=kwargs.get('batchCpAvg')
-        phase=kwargs.get('phase')
+        phase="train" if any([m.training for m in list(self.model.values())]) else "valid/test"
         wandb.log({f"MainTask_Loss/{phase}":batchAvg.l1_loss, "batch_num":batch_num})
         wandb.log({f"AuxTask_Loss/{phase}":batchAvg.loss_aux, "batch_num":batch_num})
         wandb.log({f"loss_cp/{phase}":batchCpAvg.loss_cp,"batch_num":batch_num})

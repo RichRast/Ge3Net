@@ -32,10 +32,12 @@ class model_B(model_A):
             out_rnn_list.append(out_rnn_chunk)
             loss_main_chunk=self.criterion(out_rnn_chunk*cp_mask_chunk, batch_label_chunk*cp_mask_chunk)
             loss_main_list.append(loss_main_chunk.item())
+            sample_size=cp_mask_chunk.sum()
+            loss_main_chunk /=sample_size
             if self.params.cp_predict:
                 assert self.params.cp_detect, "cp detection is not true while cp prediction is true"
-                cp_logits, accr_cp = self._changePointNet(vec_64, target=cp_mask_chunk)
-                loss_main_chunk +=accr_cp.loss_cp
+                cp_logits, accr_cp = self._changePointNet(vec_64, target=cps_chunk)
+                loss_main_chunk +=accr_cp.loss_cp/(cps_chunk.shape[0]*cps_chunk.shape[1])
             loss_main_chunk.backward()
             # after doing back prob, detach rnn state to implement TBPTT
             # now rnn_state was detached and chain of gradients was broken
@@ -53,7 +55,6 @@ class model_B(model_A):
     def _rnnNet(self, x, **kwargs):
         target=kwargs.get('target')
         mask=kwargs.get('mask')
-        loss_main=None
         if self.enable_tbptt:
             out_rnn, vec_64, loss_main= self._tbtt(x, target, mask)
         else:
@@ -84,13 +85,13 @@ class model_B(model_A):
 
     def _outer(self, x, target, mask):
         outs, x_nxt, loss_inner = self._inner(x, target=target, mask=mask)
-        lossBack=loss_inner.loss_aux
+        lossBack=loss_inner.loss_aux/mask.sum()
 
         if self.params.cp_predict: 
             cp_logits, cp_accr = self._changePointNet(x_nxt, target=target.cp_logits)
             outs=outs._replace(cp_logits=cp_logits)
         if not self.enable_tbptt:
-            lossBack+=cp_accr.cp_loss
+            lossBack+=cp_accr.loss_cp
             lossBack+= loss_inner.loss_main
         lossBack.backward()
         return outs, t_results(t_accr=t_accr(loss_main=loss_inner.loss_main, loss_aux=loss_inner.loss_aux, weighted_loss=loss_inner.loss_main), t_cp_accr=cp_accr)

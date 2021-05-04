@@ -6,7 +6,7 @@ import distutils.util
 
 MODEL_CLASS = {'Model_A' : [['Model_A.model_A'],['AuxiliaryTask.AuxNetwork', 'BasicBlock.logits_Block']],
                     'Model_B' : [['Model_B.model_B'],['AuxiliaryTask.AuxNetwork', 'LSTM.BiRNN', 'BasicBlock.logits_Block']],
-                    'Model_C' : [['Model_C.model_C'],['AuxiliaryTask.AuxNetwork', 'LSTM.BiRNN']],
+                    'Model_C' : [['Model_C.model_C'],['AuxiliaryTask.AuxNetwork', 'LSTM.BiRNN', 'BasicBlock.logits_Block']],
                     'Model_D' : [['Model_D.model_D'],['AuxiliaryTask.AuxNetwork', 'LSTM.BiRNN', 'BasicBlock.logits_Block', 'BasicBlock.Multi_Block', 'BasicBlock.Residual_Block']],
                     'Model_E' : [['Model_E.model_E'],['AuxiliaryTask.AuxNetwork', 'LSTM.BiRNN']],
                     'Model_F' : [['Model_F.Seq2Seq'],['AuxiliaryTask.AuxNetwork', 'Seq2Seq.Encoder', 'Seq2Seq.Decoder']],

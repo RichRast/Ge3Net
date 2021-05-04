@@ -4,8 +4,8 @@ import logging
 import sys
 sys.path.insert(1, os.environ.get('USER_PATH'))
 from src.models import LSTM, AuxiliaryTask, Conv, Attention, Transformer, BasicBlock, Model_A, \
-Model_B
-#Model_C, Model_D, Model_E, \
+Model_B, Model_C
+# Model_D, Model_E, \
 # Model_F, Seq2Seq, Model_G, Model_H, Model_I, Model_J, Model_K, Model_L, Model_M, Model_N, Model_O
 from src.utils.modelUtil import save_checkpoint, load_model, early_stopping, Params,\
      weight_int, custom_opt, CustomDataParallel
@@ -21,8 +21,6 @@ import torch
 import numpy as np
 import pandas as pd
 import wandb
-
-
 
 @timer
 def main(config, params, trial=None):
@@ -64,13 +62,13 @@ def main(config, params, trial=None):
     validation_generator = torch.utils.data.DataLoader(validation_dataset, batch_size=params.batch_size, num_workers=0)
      
     # Initiate the class for plotting per epoch
-    plot_obj=None
+    plotObj=None
     if params.plotting:
         pop_dict = load_path(osp.join(labels_path, 'granular_pop.pkl'), en_pickle=True)
         rev_pop_dict = {v:k for k,v in pop_dict.items()}
         pop_sample_map = pd.read_csv(osp.join(labels_path, params.pop_sample_map), sep='\t')
         pop_arr = repeat_pop_arr(pop_sample_map)
-        plot_obj = Plot_per_epoch_revised(params.n_comp_overall, params.n_comp_subclass, config['data.pop_order'], rev_pop_dict, pop_arr)
+        plotObj = Plot_per_epoch_revised(params.n_comp_overall, params.n_comp_subclass, config['data.pop_order'], rev_pop_dict, pop_arr)
         
     #============================= Create and load the model ===============================#    
     # Create the model
@@ -118,11 +116,11 @@ def main(config, params, trial=None):
         model_path = osp.join(config['model.working_dir'], config['model.pretrained_version'], 'best.pt')
         #model_main, model_aux, start_epoch, optimizer = load_model(model_path, model_aux, model_main, optimizer)
 
-    training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, plot_obj, wandb)    
+    training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, plotObj, wandb)    
    
     
 @timer
-def training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, plot_obj, wandb):
+def training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, plotObj, wandb):
      # optimizer
     optimizer = torch.optim.Adam(model_params)
     #custom_optimizer = custom_opt(optimizer, d_model=params.att['input_size'], \
@@ -136,9 +134,9 @@ def training_loop(model, model_params, middle_models, params, config, training_g
     patience = 0
 
     for epoch in range(start_epoch, params.num_epochs):
-        train_result = model.train(optimizer, training_generator, plot_obj=plot_obj, wandb=wandb)
+        train_result = model.train(optimizer, training_generator, plotObj=plotObj, wandb=wandb)
 
-        eval_result = model.valid(validation_generator, plot_obj=plot_obj, wandb=wandb)
+        eval_result = model.valid(validation_generator, plotObj=plotObj, wandb=wandb)
         plt.close('all')
         
         if config['log.verbose']:
