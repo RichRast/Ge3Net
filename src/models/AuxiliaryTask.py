@@ -10,7 +10,7 @@ class AuxNetwork(nn.Module):
     def __init__(self, params):
         super(AuxNetwork, self).__init__()
         self.batch_size = params.batch_size
-        self.input = params.aux_net_in
+        self.input = params.win_size
         self.output = params.aux_net_out
         self.hidden_unit = params.aux_net_hidden
         self.hidden_unit1 = params.aux_net_hidden1

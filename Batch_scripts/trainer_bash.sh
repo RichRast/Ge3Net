@@ -37,6 +37,7 @@ if [[ -z $model_type ]] ; then echo "Missing model type" ; exit 1; fi
 if [[ -z $geno_type ]] ; then echo "Setting default genotype to humans" ; geno_type='humans' ; exit ; fi
 
 echo "Starting experiment $expt_id with Model $model_type and data from experiment # $data_id for geno_type $geno_type"
+mkdir -p $OUT_PATH/${geno_type}/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}
 
 sbatch << EOT
 #!/bin/bash
@@ -58,7 +59,7 @@ ml load system nvtop
 
 # copy yaml params to the path where logs and model are stored
 
-python3 ./src/main/trainer.py  --data.params_dir '$USER_PATH/src/main/experiments/exp_$model_type' \
+python3 ./src/main/trainer.py  --data.params '$USER_PATH/src/main/experiments/exp_$model_type' \
 --data.geno_type $geno_type \
 --model.working_dir '$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/models_dir/' \
 --data.labels_dir '$OUT_PATH/$geno_type/labels/data_id_${data_id}' \
@@ -75,6 +76,6 @@ echo log_dir: $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id
 less +F $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
 
 # command from terminal directly
-# python3 ./src/main/trainer.py --data.params_dir $USER_PATH/src/main/experiments/exp_A --data.gen
+# python3 ./src/main/trainer.py --data.params $USER_PATH/src/main/experiments/exp_A --data.gen
 # o_type dogs --model.working_dir $OUT_PATH/dogs/training/Model_A_exp_id_1_data_id_1_umap/models_dir/ --data.labels_dir $OUT_PATH/dogs
 # /labels/data_id_1_umap --log.dir $OUT_PATH/dogs/training/Model_A_exp_id_1_data_id_1_umap

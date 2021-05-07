@@ -13,7 +13,7 @@ from src.utils.dataUtil import set_logger, load_path
 from src.utils.labelUtil import repeat_pop_arr
 from src.utils.decorators import timer
 from dataset import Haplotype
-from settings import parse_args, MODEL_CLASS
+from settings_model import parse_args, MODEL_CLASS
 from src.main.visualization import Plot_per_epoch_revised
 import matplotlib.pyplot as plt
 
@@ -41,11 +41,11 @@ def main(config, params, trial=None):
         
     if config['log.verbose']:
         # Set the logger
-        set_logger(osp.join(config['log.dir']))
+        set_logger(config['log.dir'])
         # use the major version only
-        wandb.init(project=''.join([str(params.model)]), config=params)
-        params=wandb.config
-
+        wandb.init(project=''.join([str(params.model)]), config=params, allow_val_change=True)
+        # params=wandb.config
+        
     # configure device
     params.device = torch.device(config['cuda'] if params.cuda else 'cpu')
 
@@ -68,7 +68,7 @@ def main(config, params, trial=None):
         rev_pop_dict = {v:k for k,v in pop_dict.items()}
         pop_sample_map = pd.read_csv(osp.join(labels_path, params.pop_sample_map), sep='\t')
         pop_arr = repeat_pop_arr(pop_sample_map)
-        plotObj = Plot_per_epoch_revised(params.n_comp_overall, params.n_comp_subclass, config['data.pop_order'], rev_pop_dict, pop_arr)
+        plotObj = Plot_per_epoch_revised(params.n_comp_overall, params.n_comp_subclass, params.pop_num, rev_pop_dict, pop_arr)
         
     #============================= Create and load the model ===============================#    
     # Create the model
@@ -85,12 +85,12 @@ def main(config, params, trial=None):
         m = eval(model_basic)(params)
         # use parallel GPU's
         if torch.cuda.device_count() > 1:
-            print("Using", torch.cuda.device_count(), "GPUs")
+            logging.info("Using", torch.cuda.device_count(), "GPUs")
             m = torch.nn.DataParallel(m, dim=0)
         m.to(params.device)
-        print(f"is the model on cuda? : {next(m.parameters()).is_cuda}")
+        logging.info(f"is the model on cuda? : {next(m.parameters()).is_cuda}")
         middle_models.append(m)
-        print(f'model {model_subclass} : {model_basic}')
+        logging.info(f'model {model_subclass} : {model_basic}')
         # assign the corresponding model parameters
         params_dict['params']= m.parameters()
         params_dict['lr'] = params.learning_rate[i]
@@ -166,8 +166,8 @@ def training_loop(model, model_params, middle_models, params, config, training_g
         val_prev_accr = eval_result.t_accr.loss_main
 
         # saving a model at every epoch
-        logging.info(f"Saving at epoch {epoch}")
-        logging.info(f'train accr: {train_result.t_accr.loss_main}, val accr: {eval_result.t_accr.loss_main}')
+        print(f"Saving at epoch {epoch}")
+        print(f'train accr: {train_result.t_accr.loss_main}, val accr: {eval_result.t_accr.loss_main}')
         checkpoint = config['model.working_dir']
         models_state_dict = [middle_models[i].state_dict() for i in range(len(middle_models))]
 
@@ -179,6 +179,9 @@ def training_loop(model, model_params, middle_models, params, config, training_g
             'train_accr': train_result._asdict()
             }, checkpoint, is_best=is_best)
         
+        # only for the start_epoch, save the params json file
+        if epoch==start_epoch: params.save(config['log.dir'])
+
         if params.hyper_search_type=='optuna':    
             trial.report(eval_result.accr.weighted_loss, epoch)
             if trial.should_prune():
@@ -192,7 +195,9 @@ def training_loop(model, model_params, middle_models, params, config, training_g
     
 if __name__=="__main__":
     config = parse_args()
-    json_path = osp.join(config['data.params_dir'], 'params.json')
+    json_path = osp.join(config['data.params'], 'params.json')
     assert osp.isfile(json_path), "No json configuration file found at {}".format(json_path)
     params = Params(json_path)
+    params.dict['n_win']=0
+    params.dict['chmlen']=0
     main(config, params)

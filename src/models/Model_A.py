@@ -42,7 +42,7 @@ class model_A(object):
 
         for i, train_gen in enumerate(training_generator):
             train_x, train_y, vcf_idx, cps, _ = train_gen
-            train_x = train_x[:, :self.params.chmlen].float().to(self.params.device)
+            train_x = train_x.to(self.params.device)
             train_y = train_y.to(self.params.device)
             cps = cps.to(self.params.device)
             cp_mask = (cps==0).float() # mask for transition windows
@@ -54,6 +54,8 @@ class model_A(object):
 
             train_outs, loss_outer = self._outer(train_x, train_labels, cp_mask)
             sample_size=cp_mask.sum()
+            if self.params.geography:
+                sample_size /=3
             # update the weights
             optimizer.step()
 
@@ -89,7 +91,7 @@ class model_A(object):
         with torch.no_grad():
             for i, val_gen in enumerate(validation_generator):
                 val_x, val_y, vcf_idx, cps, _ = val_gen
-                val_x = val_x[:, 0:self.params.chmlen].float().to(self.params.device)
+                val_x = val_x.to(self.params.device)
                 val_y = val_y.to(self.params.device)
                 cps = cps.to(self.params.device)
                 val_labels = t_out(coord_main=val_y, cp_logits=cps[:,:,0].unsqueeze(2))
@@ -97,7 +99,8 @@ class model_A(object):
                 if self.params.mc_dropout:
                     activate_mc_dropout(*list(self.model.values()))
                 else:
-                    assert self.params.mc_samples==1, "MC dropout disabled"
+                    self.params.mc_samples=1
+                    # assert self.params.mc_samples==1, "MC dropout disabled"
 
                 val_outs_list, x_nxt_list=[],[]
                 for _ in range(self.params.mc_samples):
@@ -113,8 +116,12 @@ class model_A(object):
                 if self.params.cp_predict: 
                     cp_logits, cp_accr = self._changePointNet(x_nxt.coord_main, target=val_labels.cp_logits)
                     val_outs=val_outs._replace(cp_logits=cp_logits)
+                else:
+                    cp_accr=None
                 
                 sample_size=val_labels.coord_main.shape[0]*val_labels.coord_main.shape[1]*val_labels.coord_main.shape[2]
+                if self.params.geography:
+                    sample_size /=3
                 valBatchAvg, valCpBatchAvg = self._evaluateAccuracy(val_outs, val_labels,\
                     sample_size=sample_size, batchLoss=t_accr(loss_aux=loss_inner.loss_aux, loss_main=loss_inner.loss_main, weighted_loss=loss_inner.weighted_loss), \
             batchCpLoss=cp_accr, runAvgObj=valRunAvgObj, cpRunAvgObj=valCpRunAvgObj)
@@ -142,7 +149,7 @@ class model_A(object):
         with torch.no_grad():
             for i, data_gen in enumerate(data_generator):
                 data_x = data_gen
-                data_x = data_x[:, 0:self.params.chmlen].float().to(self.params.device)
+                data_x = data_x.to(self.params.device)
                 
                 if self.params.mc_dropout:
                     activate_mc_dropout(*list(self.model.values()))
@@ -151,22 +158,22 @@ class model_A(object):
 
                 outs_list, x_nxt_list=[],[]
                 for _ in range(self.params.mc_samples):
-                    outs_tmp, x_nxt_tmp = self._inner(data_x)
+                    outs_tmp, x_nxt_tmp, _ = self._inner(data_x)
                     outs_list.append(outs_tmp)
                     x_nxt_list.append(x_nxt_tmp)
                     
                 outs = self._getFromMcSamples(outs_list)
                 x_nxt = self._getFromMcSamples(x_nxt_list)
                 if self.params.cp_predict: 
-                    cp_logits = self._changePointNet(x_nxt.coord)
+                    cp_logits, cp_accr = self._changePointNet(x_nxt.coord)
                     outs=outs._replace(cp_logits=cp_logits)
                 
                 #logging
                 if wandb:
-                    idx = np.random.choice(data_x.shape[0],1)
+                    idx = 0
                     idxSample = self._getSample(out=outs, idx=idx)
                     self._plotSample(idxSample=idxSample)
-                    if plotObj is not None: self._plotSample(idxSample=idxSample)
+                    if plotObj is not None: self._plotSample(wandb, plotObj, idxSample=idxSample, idx=idx)
                 del data_x, outs_tmp
         # delete tensors for memory optimization
         
@@ -186,6 +193,7 @@ class model_A(object):
         # add residual connection by taking the gradient of aux network predictions
         aux_diff = get_gradient(out4)
         x_nxt = torch.cat((out1, aux_diff), dim =2)
+
         return out4, x_nxt
 
     def _inner(self, x, **kwargs):
@@ -194,8 +202,8 @@ class model_A(object):
         if mask is None and target is not None:
             mask=torch.ones_like(target.coord_main, dtype=float)
         out_aux, x_nxt = self._auxNet(x)
-        if self.params.geography: square_normalize(out_aux)
-        outs = t_out(coord_main = out_aux)
+        if self.params.geography: out_aux= square_normalize(out_aux)
+        outs = t_out(coord_main = out_aux*mask)
         if target is not None:
             loss_aux = self.criterion(out_aux*mask, target.coord_main*mask)
             loss_inner = t_accr(loss_aux=loss_aux, loss_main=loss_aux, weighted_loss=loss_aux)
@@ -208,7 +216,10 @@ class model_A(object):
     def _outer(self, x, target, mask):
         outs, x_nxt, loss_inner= self._inner(x, target=target, mask=mask)
         sample_size=mask.sum()
+        if self.params.geography:
+            sample_size /=3
         lossBack=loss_inner.loss_aux/sample_size
+        
         if self.params.cp_predict: 
             cp_logits, cp_accr = self._changePointNet(x_nxt, target=target.cp_logits)
             lossBack+=cp_accr.loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
@@ -243,13 +254,6 @@ class model_A(object):
         for key, val in runAvgObj.items():
             if getattr(batchLoss,key) is not None:
                 val.update(getattr(batchLoss,key), sample_size)
-        
-        if self.params.cp_predict:            
-            cpRunAvgObj['loss_cp'].update(batchCpLoss.loss_cp, target.cp_logits.shape[0]*target.cp_logits.shape[1])
-            cpRunAvgObj['Precision'].update(batchCpLoss.Precision, 1)
-            cpRunAvgObj['Recall'].update(batchCpLoss.Recall, 1)
-            cpRunAvgObj['BalancedAccuracy'].update(batchCpLoss.BalancedAccuracy, 1)
-
         # get the running average for batches in this epoch so far by calling the 
         # running avg object       
         batchAvg=t_accr(l1_loss=runAvgObj.get('l1_loss')() if getattr(batchLoss,'l1_loss') is not None else None, \
@@ -260,12 +264,20 @@ class model_A(object):
             weighted_loss=runAvgObj.get('weighted_loss')() if getattr(batchLoss,'weighted_loss') is not None else None, \
             )
         
-        batchCpAvg=t_cp_accr(loss_cp=cpRunAvgObj.get('loss_cp')() if getattr(batchCpLoss,'loss_cp') is not None else None,\
+        if self.params.cp_predict:            
+            cpRunAvgObj['loss_cp'].update(batchCpLoss.loss_cp, target.cp_logits.shape[0]*target.cp_logits.shape[1])
+            cpRunAvgObj['Precision'].update(batchCpLoss.Precision, 1)
+            cpRunAvgObj['Recall'].update(batchCpLoss.Recall, 1)
+            cpRunAvgObj['BalancedAccuracy'].update(batchCpLoss.BalancedAccuracy, 1)
+            batchCpAvg=t_cp_accr(loss_cp=cpRunAvgObj.get('loss_cp')() if getattr(batchCpLoss,'loss_cp') is not None else None,\
             Precision=cpRunAvgObj.get('Precision')() if getattr(batchCpLoss,'Precision') is not None else None,\
             Recall=cpRunAvgObj.get('Recall')() if getattr(batchCpLoss,'Recall') is not None else None,\
             BalancedAccuracy=cpRunAvgObj.get('BalancedAccuracy')() if getattr(batchCpLoss,'BalancedAccuracy') is not None else None)
+            del batchCpLoss
+        else:
+            batchCpAvg=None
 
-        del batchLoss, batchCpLoss
+        del batchLoss
         torch.cuda.empty_cache()
         return batchAvg, batchCpAvg
 
@@ -303,8 +315,9 @@ class model_A(object):
         phase="train" if any([m.training for m in list(self.model.values())]) else "valid/test"
         wandb.log({f"MainTask_Loss/{phase}":batchAvg.l1_loss, "batch_num":batch_num})
         wandb.log({f"AuxTask_Loss/{phase}":batchAvg.loss_aux, "batch_num":batch_num})
-        wandb.log({f"loss_cp/{phase}":batchCpAvg.loss_cp,"batch_num":batch_num})
-        wandb.log({f"cp_accr/{phase}":batchCpAvg._asdict(), "batch_num":batch_num})
+        if self.params.cp_predict:
+            wandb.log({f"loss_cp/{phase}":batchCpAvg.loss_cp,"batch_num":batch_num})
+            wandb.log({f"cp_accr/{phase}":batchCpAvg._asdict(), "batch_num":batch_num})
         if self.params.residual:
             wandb.log({f"residual_loss/{phase}":batchAvg.residual_loss, "batch_num":batch_num})
             

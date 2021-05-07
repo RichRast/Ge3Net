@@ -10,15 +10,22 @@ import allel
 import copy
     
 def load_path(path, en_pickle=False, en_df=False):
+    
     with open (path, 'rb') as f:
-        if en_pickle:
-            file_content = pickle.load(f)
-        elif en_df:
-            file_content = pd.read_csv(f, sep="\t", header=None)
-        else:
-            file_content = np.load(f)
-    return file_content
-
+        try:
+            if en_pickle:
+                file_content = pickle.load(f)
+            elif en_df:
+                file_content = pd.read_csv(f, sep="\t", header=None)
+            else:
+                file_content = np.load(f)
+            
+        except FileNotFoundError as fnfe:
+            logging.exception(fnfe)
+        except Exception as e:
+            raise e
+        return file_content
+        
 def save_file(path, file, en_pickle=False, en_df=False ):
     with open (path, 'wb') as f:
         if en_pickle:
@@ -27,11 +34,11 @@ def save_file(path, file, en_pickle=False, en_df=False ):
             file.to_csv(path, sep="\t", index=False)
         else:
             np.save(f, file)
-            
+       
 def set_logger(log_path):
     """Set the logger to log info in terminal and file log_path
     """
-    logger = logging.getLogger()
+    logger = logging.getLogger("Ge3Net")
     logger.setLevel(logging.INFO)
     if not osp.exists(log_path):
         print(f'Logging path does not exist, making {log_path}')
@@ -40,7 +47,7 @@ def set_logger(log_path):
     if not logger.handlers:
         # Logging to a file
         file_handler = logging.FileHandler(log_path + ".log")
-        file_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s: %(message)s'))
+        file_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s: %(name)s:%(message)s'))
         logger.addHandler(file_handler)
 
         # Logging to console
@@ -88,9 +95,14 @@ def square_normalize(y_pred):
     square normalize a tensor with 3 dimensions - x, y and z
     used for normalizing for Geographical n vector
     """
+    eps=1e-4
     y_pred_square = torch.pow(y_pred, 2)
-    temp = torch.sum(y_pred_square, dim=2).reshape(y_pred_square.shape[0], y_pred_square.shape[1], 1)
-    y_pred_transformed = y_pred / torch.sqrt(temp)
+    tmp = torch.sum(y_pred_square, dim=2).reshape(y_pred_square.shape[0], y_pred_square.shape[1], 1)
+    # square of each comp x, y and z of n vector must be positive but less than 1
+    # clamp it with eps so as to avoid divide by zero error
+    tmp = torch.clamp(tmp, min=eps)
+    assert torch.any(tmp>eps), "one of the elements was below epsilon"
+    y_pred_transformed = y_pred / torch.sqrt(tmp)
     return y_pred_transformed
                 
 def filter_vcf(vcf_filepath, thresh, verbose=True):
@@ -153,9 +165,9 @@ def interpolate_genetic_pos(df_gm_pos, df_gm_chm):
     df_gm_pos['genetic_pos'] = yinterp
     return df_gm_pos
     
-def form_windows(df_snp_pos, params):
-    recomb_w = torch.tensor(df_snp_pos['genetic_pos'].values[0:params.chmlen]\
-        .reshape(params.n_win, params.win_size)).float()
+def form_windows(df_snp_pos, chmlen, win_size):
+    recomb_w = torch.tensor(df_snp_pos['genetic_pos'].values[:chmlen]\
+        .reshape(-1, win_size)).float()
     recomb_w = torch.max(recomb_w, dim=1)[0]
     return recomb_w
 
@@ -187,7 +199,7 @@ def getValueBySelection(arr, col1, val1, col2):
     This function returns the value of col2 for the row
     where col1 value matches val1 for a given 2d array arr
     """
-    return arr[np.where(arr[:,col1]==val1)[0],col2]
+    return arr[np.where(arr[:,col1]==val1)[0],col2][0]
 
 def getWinInfo(chmLen, winSize):
     """

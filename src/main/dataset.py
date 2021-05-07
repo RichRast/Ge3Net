@@ -2,12 +2,14 @@ import numpy as np
 import pandas as pd 
 import torch 
 from torch.utils.data import Dataset
+import logging
 import os
 import os.path as osp
 import sys
 sys.path.insert(1, os.environ.get('USER_PATH'))
-from src.utils.dataUtil import load_path
+from src.utils.dataUtil import load_path, getWinInfo
 from src.utils.labelUtil import repeat_pop_arr
+from src.utils.modelUtil import convert_nVector
 from src.utils.decorators import timer
 
 class Haplotype(Dataset):
@@ -24,23 +26,23 @@ class Haplotype(Dataset):
         elif dataset_type=="test":
             self.gens_to_ret =  self.params.test_gens
         
-        print(f" Loading {dataset_type} Dataset")
+        logging.info(f" Loading {dataset_type} Dataset")
 
         # can add more here, example granular_pop is not being used
         self.data = {'X':None, 'y':None, 'y_vcf_idx':None, 'cps':None, 'superpop':None, 'granular_pop':None}
+        
 
         if labels_path is None:
-            print(f'Loading snps data')
+            logging.info(f'Loading snps data')
             self.snps = load_path(osp.join(labels_path, str(dataset_type),'mat_vcf_2d.npy'))
-            self.data['X'] = torch.tensor(self.snps[:,0:self.params.chmlen])
-            print(f"snps data shape : {self.data['X'].shape}")
+            logging.info(f"snps data shape : {self.data['X'].shape}")
         else:
             for i, gen in enumerate(self.gens_to_ret):
-                print(f"Loading gen {gen}")
+                logging.info(f"Loading gen {gen}")
                 curr_snps = load_path(osp.join(labels_path, str(dataset_type) ,'gen_' + str(gen), 'mat_vcf_2d.npy'))
-                print(f' snps data: {curr_snps.shape}')
+                logging.info(f' snps data: {curr_snps.shape}')
                 curr_vcf_idx = load_path(osp.join(labels_path , str(dataset_type) ,'gen_' + str(gen) ,'mat_map.npy'))
-                print(f' y_labels data :{curr_vcf_idx.shape}')
+                logging.info(f' y_labels data :{curr_vcf_idx.shape}')
 
                 if i>0:
                     self.snps = np.concatenate((self.snps, curr_snps),axis=0)
@@ -49,10 +51,16 @@ class Haplotype(Dataset):
                     self.snps = curr_snps
                     self.vcf_idx = curr_vcf_idx
    
+        chmlen, n_win = getWinInfo(self.snps.shape[1], self.params.win_size)
+        params.n_win = n_win
+        params.chmlen = chmlen
+        self.data['X'] = torch.tensor(self.snps[:,:chmlen]).float()
+
+        if labels_path is not None:
             pop_sample_map = pd.read_csv(osp.join(labels_path, self.params.pop_sample_map), sep='\t')
             self.pop_arr = repeat_pop_arr(pop_sample_map)
             self.coordinates = load_path(osp.join(labels_path, self.params.coordinates), en_pickle=True)
-            self.load_data()
+            self.load_data(chmlen, n_win)
         
     def __len__(self):
         return len(self.data['X']) 
@@ -60,12 +68,14 @@ class Haplotype(Dataset):
     def mapping_func(self, arr, b, dim):
         """
         Inputs:
-        arr: 3(d)D array
+        arr: 2(d)D array
         b : dict with 3(d) dim array as values
         d: dimension of the output, could be 3 or more
         return:
         result: 3(d)D array
         """
+        if self.params.geography:
+            dim=2
         result = np.zeros((arr.shape[0], arr.shape[1], dim)).astype(float)
         
         for k in np.unique(arr):
@@ -73,8 +83,22 @@ class Haplotype(Dataset):
             for d in np.arange(dim):
                 result[idx[0], idx[1], d]=b[k][d]
             
+        if self.params.geography:
+            result=self._geoConvertLatLong2nVec(result)
         result = torch.tensor(result).float()
         return result
+
+    def _geoConvertLatLong2nVec(self, coord):
+        """
+        Converts the result from 2 dim Lat/Long to 3 dim n vector
+        """
+        # ToDo: Need to change this. Too slow!!!
+        lat=coord[..., 0]
+        long=coord[..., 1] 
+        print(f"lat, lom:{lat.shape},{long.shape}")
+        nVec=convert_nVector(lat,long)
+        print(f"nvec shape:{nVec.shape}")
+        return nVec
 
     def pop_mapping(self, y_vcf, pop_arr, type='superpop'):
         
@@ -89,13 +113,12 @@ class Haplotype(Dataset):
         return result
 
     @timer
-    def load_data(self):        
+    def load_data(self, chmlen, n_win):        
         # take the mode according to windows for labels
         # map to coordinates according to ref_idx
-        print("Transforming the data")
-        self.data['X'] = torch.tensor(self.snps[:,0:self.params.chmlen])
-        y_tmp = torch.tensor(self.vcf_idx[:,0:self.params.chmlen])
-        y_tmp = y_tmp.reshape(-1, self.params.n_win, self.params.win_size)
+        logging.info("Transforming the data")
+        y_tmp = torch.tensor(self.vcf_idx[:,:chmlen])
+        y_tmp = y_tmp.reshape(-1, n_win, self.params.win_size)
         self.data['y_vcf_idx'] = (torch.mode(y_tmp, dim=2)[0]).detach().cpu().numpy()
         
         self.data['y'] = self.mapping_func(self.data['y_vcf_idx'], self.coordinates, self.params.dataset_dim)
@@ -118,6 +141,7 @@ class Haplotype(Dataset):
             for i,j in zip(cps_sum_idx[:,1], cps_sum_idx[:,0]):
                 cps_copy[j, i-self.params.cp_tol:i+self.params.cp_tol+1, :] = 1
             self.data['cps'] = cps_copy
+            del cps, cps_copy
         else:
             self.data['cps'] = torch.zeros_like(self.data['y'])
 
@@ -125,7 +149,7 @@ class Haplotype(Dataset):
             self.data['superpop'] = self.pop_mapping(self.data['y_vcf_idx'], self.pop_arr, type='superpop')
         else:
             self.data['superpop'] = np.ones_like(self.data['y_vcf_idx'])
-        del cps, cps_copy
+        
         torch.cuda.empty_cache()
     
     def __getitem__(self, idx):

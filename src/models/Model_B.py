@@ -28,7 +28,7 @@ class model_B(model_A):
             vec_64, out_rnn_chunk, rnn_state = self.model['lstm'](x_chunk, rnn_state)
             vec64_list.append(vec_64)
             cp_mask_chunk = (cps_chunk==0).float()
-            if self.params.geography: square_normalize(out_rnn_chunk)
+            if self.params.geography: out_rnn_chunk=square_normalize(out_rnn_chunk)
             out_rnn_list.append(out_rnn_chunk)
             loss_main_chunk=self.criterion(out_rnn_chunk*cp_mask_chunk, batch_label_chunk*cp_mask_chunk)
             loss_main_list.append(loss_main_chunk.item())
@@ -59,7 +59,7 @@ class model_B(model_A):
             out_rnn, vec_64, loss_main= self._tbtt(x, target, mask)
         else:
             out_rnn, vec_64 = self._rnn(x)
-            if self.params.geography: square_normalize(out_rnn)
+            if self.params.geography: out_rnn=square_normalize(out_rnn)
             if target is not None: loss_main=self.criterion(out_rnn*mask, target.coord_main*mask)
 
         return out_rnn, vec_64, loss_main
@@ -75,9 +75,9 @@ class model_B(model_A):
         else:
             self.enable_tbptt=False
         out_aux, x_nxt = self._auxNet(x)
-        if self.params.geography: square_normalize(out_aux)
+        if self.params.geography: out_aux=square_normalize(out_aux)
         out_rnn, vec64, loss_main = self._rnnNet(x_nxt, target=target, mask=mask)
-        outs = t_out(coord_main = out_rnn, coord_aux=out_aux)
+        outs = t_out(coord_main = out_rnn*mask, coord_aux=out_aux*mask)
         if target is not None:
             loss_aux = self.criterion(out_aux*mask, target.coord_main*mask)
             loss_inner = t_accr(loss_aux=loss_aux, loss_main=loss_main)
@@ -85,14 +85,20 @@ class model_B(model_A):
 
     def _outer(self, x, target, mask):
         outs, x_nxt, loss_inner = self._inner(x, target=target, mask=mask)
-        lossBack=loss_inner.loss_aux/mask.sum()
+        sample_size=mask.sum()
+        if self.params.geography:
+            sample_size /=3
+        lossBack=loss_inner.loss_aux/sample_size
 
-        if self.params.cp_predict: 
+        if self.params.cp_predict:
             cp_logits, cp_accr = self._changePointNet(x_nxt, target=target.cp_logits)
             outs=outs._replace(cp_logits=cp_logits)
+        else:
+            cp_accr=None
         if not self.enable_tbptt:
-            lossBack+=cp_accr.loss_cp
             lossBack+= loss_inner.loss_main
+        if not self.enable_tbptt and self.params.cp_predict: 
+            lossBack+=cp_accr.loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
         lossBack.backward()
         return outs, t_results(t_accr=t_accr(loss_main=loss_inner.loss_main, loss_aux=loss_inner.loss_aux, weighted_loss=loss_inner.loss_main), t_cp_accr=cp_accr)
 

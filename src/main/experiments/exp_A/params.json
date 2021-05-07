@@ -1,5 +1,5 @@
 {
-    "comment":"dogs",
+    "comment":"humans",
     "train_seed":  1234, 
     "model":"Model_A",
      "major_version":7,
@@ -21,7 +21,7 @@
     "superpop_predict":false,
     "residual":false,
     "subclass_plot":"3d",
-    "geography":false,
+    "geography":true,
     
     "hyper_search":false,
     "hyper_search_type":"wandb", 
@@ -29,11 +29,9 @@
     "optuna_n_trials":3,
     
     "train_gens":[0,2,4,8],
-    "valid_gens":[0,2,4,8],
-    "test_gens":[0,2,4,8],
+    "valid_gens":[2,4,8],
+    "test_gens":[2,4,8],
     "win_size" :1000,
-    "chmlen":81000,
-    "n_win" :81,
     "dataset_dim":3,
     "coordinates":"labels.pkl",  
     

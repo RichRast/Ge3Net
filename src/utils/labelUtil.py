@@ -1,9 +1,12 @@
 import numpy as np
 import pandas as pd
+import logging
 import sys 
 import os
+import os.path as osp
 sys.path.insert(1,os.environ.get('USER_PATH'))
 from pyadmix.utils import get_chm_info, build_founders, create_non_rec_dataset, write_output 
+from src.utils.dataUtil import save_file
 
 def filter_reference_file(ref_sample_map, verbose=True):
     """
@@ -17,8 +20,7 @@ def filter_reference_file(ref_sample_map, verbose=True):
         print(f"Total {len(ref_sample_map)} number of samples selected")
     return ref_sample_map
 
-
-def get_sample_map(sample_map, pop_order):
+def get_sample_map(sample_map):
     """
     Reads the sample map and returns a tsv file with 
     Sample: unique sample ID
@@ -92,3 +94,33 @@ def repeat_pop_arr(sample_map):
     pop_arr = pop_arr.reshape(2*len(sample_map),-1)
     pop_arr[:,1] = [i for x in sample_map.values[:,1] for i in (2*x, 2*x+1)]
     return pop_arr
+
+def createCoordinates(pop_arr, ref_map, save_path):
+    """
+    This function forms the labels.pkl ({ref_idx:labels})
+    and labelsBysample.tsv
+    (Sample, ref_idx, labels)
+    for human geography from the sample map and the master
+    reference map
+    """
+    df_labels= pd.DataFrame(pop_arr, columns=['Sample', 'ref_idx', 'granular_pop', 'superpop'])
+    df_labels=df_labels.merge(ref_map[['Sample', 'Latitude', 'Longitude']], how="inner", on="Sample").reset_index(drop=True)
+    # save labelsBySample.tsv
+    df_labelsBySample=df_labels[['Sample', 'ref_idx', 'Latitude', 'Longitude']]
+    df_labelsBySample['labels']=list(df_labels[['Latitude', 'Longitude']].values)
+    df_labelsBySample.drop(columns=['Latitude', 'Longitude'], inplace=True)
+    df_labelsBySample.to_csv(osp.join(save_path, "labelsBySample.tsv"), sep="\t", index=None)
+    # save labels.pkl as a dict with vcf_idx as key and coordinates as values
+    lbls_dict={k:v for k,v in zip(df_labels['ref_idx'], df_labelsBySample['labels'])}
+    save_file(osp.join(save_path, 'labels.pkl'), lbls_dict, en_pickle=True)
+
+def getLabelsPath(geno_type, expt_id, method):
+    data_out_path = osp.join(os.environ.get('OUT_PATH'), str(geno_type), \
+    'labels', ''.join(["data_id_", str(expt_id), "_", str(method)]))
+    logging.info(f"data_out_path : {str(data_out_path)}")
+    if not osp.exists(data_out_path):
+        logging.info(f"dataset out dir doesn't exist, making {str(data_out_path)}")
+        os.makedirs(data_out_path , exist_ok=True)
+    return data_out_path
+
+

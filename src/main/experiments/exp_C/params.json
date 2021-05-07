@@ -6,7 +6,7 @@
      "minor_version":1,
     "batch_size":256,
      "mc_dropout":true,
-    "mc_samples":50,
+    "mc_samples":100,
     "cp_detect":true,
     "cp_tol":1,
     "reg_loss":false,
@@ -21,7 +21,7 @@
     "superpop_predict":false,
     "residual":false,
     "subclass_plot":"3d",
-    "geography":false,
+    "geography":true,
     
     "hyper_search":false,
     "hyper_search_type":"wandb", 

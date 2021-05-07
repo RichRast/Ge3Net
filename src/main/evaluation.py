@@ -6,8 +6,6 @@ sys.path.insert(1, os.environ.get('USER_PATH'))
 from src.utils.dataUtil import get_gradient
 from collections import namedtuple
 
-EARTH_RADIUS = 6371
-
 t_cp_accr = namedtuple('t_cp_accr', ['loss_cp', 'Precision', 'Recall', 'BalancedAccuracy'])
 t_cp_accr.__new__.__defaults__=(None,)*len(t_cp_accr._fields)
 t_sp_accr = namedtuple('t_sp_accr', ['loss_sp', 'Precision', 'Recall', 'BalancedAccuracy'])
@@ -19,7 +17,6 @@ t_out = namedtuple('t_out', ['coord_aux','coord_main', 'cp_logits', 'y_var', 'sp
 t_out.__new__.__defaults__=(None,)*len(t_out._fields)
 t_results = namedtuple('t_results',['t_accr', 't_cp_accr', 't_sp_accr', 't_out'])
 t_results.__new__.__defaults__=(None,)*len(t_results._fields)
-
 
 
 def eval_cp_matrix(true_cps, pred_cps, seq_len = 317, win_tol=2):
@@ -84,7 +81,6 @@ def eval_cp_matrix(true_cps, pred_cps, seq_len = 317, win_tol=2):
 
     return Precision, Recall, Accuracy, A_no_cp, Balanced_Accuracy, distance_matrix
 
-
 def eval_cp_batch(cp_target, cp_pred, seq_len = 317, win_tol=2):
     """
     cp_pred : [Batch_size X T]
@@ -120,7 +116,6 @@ def eval_cp_batch(cp_target, cp_pred, seq_len = 317, win_tol=2):
     
     return Precision.mean(), Recall.mean(), Accuracy.mean(), A_no_cp.mean(), Balanced_Accuracy.mean()
 
-
 class SmoothL1Loss():
     def __init__(self, reduction='mean', beta=1.0):
         self.beta = beta
@@ -148,7 +143,6 @@ class Weighted_Loss():
 
     def __call__(self, input_y, target):
         return self.L1_loss(input_y, target)*self.alpha + (1-self.alpha)*self.MSE_loss(input_y, target)
-
 
 def gradient_reg(cp_detect, x, p=0.5):
     """
@@ -197,16 +191,15 @@ class Changepoint_mc_drop(Changepoint_Metrics):
 
 class GcdLoss():
     def __init__(self):
-        ...
-    def __call__(self, y_pred, y, mask=None):
+        self.eps=1e-4
+        self.earth_radius=6371
+
+    def __call__(self, input_y, target):
         """
-        returns sum of gcd given prediction label y_pred of shape (n_samples x n_windows)
-        and target label y of shape (n_sampled x n_windows)
+        returns sum of gcd given prediction label input_y of shape (n_samples x n_windows)
+        and target label target of shape (n_sampled x n_windows)
         """
-        if mask is None:
-            mask = torch.ones(y_pred.shape[0], y_pred.shape[1]).to(device)
-        eps = 1e-4
-        sum_gcd = torch.sum(torch.acos(torch.sum(y_pred * y, dim=2).clamp(-1.0 + eps, 1.0 - eps)) * mask) * EARTH_RADIUS
+        sum_gcd = torch.sum(torch.acos(torch.sum(input_y * target, dim=2).clamp(-1.0 + self.eps, 1.0 - self.eps))) * self.earth_radius
         return sum_gcd
 
 def class_accuracy(y_pred, y_test):

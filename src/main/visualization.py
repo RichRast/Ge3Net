@@ -270,7 +270,7 @@ class Plot_per_epoch_revised(object):
                     pass
         
         plt.subplots_adjust(hspace=0.1)
-        
+        plt.close('all')
         return fig, ax
 
 # def plot_subclass(pop_order, pop_arr, PCA_lbls_dict, n_comp_overall, n_comp_subclass, rev_pop_order, wandb):

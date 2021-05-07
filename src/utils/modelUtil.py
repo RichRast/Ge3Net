@@ -82,14 +82,23 @@ def early_stopping(val_this_accr, val_prev_accr, patience, thresh):
     
     return patience
 
-def convert_nVector(coord_map):
-    lat, lon = coord_map
+def convert_nVector(lat, lon):
+    """
+    Not to be used for a batch.
+    util function to use for a single or a few examples 
+    one at a time
+    """
+    # lat, lon = coord_map
     lat *= np.pi / 180
     lon *= np.pi / 180
     x = np.cos(lat) * np.cos(lon)
     y = np.cos(lat) * np.sin(lon)
     z = np.sin(lat)
-    nVector = [x, y, z]
+    x=x[...,np.newaxis]
+    y=y[...,np.newaxis]
+    z=z[...,np.newaxis]
+    print(f"x:{x.shape}")
+    nVector = np.stack((x, y, z), axis=2).squeeze(3)
     return nVector
 
 def convert_coordinates(nVector):
