@@ -22,6 +22,8 @@
     "residual":false,
     "subclass_plot":"3d",
     "geography":true,
+    "criteria":"gcd",
+    "criteria_alpha":1.0,
     
     "hyper_search":false,
     "hyper_search_type":"wandb", 

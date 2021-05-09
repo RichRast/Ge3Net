@@ -9,7 +9,9 @@ from src.utils.decorators import timer
 from src.utils.modelUtil import activate_mc_dropout
 from src.utils.dataUtil import square_normalize, get_gradient
 from src.main.evaluation import SmoothL1Loss, Weighted_Loss, GcdLoss, \
-    gradient_reg, eval_cp_batch, t_accr, t_out, t_cp_accr, t_results, Running_Average
+    gradient_reg, eval_cp_batch, t_accr, t_out, t_cp_accr, t_results, \
+        t_balanced_gcd, Running_Average
+from src.main.modelSelection import Selections
 
 class model_A(object):
     _network=['aux', 'cp']
@@ -21,14 +23,13 @@ class model_A(object):
         self._init_loss()
         
     def _init_loss(self):
-        if self.params.geography:  
-            self.criterion = GcdLoss() 
-        else: 
-            self.criterion = Weighted_Loss(reduction='sum', alpha=self.params.weightLoss_alpha)
+        self.selectLoss=Selections.get_selection()
+        self.criterion = self.selectLoss['loss'][self.params.criteria](reduction='sum', alpha=self.params.criteria_alpha)
         self.smoothL1Loss = SmoothL1Loss(reduction='sum', beta=self.params.SmoothLoss_beta)
         self.L1Loss = torch.nn.L1Loss(reduction='sum')
         self.MseLoss = torch.nn.MSELoss(reduction='sum')
         self.BCEwithLogits = torch.nn.BCEWithLogitsLoss(reduction='sum')
+        self.WeightedLoss=Weighted_Loss(reduction='sum', alpha=self.params.weightLoss_alpha)
         
     @timer
     def train(self, optimizer, training_generator, **kwargs):
@@ -36,12 +37,13 @@ class model_A(object):
         plotObj = kwargs.get('plotObj')
         trainRunAvgObj = {k:Running_Average() for k in t_accr._fields}
         trainCpRunAvgObj = {k:Running_Average() for k in t_cp_accr._fields}
+        trainGcdLoss=GcdLoss()
         
         for _, m in self.model.items():
             m.train()
 
         for i, train_gen in enumerate(training_generator):
-            train_x, train_y, vcf_idx, cps, _ = train_gen
+            train_x, train_y, vcf_idx, cps, superpop , granularpop= train_gen
             train_x = train_x.to(self.params.device)
             train_y = train_y.to(self.params.device)
             cps = cps.to(self.params.device)
@@ -53,20 +55,23 @@ class model_A(object):
             optimizer.zero_grad()
 
             train_outs, loss_outer = self._outer(train_x, train_labels, cp_mask)
-            sample_size=cp_mask.sum()
-            if self.params.geography:
-                sample_size /=3
+            sample_size=cp_mask[...,0].sum()
+
             # update the weights
             optimizer.step()
 
             # evaluate other accuracy for reporting
             trainBatchAvg, trainCpBatchAvg = self._evaluateAccuracy(train_outs, train_labels, \
-            sample_size=sample_size, batchLoss=t_accr(loss_main=loss_outer.t_accr.loss_main, loss_aux=loss_outer.t_accr.loss_aux, weighted_loss=loss_outer.t_accr.weighted_loss), \
-            batchCpLoss=loss_outer.t_cp_accr, runAvgObj=trainRunAvgObj, cpRunAvgObj=trainCpRunAvgObj)
+            sample_size=sample_size, batchLoss=t_accr(loss_main=loss_outer.t_accr.loss_main, loss_aux=loss_outer.t_accr.loss_aux), \
+            batchCpLoss=loss_outer.t_cp_accr, runAvgObj=trainRunAvgObj, cpRunAvgObj=trainCpRunAvgObj, gcdObj=trainGcdLoss)
+
+            trainBalancedGcd=None
+            if self.params.geography:
+                trainBalancedGcd = self.getBalancedClassGcd(trainGcdLoss, superpop, granularpop)
             
             #logging
             if wandb:
-                self._logger(wandb, batchAvg=trainBatchAvg, batchCpAvg=trainCpBatchAvg, batch_num=i)
+                self._logger(wandb, batchAvg=trainBatchAvg, batchCpAvg=trainCpBatchAvg, batch_num=i, balancedGcd=trainBalancedGcd)
                 # idx = np.random.choice(train_x.shape[0],1)[0]
                 idx=30
                 idxSample, idxLabel, idxVcf_idx = self._getSample(out=train_outs, label=train_labels, vcf_idx=vcf_idx, idx=idx)
@@ -76,7 +81,7 @@ class model_A(object):
     
         # delete tensors for memory optimization
         torch.cuda.empty_cache()
-        return t_results(t_accr=trainBatchAvg, t_cp_accr=trainCpBatchAvg, t_out=train_outs)
+        return t_results(t_accr=trainBatchAvg, t_cp_accr=trainCpBatchAvg, t_out=train_outs, t_balanced_gcd=trainBalancedGcd)
 
     @timer
     def valid(self, validation_generator, **kwargs):
@@ -84,13 +89,14 @@ class model_A(object):
         plotObj = kwargs.get('plotObj')
         valRunAvgObj = {k:Running_Average() for k in t_accr._fields}
         valCpRunAvgObj = {k:Running_Average() for k in t_cp_accr._fields}
+        valGcdLoss=GcdLoss()
 
         for _, m in self.model.items():
             m.eval()
  
         with torch.no_grad():
             for i, val_gen in enumerate(validation_generator):
-                val_x, val_y, vcf_idx, cps, _ = val_gen
+                val_x, val_y, vcf_idx, cps, superpop, granularpop = val_gen
                 val_x = val_x.to(self.params.device)
                 val_y = val_y.to(self.params.device)
                 cps = cps.to(self.params.device)
@@ -113,22 +119,25 @@ class model_A(object):
                 x_nxt = self._getFromMcSamples(x_nxt_list)
                 
                 loss_inner=self._getLossInner(val_outs, val_labels)
+
+                cp_accr=None
                 if self.params.cp_predict: 
                     cp_logits, cp_accr = self._changePointNet(x_nxt.coord_main, target=val_labels.cp_logits)
-                    val_outs=val_outs._replace(cp_logits=cp_logits)
-                else:
-                    cp_accr=None
+                    val_outs=val_outs._replace(cp_logits=cp_logits)                    
                 
-                sample_size=val_labels.coord_main.shape[0]*val_labels.coord_main.shape[1]*val_labels.coord_main.shape[2]
-                if self.params.geography:
-                    sample_size /=3
+                sample_size=val_labels.coord_main.shape[0]*val_labels.coord_main.shape[1]
+                
                 valBatchAvg, valCpBatchAvg = self._evaluateAccuracy(val_outs, val_labels,\
-                    sample_size=sample_size, batchLoss=t_accr(loss_aux=loss_inner.loss_aux, loss_main=loss_inner.loss_main, weighted_loss=loss_inner.weighted_loss), \
-            batchCpLoss=cp_accr, runAvgObj=valRunAvgObj, cpRunAvgObj=valCpRunAvgObj)
+                    sample_size=sample_size, batchLoss=t_accr(loss_aux=loss_inner.loss_aux, loss_main=loss_inner.loss_main), \
+                batchCpLoss=cp_accr, runAvgObj=valRunAvgObj, cpRunAvgObj=valCpRunAvgObj, gcdObj=valGcdLoss)
+                
+                valBalancedGcd=None
+                if self.params.geography:
+                    valBalancedGcd = self.getBalancedClassGcd(valGcdLoss, superpop, granularpop)
         
                 #logging
                 if wandb:
-                    self._logger(wandb, batchAvg=valBatchAvg, batchCpAvg=valCpBatchAvg, batch_num=i)
+                    self._logger(wandb, batchAvg=valBatchAvg, batchCpAvg=valCpBatchAvg, batch_num=i, balancedGcd=valBalancedGcd)
                     # idx = np.random.choice(val_x.shape[0],1)[0]
                     idx=30
                     idxSample, idxLabel, idxVcf_idx = self._getSample(out=val_outs, label=val_labels, vcf_idx=vcf_idx, idx=idx)
@@ -138,7 +147,7 @@ class model_A(object):
     
         # delete tensors for memory optimization
         torch.cuda.empty_cache()
-        return t_results(t_accr=valBatchAvg, t_cp_accr=valCpBatchAvg, t_out=val_outs)
+        return t_results(t_accr=valBatchAvg, t_cp_accr=valCpBatchAvg, t_out=val_outs, t_balanced_gcd=valBalancedGcd)
 
     @timer
     def pred(self, data_generator, **kwargs):
@@ -154,7 +163,7 @@ class model_A(object):
                 if self.params.mc_dropout:
                     activate_mc_dropout(*list(self.model.values()))
                 else:
-                    assert self.params.mc_samples==1, "MC dropout disabled"
+                    self.params.mc_samples=1
 
                 outs_list, x_nxt_list=[],[]
                 for _ in range(self.params.mc_samples):
@@ -206,12 +215,12 @@ class model_A(object):
         outs = t_out(coord_main = out_aux*mask)
         if target is not None:
             loss_aux = self.criterion(out_aux*mask, target.coord_main*mask)
-            loss_inner = t_accr(loss_aux=loss_aux, loss_main=loss_aux, weighted_loss=loss_aux)
+            loss_inner = t_accr(loss_aux=loss_aux, loss_main=loss_aux)
         return outs, x_nxt, loss_inner
 
     def _getLossInner(self, x, target):
         loss=self.criterion(x.coord_main, target.coord_main)
-        return t_accr(loss_aux=loss, loss_main=loss, weighted_loss=loss)
+        return t_accr(loss_aux=loss, loss_main=loss)
 
     def _outer(self, x, target, mask):
         outs, x_nxt, loss_inner= self._inner(x, target=target, mask=mask)
@@ -225,7 +234,7 @@ class model_A(object):
             lossBack+=cp_accr.loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
             outs=outs._replace(cp_logits=cp_logits)
         lossBack.backward()
-        return outs, t_results(t_accr=t_accr(loss_aux=loss_inner.loss_aux.item(), loss_main=loss_inner.loss_main.item(), weighted_loss=loss_inner.weighted_loss.item()),\
+        return outs, t_results(t_accr=t_accr(loss_aux=loss_inner.loss_aux.item(), loss_main=loss_inner.loss_main.item()),\
             t_cp_accr=t_cp_accr(loss_cp=cp_accr.loss_cp.item(), Precision=cp_accr.Precision, Recall=cp_accr.Recall, BalancedAccuracy=cp_accr.BalancedAccuracy))
 
     def _changePointNet(self, x, **kwargs):
@@ -244,16 +253,24 @@ class model_A(object):
         batchLoss=kwargs.get('batchLoss')
         batchCpLoss=kwargs.get('batchCpLoss')
         sample_size=kwargs.get('sample_size')
+        gcdObj=kwargs.get('gcdObj')
+        gcdThresh=kwargs.get('gcdThresh')
 
         batchLoss=batchLoss._replace(l1_loss=self.L1Loss(y.coord_main, target.coord_main).item(),\
             mse_loss= self.MseLoss(y.coord_main, target.coord_main).item(),\
-            smoothl1_loss= self.smoothL1Loss(y.coord_main, target.coord_main, self.params.device),\
-            )
-
+            smoothl1_loss= self.smoothL1Loss(y.coord_main, target.coord_main, self.params.device).item(),\
+            weighted_loss=self.WeightedLoss(y.coord_main, target.coord_main).item())
+        
+        if self.params.geography:
+            if gcdThresh is None: gcdThresh=1000.0
+            batchLoss=batchLoss._replace(gcdLoss=gcdObj(y.coord_main, target.coord_main).item(),
+            accAtGcd=gcdObj.accAtGcd(y.coord_main, target.coord_main, gcdThresh))
+            
         # update the running avg object
         for key, val in runAvgObj.items():
             if getattr(batchLoss,key) is not None:
                 val.update(getattr(batchLoss,key), sample_size)
+        
         # get the running average for batches in this epoch so far by calling the 
         # running avg object       
         batchAvg=t_accr(l1_loss=runAvgObj.get('l1_loss')() if getattr(batchLoss,'l1_loss') is not None else None, \
@@ -261,11 +278,13 @@ class model_A(object):
             loss_main=runAvgObj.get('loss_main')() if getattr(batchLoss,'loss_main') is not None else None,\
             mse_loss=runAvgObj.get('mse_loss')() if getattr(batchLoss,'mse_loss') is not None else None, \
             smoothl1_loss=runAvgObj.get('smoothl1_loss')() if getattr(batchLoss,'smoothl1_loss') is not None else None, \
-            weighted_loss=runAvgObj.get('weighted_loss')() if getattr(batchLoss,'weighted_loss') is not None else None, \
-            )
+            weighted_loss=runAvgObj.get('weighted_loss')() if getattr(batchLoss,'weighted_loss') is not None else None,\
+            gcdLoss=runAvgObj.get('gcdLoss')() if getattr(batchLoss,'gcdLoss') is not None else None,\
+            accAtGcd=runAvgObj.get('accAtGcd')() if getattr(batchLoss,'accAtGcd') is not None else None  )
         
+        batchCpAvg=None
         if self.params.cp_predict:            
-            cpRunAvgObj['loss_cp'].update(batchCpLoss.loss_cp, target.cp_logits.shape[0]*target.cp_logits.shape[1])
+            cpRunAvgObj['loss_cp'].update(batchCpLoss.loss_cp.item(), target.cp_logits.shape[0]*target.cp_logits.shape[1])
             cpRunAvgObj['Precision'].update(batchCpLoss.Precision, 1)
             cpRunAvgObj['Recall'].update(batchCpLoss.Recall, 1)
             cpRunAvgObj['BalancedAccuracy'].update(batchCpLoss.BalancedAccuracy, 1)
@@ -274,12 +293,19 @@ class model_A(object):
             Recall=cpRunAvgObj.get('Recall')() if getattr(batchCpLoss,'Recall') is not None else None,\
             BalancedAccuracy=cpRunAvgObj.get('BalancedAccuracy')() if getattr(batchCpLoss,'BalancedAccuracy') is not None else None)
             del batchCpLoss
-        else:
-            batchCpAvg=None
 
         del batchLoss
+
         torch.cuda.empty_cache()
         return batchAvg, batchCpAvg
+
+    def getBalancedClassGcd(self, gcdObj, superpop, granularpop):
+        gcdObj.balancedGcd(superpop, granularpop)
+        runAvgMedianGcd=gcdObj.median()
+        meanBalancedGcd=gcdObj.meanBalanced()
+        medianBalancedGcd=gcdObj.medianBalanced()
+        return t_balanced_gcd(median_gcd=runAvgMedianGcd, meanBalancedGcdSp=meanBalancedGcd[0], meanBalancedGcdGp=meanBalancedGcd[1],\
+            medianBalancedGcdSp=medianBalancedGcd[0], medianBalancedGcdGp=medianBalancedGcd[1])
 
     def _getFromMcSamples(self, outs_list):
         cat_outs = torch.cat(outs_list, 0).contiguous()
@@ -304,17 +330,23 @@ class model_A(object):
         idxSample = kwargs.get('idxSample')
         idxLabel = kwargs.get('idxLabel')
         vcf_idx= kwargs.get('idxVcf_idx')
-        fig, ax = plotObj.plot_index(idxSample, idxLabel, vcf_idx)
+        fig, fig_geo = plotObj.plot_index(idxSample, idxLabel, vcf_idx)
         phase="train" if any([m.training for m in list(self.model.values())]) else "valid/test"
         wandb.log({f" Image for idx {idx} for {phase}":wandb.Image(fig)})
+        if self.params.geography:
+            wandb.log({f" Image for idx {idx} for {phase} geography":fig_geo})
 
     def _logger(self, wandb, **kwargs):
         batch_num=kwargs.get('batch_num')
         batchAvg=kwargs.get('batchAvg')
         batchCpAvg=kwargs.get('batchCpAvg')
+        balancedGcd=kwargs.get('balancedGcd')
         phase="train" if any([m.training for m in list(self.model.values())]) else "valid/test"
         wandb.log({f"MainTask_Loss/{phase}":batchAvg.l1_loss, "batch_num":batch_num})
         wandb.log({f"AuxTask_Loss/{phase}":batchAvg.loss_aux, "batch_num":batch_num})
+        if self.params.geography:
+            wandb.log({f"more gcd/{phase}":balancedGcd._asdict(), "batch_num":batch_num})
+            wandb.log({f"more gcd/{phase}_accAtGcd":batchAvg.accAtGcd, "batch_num":batch_num})
         if self.params.cp_predict:
             wandb.log({f"loss_cp/{phase}":batchCpAvg.loss_cp,"batch_num":batch_num})
             wandb.log({f"cp_accr/{phase}":batchCpAvg._asdict(), "batch_num":batch_num})

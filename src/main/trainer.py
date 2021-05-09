@@ -68,7 +68,8 @@ def main(config, params, trial=None):
         rev_pop_dict = {v:k for k,v in pop_dict.items()}
         pop_sample_map = pd.read_csv(osp.join(labels_path, params.pop_sample_map), sep='\t')
         pop_arr = repeat_pop_arr(pop_sample_map)
-        plotObj = Plot_per_epoch_revised(params.n_comp_overall, params.n_comp_subclass, params.pop_num, rev_pop_dict, pop_arr)
+        plotObj = Plot_per_epoch_revised(params.n_comp_overall, params.n_comp_subclass, params.pop_num, \
+            rev_pop_dict, pop_arr, geography=params.geography)
         
     #============================= Create and load the model ===============================#    
     # Create the model
@@ -142,8 +143,12 @@ def training_loop(model, model_params, middle_models, params, config, training_g
         if config['log.verbose']:
             wandb.log({"train_metrics":train_result.t_accr._asdict(), "epoch":epoch})
             wandb.log({"valid_metrics":eval_result.t_accr._asdict(), "epoch":epoch})
-            wandb.log({"train_metrics":train_result.t_cp_accr._asdict(), "epoch":epoch})
-            wandb.log({"valid_metrics":eval_result.t_cp_accr._asdict(), "epoch":epoch})
+            if params.geography:
+                wandb.log({"train_metrics":train_result.t_balanced_gcd._asdict(), "epoch":epoch})
+                wandb.log({"valid_metrics":eval_result.t_balanced_gcd._asdict(), "epoch":epoch})
+            if params.cp_predict:
+                wandb.log({"train_metrics":train_result.t_cp_accr._asdict(), "epoch":epoch})
+                wandb.log({"valid_metrics":eval_result.t_cp_accr._asdict(), "epoch":epoch})
             if params.superpop_predict:
                 wandb.log({"train_metrics":train_result.t_sp_accr._asdict(), "epoch":epoch})
                 wandb.log({"valid_metrics":eval_result.t_sp_accr._asdict(), "epoch":epoch})
@@ -179,8 +184,14 @@ def training_loop(model, model_params, middle_models, params, config, training_g
             'train_accr': train_result._asdict()
             }, checkpoint, is_best=is_best)
         
-        # only for the start_epoch, save the params json file
-        if epoch==start_epoch: params.save(config['log.dir'])
+        
+        try:
+            if epoch==start_epoch: 
+                params.save(''.join([config['log.dir'], 'params.json']))
+                print(f"saving params at epoch:{epoch}")
+        except Exception as e:
+            print(f"exception while saving params:{e}")
+            pass
 
         if params.hyper_search_type=='optuna':    
             trial.report(eval_result.accr.weighted_loss, epoch)

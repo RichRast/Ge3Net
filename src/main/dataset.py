@@ -95,9 +95,7 @@ class Haplotype(Dataset):
         # ToDo: Need to change this. Too slow!!!
         lat=coord[..., 0]
         long=coord[..., 1] 
-        print(f"lat, lom:{lat.shape},{long.shape}")
         nVec=convert_nVector(lat,long)
-        print(f"nvec shape:{nVec.shape}")
         return nVec
 
     def pop_mapping(self, y_vcf, pop_arr, type='superpop'):
@@ -105,6 +103,8 @@ class Haplotype(Dataset):
         result = np.zeros((y_vcf.shape[0], y_vcf.shape[1])).astype(float)
         if type=='superpop':
             col_num=3
+        elif type=='granular_pop':
+            col_num=2
         for k in np.unique(y_vcf):
             idx = np.nonzero(y_vcf==k)
             pop_arr_idx = np.nonzero(pop_arr[:,1]==k)[0]
@@ -145,10 +145,10 @@ class Haplotype(Dataset):
         else:
             self.data['cps'] = torch.zeros_like(self.data['y'])
 
-        if self.params.superpop_predict:
-            self.data['superpop'] = self.pop_mapping(self.data['y_vcf_idx'], self.pop_arr, type='superpop')
-        else:
-            self.data['superpop'] = np.ones_like(self.data['y_vcf_idx'])
+
+        self.data['superpop'] = self.pop_mapping(self.data['y_vcf_idx'], self.pop_arr, type='superpop')
+        self.data['granular_pop'] = self.pop_mapping(self.data['y_vcf_idx'], self.pop_arr, type='granular_pop')
+        
         
         torch.cuda.empty_cache()
     

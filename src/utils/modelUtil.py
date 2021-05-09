@@ -29,7 +29,7 @@ class Params():
 
     def save(self, json_path):
         with open(json_path, 'w') as f:
-            json.dump(self.__dict__, f, indent=4)
+            json.dump(self.__dict__, f, indent=4, default=str)
 
     def update(self, json_path):
         """Loads parameters from json file"""
@@ -101,12 +101,14 @@ def convert_nVector(lat, lon):
     nVector = np.stack((x, y, z), axis=2).squeeze(3)
     return nVector
 
-def convert_coordinates(nVector):
+def convert_coordinates(*nVector):
     xcord, ycord, zcord = nVector
     coord_x = np.arctan2(zcord, np.hypot(xcord, ycord)) * 180 / np.pi
     coord_y = np.arctan2(ycord, xcord) * 180 / np.pi
-
-    return coord_x, coord_y
+    coord_x=coord_x[...,np.newaxis]
+    coord_y=coord_y[...,np.newaxis]
+    coordinates=np.stack((coord_x, coord_y), axis=2).squeeze(3)
+    return coordinates
 
 def split_batch(seq_batch, bptt):
     """

@@ -9,8 +9,7 @@ from src.models.Model_A import model_A
 from src.utils.decorators import timer
 from src.utils.modelUtil import split_batch
 from src.utils.dataUtil import square_normalize, get_gradient
-from src.main.evaluation import SmoothL1Loss, Weighted_Loss, GcdLoss, \
-    gradient_reg, eval_cp_batch, t_accr, t_out, t_cp_accr, t_results, Running_Average
+from src.main.evaluation import t_accr, t_out, t_results
 
 class model_B(model_A):
     _network=['aux', 'lstm', 'cp']
@@ -100,7 +99,7 @@ class model_B(model_A):
         if not self.enable_tbptt and self.params.cp_predict: 
             lossBack+=cp_accr.loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
         lossBack.backward()
-        return outs, t_results(t_accr=t_accr(loss_main=loss_inner.loss_main, loss_aux=loss_inner.loss_aux, weighted_loss=loss_inner.loss_main), t_cp_accr=cp_accr)
+        return outs, t_results(t_accr=t_accr(loss_main=loss_inner.loss_main, loss_aux=loss_inner.loss_aux), t_cp_accr=cp_accr)
 
     
     

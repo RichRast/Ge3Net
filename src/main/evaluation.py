@@ -11,11 +11,14 @@ t_cp_accr.__new__.__defaults__=(None,)*len(t_cp_accr._fields)
 t_sp_accr = namedtuple('t_sp_accr', ['loss_sp', 'Precision', 'Recall', 'BalancedAccuracy'])
 t_sp_accr.__new__.__defaults__=(None,)*len(t_sp_accr._fields)
 t_accr = namedtuple('t_accr', ['l1_loss', 'mse_loss', 'smoothl1_loss', 'weighted_loss',\
-     'loss_main', 'loss_aux', 'residual_loss'])
+    'loss_main', 'loss_aux', 'residual_loss', 'gcdLoss', 'accAtGcd'])
 t_accr.__new__.__defaults__=(None,)*len(t_accr._fields)
 t_out = namedtuple('t_out', ['coord_aux','coord_main', 'cp_logits', 'y_var', 'sp'])
 t_out.__new__.__defaults__=(None,)*len(t_out._fields)
-t_results = namedtuple('t_results',['t_accr', 't_cp_accr', 't_sp_accr', 't_out'])
+t_balanced_gcd = namedtuple('t_balanced_gcd', ['median_gcd', 'meanBalancedGcdSp', \
+    'meanBalancedGcdGp', 'medianBalancedGcdSp', 'medianBalancedGcdGp'])
+t_balanced_gcd.__new__.__defaults__=(None,)*len(t_out._fields)
+t_results = namedtuple('t_results',['t_accr', 't_cp_accr', 't_sp_accr', 't_out', 't_balanced_gcd'])
 t_results.__new__.__defaults__=(None,)*len(t_results._fields)
 
 
@@ -193,14 +196,53 @@ class GcdLoss():
     def __init__(self):
         self.eps=1e-4
         self.earth_radius=6371
+        self._batchGcdLs=[]
+        self.__classGcdSuperpop, self.__classGcdGranularpop={}, {}
+        
+    def _rawGcd(self, input_y, target):
+        return torch.acos(torch.sum(input_y * target, dim=2).clamp(-1.0 + self.eps, 1.0 - self.eps))
 
     def __call__(self, input_y, target):
         """
         returns sum of gcd given prediction label input_y of shape (n_samples x n_windows)
         and target label target of shape (n_sampled x n_windows)
         """
-        sum_gcd = torch.sum(torch.acos(torch.sum(input_y * target, dim=2).clamp(-1.0 + self.eps, 1.0 - self.eps))) * self.earth_radius
+        rawGcd = self._rawGcd(input_y, target)
+        sum_gcd = torch.sum(rawGcd) * self.earth_radius
         return sum_gcd
+
+    def median(self):
+        return torch.median(torch.cat(self._batchGcdLs)) 
+
+    def balancedGcd(self, superpop, granular_pop):
+        gcdTensor = self._batchGcdLs[-1]
+        superpop_num=np.unique(superpop)
+        granularpop_num=np.unique(granular_pop)
+        for i in superpop_num:
+            if self.__classGcdSuperpop.get(i) is None: self.__classGcdSuperpop[i]=Running_Average()
+            idx=torch.nonzero(superpop==i)
+            self.__classGcdSuperpop[i].update(gcdTensor[idx[:,0], idx[:,1]].sum(), len(idx))
+            
+        for i in granularpop_num:
+            if self.__classGcdGranularpop.get(i) is None: self.__classGcdGranularpop[i]=Running_Average()
+            idx=torch.nonzero(granular_pop==i)
+            self.__classGcdGranularpop[i].update(gcdTensor[idx[:,0], idx[:,1]].sum(), len(idx))
+            
+    def meanBalanced(self):
+        meanBalancedSuperpop=torch.mean(torch.tensor([self.__classGcdSuperpop[k]() for k in self.__classGcdSuperpop.keys()]))
+        meanBalancedGranularpop=torch.mean(torch.tensor([self.__classGcdGranularpop[k]() for k in self.__classGcdGranularpop.keys()]))
+        return meanBalancedSuperpop, meanBalancedGranularpop
+
+    def medianBalanced(self):
+        medianBalancedSuperpop=torch.median(torch.tensor([self.__classGcdSuperpop[k]() for k in self.__classGcdSuperpop.keys()]))
+        medianBalancedGranularpop=torch.median(torch.tensor([self.__classGcdGranularpop[k]() for k in self.__classGcdGranularpop.keys()]))
+        return medianBalancedSuperpop, medianBalancedGranularpop
+
+    def accAtGcd(self, input_y, target, gcdThresh):
+        batchGcd = self._rawGcd(input_y, target).detach() * self.earth_radius
+        self._batchGcdLs.append(batchGcd)
+        accAtGcd = len(batchGcd[batchGcd<=gcdThresh])
+        return accAtGcd
 
 def class_accuracy(y_pred, y_test):
     correct_pred = (y_pred == y_test).astype(float)

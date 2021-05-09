@@ -5,8 +5,13 @@ import matplotlib.patches as mpatches
 import plotly.graph_objects as go
 import numpy as np
 import seaborn as sns
+import os
+import sys
+sys.path.insert(1, os.environ.get('USER_PATH'))
+from src.utils.modelUtil import convert_coordinates
+from src.utils.dataUtil import getValueBySelection
 
-def plot_coordinates_map(label, data_coordinates, rev_pop_order):
+def plot_coordinates_map(label, data_coordinates, lbl_coord, rev_pop_order, pop_arr):
     """
     plotly plot for coordinates on a map
     label: target label vector (int) for the specific sample
@@ -16,16 +21,19 @@ def plot_coordinates_map(label, data_coordinates, rev_pop_order):
     """
     fig = go.Figure(go.Scattergeo())
     label_list=np.unique(label)
-    j=0
-    for i in label_list:
-        idx = np.nonzero(label)[0]
-        
-        fig.add_trace(go.Scattergeo(lon=data_coordinates[idx,1], lat=data_coordinates[idx,0]\
-                                        ,text = rev_pop_order[i], name = rev_pop_order[i]))
-        fig.update_traces(marker_size = 5)
-        j +=1
 
-    fig.show()
+    for i in label_list:
+        idx=np.nonzero(label==i)[0]
+        popIdx = getValueBySelection(pop_arr, 1, i, 2)
+        fig.add_trace(go.Scattergeo(lon=data_coordinates[idx,1], lat=data_coordinates[idx,0]\
+                                        ,text = rev_pop_order[popIdx], name = rev_pop_order[popIdx]))
+        fig.update_traces(marker_size = 5)
+        fig.add_trace(go.Scattergeo(lon=lbl_coord[idx,1], lat=lbl_coord[idx,0]\
+        , marker = dict(symbol = 'square'), text = rev_pop_order[popIdx]))
+        fig.update_traces(marker_size = 5)
+ 
+    #fig.show()
+    return fig
     
 def plot_dist(mean, var , chm):
     """
@@ -39,6 +47,34 @@ def plot_dist(mean, var , chm):
     count, bins, ignored = ax2.hist(var, 10, density = True)
     ax2.set_title(f"variance distribution for chm {chm}")
     plt.show()
+
+def plot_chmBaratBottom(rev_pop_dict):
+    # norm = []
+    # for i in label_lst:
+    #     idx[i]=np.nonzero(true_label_num==i)[0]
+    #     norm=colors.LogNorm(vmin=np.percentile(label_gcd[idx[i]],5), vmax=np.percentile(label_gcd[idx[i]],95))
+    #     ax1.scatter(np.nonzero(true_label_num==i)[0],np.ones((np.nonzero(true_label_num==i)[0].shape[0])),\
+    #                       c = label_gcd[idx[i]], label = inv_dict[i], s=300, marker='s',\
+    #                       cmap = colors2[j], \
+    #                       norm = norm)
+    # ax1.set_yticks([])
+    # ax1.set_title('chromosome22', fontsize=55)
+    # ax1.spines['top'].set_color('none')
+    # ax1.spines['right'].set_color('none')
+    # ax1.spines['left'].set_color('none')
+    # ax1.xaxis.set_major_locator(ticker.MultipleLocator(1.0))
+    # ax1.xaxis.set_minor_locator(ticker.MultipleLocator(4))
+    # ax1.xaxis.set_ticks_position('bottom')
+    # ax1.tick_params(which='major', width=2, length=10, labelsize=55)
+    # ax1.tick_params(which='minor', width=2, length=10, labelsize=10)
+    # ax1.set_xlim(0, 316)
+    # ax1.set_ylim(0.99,1.03)
+    # positions = [0, 160, 300]
+    # x_labels = [0, 150000, 317410]
+    # ax1.xaxis.set_major_locator(ticker.FixedLocator(positions))
+    # ax1.xaxis.set_major_formatter(ticker.FixedFormatter(x_labels))
+    # plt.show()
+    ...
 
 def plot_changepoint_predictions(y_pred_index_np, y_pred_var, cp_pred_index_np, bocd_cp, cp_mask, y_vcf_idx, rev_pop_dict, granular_pop_map):
     """
@@ -76,58 +112,6 @@ def plot_changepoint_predictions(y_pred_index_np, y_pred_var, cp_pred_index_np, 
     
     # plt.show()
     return fig
-
-def predictions_plot(y_vcf_idx, y_pred, granular_pop_dict, pop_arr, PCA_lbls_dict):
-    
-    fig=plt.figure(figsize=(10,12))
-    ax= Axes3D(fig)
-    ax = fig.gca(projection='3d')
-
-    colors1=['#0000ff','#008000', '#ff6dff', '#a3fecb', '#ff830c','#fc6500','#800080', '#ccccfe', '#4c4cfe', '#feccfe', '#000033', '#00fff2']
-    
-    num_labels_idx = np.unique(y_vcf_idx)
-    print(f'num_labels_idx:{num_labels_idx}')
-
-    colors1 = sns.color_palette("rainbow", len(num_labels_idx))
-    color_pop_dict = {k:v for k,v in zip(num_labels_idx, colors1)}
-    j =0
-    # granular_pop_dict = pickle.load(, en_pickle=True)
-    # PCA_lbls_dict = load_path(, en_pickle=True)
-    # pop_arr = load_path()
-    rev_pop_dict = {v:k for k,v in granular_pop_dict.items()}
-    
-    gradient_cp_idx = np.unique(np.where(abs(y_pred[:-1,:]-y_pred[1:,:])>0.3)[0])
-    print(gradient_cp_idx)
-
-    
-    for i, val in enumerate(num_labels_idx):
-        idx_label = np.nonzero(y_vcf_idx==val)[0]
-        pop_arr_idx = np.where(pop_arr[:,1]==val)[0][0]
-       
-        ax.scatter(y_pred[idx_label,0], y_pred[idx_label,1], y_pred[idx_label,2], s=55\
-                  ,color=colors1[j], label = rev_pop_dict[pop_arr[pop_arr_idx,2]] )
-        ax.scatter(PCA_lbls_dict[val][0], PCA_lbls_dict[val][1], PCA_lbls_dict[val][2], s=55\
-                  ,color=colors1[j], marker='X')    
-        j +=1
-
-        lgnd = ax.legend(bbox_to_anchor=(0.9,0.5+(i/20)))
-        for l in lgnd.legendHandles:
-            l._sizes = [30]
-
-        ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-        ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-        ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-        # make the grid lines transparent
-        ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-        ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-        ax.zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
-        #ax.view_init(azim=-90, elev=19)
-    
-    ax.scatter(y_pred[gradient_cp_idx,0], y_pred[gradient_cp_idx,1], y_pred[gradient_cp_idx,2], s=100,\
-           color='black', marker='v')
-    
-    # plt.show()
-    return ax, fig
 
 def chm_plot(label,gcd):
     """
@@ -169,12 +153,13 @@ def chm_plot(label,gcd):
     plt.show()
 
 class Plot_per_epoch_revised(object):
-    def __init__(self, n_comp_overall, n_comp_subclass, pop_order, rev_pop_dict, pop_arr):
+    def __init__(self, n_comp_overall, n_comp_subclass, pop_order, rev_pop_dict, pop_arr, **kwargs):
         self.n_comp_overall = n_comp_overall
         self.n_comp_subclass = n_comp_subclass
         self.pop_order = pop_order
         self.rev_pop_dict = rev_pop_dict
         self.pop_arr = pop_arr
+        self.geography=kwargs.get('geography')
         
     def plot_index(self, y_pred_overall, y_target, y_vcf_idx, **kwargs):
         y_pred_subclass=kwargs.get('y_pred_subclass')
@@ -268,36 +253,19 @@ class Plot_per_epoch_revised(object):
                     ax.set_title(f"{pop_name} PCA space Predictions")
                 else:
                     pass
-        
+        fig_geo=None
+        if self.geography:
+            # add an axis in front for a single sample with batch dim=1
+            xcord, ycord, zcord=y_pred_overall[np.newaxis,:,0], y_pred_overall[np.newaxis,:,1], \
+                y_pred_overall[np.newaxis,:,2]
+            coordinates = convert_coordinates(xcord, ycord, zcord)
+            lbl_coord = convert_coordinates(y_target[np.newaxis,:,0], y_target[np.newaxis,:,1], \
+                y_target[np.newaxis,:,2])
+            coordinates=coordinates[0,...] #remove the first batch dim for plotting
+            lbl_coord=lbl_coord[0,...]
+            fig_geo=plot_coordinates_map(y_vcf_idx, coordinates, lbl_coord, self.rev_pop_dict, self.pop_arr)
+
         plt.subplots_adjust(hspace=0.1)
         plt.close('all')
-        return fig, ax
+        return fig, fig_geo
 
-# def plot_subclass(pop_order, pop_arr, PCA_lbls_dict, n_comp_overall, n_comp_subclass, rev_pop_order, wandb):
-#     pop_num = np.arange(len(pop_order))
-#     for j, pop_num_val in enumerate(pop_num):
-#         # plot all the classes for the same subclass for train
-#         # randomly select 30 granular pops for the particular subpop
-        
-#         if isinstance(pop_num_val, list):
-#             pop_specific_idx = np.where(np.isin(pop_arr[:,3], pop_num_val))[0]
-#             tmp_pop_name = "_".join([str(pop_order[i]) for i in pop_num_val])
-#         else:
-#             pop_specific_idx = np.where(pop_arr[:,3]==pop_num_val)[0]
-#             tmp_pop_name = pop_order[pop_num_val]                
-#         random_idx = np.random.choice(pop_arr[pop_specific_idx,1], 30)
-#         PCA_labels = np.array(list(PCA_lbls_dict.values()), dtype=float)
-#         ax1, fig = plot_embeddings_2d_extended(PCA_labels[:, n_comp_overall+n_comp_subclass*j:n_comp_overall+n_comp_subclass*(j+1)], \
-#             pop_arr, pop_order)
-        
-#         for k in random_idx:
-#             idx_pop_arr=np.where(pop_arr[:,1]==k)[0][0]
-#             ax1.text(PCA_lbls_dict[k][n_comp_overall+n_comp_subclass*j], PCA_lbls_dict[k][n_comp_overall+1+n_comp_subclass*j], \
-#                     s = rev_pop_order[pop_arr[idx_pop_arr,2]],\
-#                 fontweight='bold', fontsize = 12)
-
-#         plt.title(f" subclass : {tmp_pop_name}")
-#         plt.show()
-#         if wandb is not None:
-#             fig_image_subclass = wandb.Image(fig)
-#             wandb.log({f"subclass for {tmp_pop_name}":fig_image_subclass})
