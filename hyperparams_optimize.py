@@ -1,18 +1,12 @@
 import os
 import os.path as osp
-import argparse
-import sys
 import pickle
-import copy
-sys.path.insert(1, os.environ.get('USER_PATH'))
-import torch.nn as nn
-import torch.nn.functional as F
 
 import optuna
 import wandb
-import src.main.trainer
+import trainer
 
-from settings import parse_args
+from src.main.settings_model import parse_args
 
 class objective(object):
     def __init__(self, params, root_model_dir):

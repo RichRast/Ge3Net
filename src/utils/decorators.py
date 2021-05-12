@@ -1,7 +1,8 @@
 import time
 import functools
-from src.utils.dataUtil import square_normalize
+# from src.utils.dataUtil import square_normalize
 
+EPS_CONST=1e-7
 def timer(func):
     """Print the runtime of the decorated function"""
     @functools.wraps(func)
@@ -14,6 +15,14 @@ def timer(func):
         return value
     return wrapper_timer
 
+def guardAgainstDivideZero(operate):
+    @functools.wraps(operate)
+    def inner(x, y):
+        if y<EPS_CONST:
+            raise ZeroDivisionError("Check the denominator, it is close to zero")
+        return operate(x,y)
+    return inner
+
 # deprecate/ not used
 def applySquareNormalize(geography):
     def innerSquareNormalize(func):
@@ -24,7 +33,8 @@ def applySquareNormalize(geography):
         @functools.wraps(func)
         def wrapper_squareNormalize(*args, **kwargs):
             value = func(*args, **kwargs)
-            if geography: return square_normalize(value)
+            valueNormalized=square_normalize(value)
+            if geography: return valueNormalized
             else :return value
 
         return wrapper_squareNormalize

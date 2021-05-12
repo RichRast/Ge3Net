@@ -1,10 +1,6 @@
 import torch
-import random
 import numpy as np
-from collections import namedtuple
-import os
-import sys
-sys.path.insert(1, os.environ.get('USER_PATH'))
+import random
 from src.utils.decorators import timer
 from src.utils.modelUtil import activate_mc_dropout
 from src.utils.dataUtil import square_normalize, get_gradient
@@ -90,10 +86,11 @@ class model_A(object):
         valRunAvgObj = {k:Running_Average() for k in t_accr._fields}
         valCpRunAvgObj = {k:Running_Average() for k in t_cp_accr._fields}
         valGcdLoss=GcdLoss()
+        valPredLs, valVarLs=[],[]
 
         for _, m in self.model.items():
             m.eval()
- 
+
         with torch.no_grad():
             for i, val_gen in enumerate(validation_generator):
                 val_x, val_y, vcf_idx, cps, superpop, granularpop = val_gen
@@ -117,7 +114,8 @@ class model_A(object):
                     
                 val_outs = self._getFromMcSamples(val_outs_list)
                 x_nxt = self._getFromMcSamples(x_nxt_list)
-                
+                valPredLs.append(val_outs.coord_main.detach().cpu().numpy())
+                valVarLs.append(val_outs.y_var.detach().cpu().numpy())
                 loss_inner=self._getLossInner(val_outs, val_labels)
 
                 cp_accr=None
@@ -144,7 +142,7 @@ class model_A(object):
                     if plotObj is not None : self._plotSample(wandb, plotObj, idxSample=idxSample, \
                         idxLabel=idxLabel, idx=idx, idxVcf_idx=idxVcf_idx)
                 del val_x, val_y, cps, val_labels
-    
+        val_outs=val_outs._replace(coord_main=np.concatenate((valPredLs), axis=0), y_var=np.concatenate((valVarLs), axis=0))
         # delete tensors for memory optimization
         torch.cuda.empty_cache()
         return t_results(t_accr=valBatchAvg, t_cp_accr=valCpBatchAvg, t_out=val_outs, t_balanced_gcd=valBalancedGcd)
@@ -224,9 +222,7 @@ class model_A(object):
 
     def _outer(self, x, target, mask):
         outs, x_nxt, loss_inner= self._inner(x, target=target, mask=mask)
-        sample_size=mask.sum()
-        if self.params.geography:
-            sample_size /=3
+        sample_size=mask[...,0].sum()
         lossBack=loss_inner.loss_aux/sample_size
         
         if self.params.cp_predict: 
@@ -344,12 +340,12 @@ class model_A(object):
         phase="train" if any([m.training for m in list(self.model.values())]) else "valid/test"
         wandb.log({f"MainTask_Loss/{phase}":batchAvg.l1_loss, "batch_num":batch_num})
         wandb.log({f"AuxTask_Loss/{phase}":batchAvg.loss_aux, "batch_num":batch_num})
-        if self.params.geography:
-            wandb.log({f"more gcd/{phase}":balancedGcd._asdict(), "batch_num":batch_num})
-            wandb.log({f"more gcd/{phase}_accAtGcd":batchAvg.accAtGcd, "batch_num":batch_num})
-        if self.params.cp_predict:
-            wandb.log({f"loss_cp/{phase}":batchCpAvg.loss_cp,"batch_num":batch_num})
-            wandb.log({f"cp_accr/{phase}":batchCpAvg._asdict(), "batch_num":batch_num})
-        if self.params.residual:
-            wandb.log({f"residual_loss/{phase}":batchAvg.residual_loss, "batch_num":batch_num})
+        # if self.params.geography:
+        #     wandb.log({f"more gcd/{phase}":balancedGcd._asdict(), "batch_num":batch_num})
+        #     wandb.log({f"more gcd/{phase}_accAtGcd":batchAvg.accAtGcd, "batch_num":batch_num})
+        # if self.params.cp_predict:
+        #     wandb.log({f"loss_cp/{phase}":batchCpAvg.loss_cp,"batch_num":batch_num})
+        #     wandb.log({f"cp_accr/{phase}":batchCpAvg._asdict(), "batch_num":batch_num})
+        # if self.params.residual:
+        #     wandb.log({f"residual_loss/{phase}":batchAvg.residual_loss, "batch_num":batch_num})
             

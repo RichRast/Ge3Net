@@ -1,8 +1,5 @@
 import numpy as np
 import torch
-import os
-import sys
-sys.path.insert(1, os.environ.get('USER_PATH'))
 from src.utils.dataUtil import get_gradient
 from collections import namedtuple
 
@@ -212,7 +209,7 @@ class GcdLoss():
         return sum_gcd
 
     def median(self):
-        return torch.median(torch.cat(self._batchGcdLs)) 
+        return torch.median(torch.cat(self._batchGcdLs)).item() 
 
     def balancedGcd(self, superpop, granular_pop):
         gcdTensor = self._batchGcdLs[-1]
@@ -231,12 +228,12 @@ class GcdLoss():
     def meanBalanced(self):
         meanBalancedSuperpop=torch.mean(torch.tensor([self.__classGcdSuperpop[k]() for k in self.__classGcdSuperpop.keys()]))
         meanBalancedGranularpop=torch.mean(torch.tensor([self.__classGcdGranularpop[k]() for k in self.__classGcdGranularpop.keys()]))
-        return meanBalancedSuperpop, meanBalancedGranularpop
+        return meanBalancedSuperpop.item(), meanBalancedGranularpop.item()
 
     def medianBalanced(self):
         medianBalancedSuperpop=torch.median(torch.tensor([self.__classGcdSuperpop[k]() for k in self.__classGcdSuperpop.keys()]))
         medianBalancedGranularpop=torch.median(torch.tensor([self.__classGcdGranularpop[k]() for k in self.__classGcdGranularpop.keys()]))
-        return medianBalancedSuperpop, medianBalancedGranularpop
+        return medianBalancedSuperpop.item(), medianBalancedGranularpop.item()
 
     def accAtGcd(self, input_y, target, gcdThresh):
         batchGcd = self._rawGcd(input_y, target).detach() * self.earth_radius

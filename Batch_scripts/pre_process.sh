@@ -4,7 +4,6 @@
 # create labels using unsupervised methods
 # sample script ./Batch_scripts/pre_process.sh st_chm=1 ed_chm=38 sm=expt1 geno=0.1 maf=0.01 ld_prune=0.5 combine geno_type=dogs
 
-cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
 for arg in "$@"; do
@@ -52,7 +51,7 @@ ml load plink/2.0a2
 ml load bcftools/1.8
 ml load vcftools/0.1.15
 
-cd /home/users/richras/Ge2Net_Repo
+cd $USER_PATH
 
 if ./Batch_scripts/pre_process_loop.sh ${start_chm} ${end_chm} ${geno} ${maf} ${ld_prune} ${sample_map} ${geno_type}; then echo "Success";
 else echo "Fail"; fi

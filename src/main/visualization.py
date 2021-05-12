@@ -5,9 +5,6 @@ import matplotlib.patches as mpatches
 import plotly.graph_objects as go
 import numpy as np
 import seaborn as sns
-import os
-import sys
-sys.path.insert(1, os.environ.get('USER_PATH'))
 from src.utils.modelUtil import convert_coordinates
 from src.utils.dataUtil import getValueBySelection
 
@@ -47,6 +44,7 @@ def plot_dist(mean, var , chm):
     count, bins, ignored = ax2.hist(var, 10, density = True)
     ax2.set_title(f"variance distribution for chm {chm}")
     plt.show()
+    plt.close('all')
 
 def plot_chmBaratBottom(rev_pop_dict):
     # norm = []
@@ -152,7 +150,7 @@ def chm_plot(label,gcd):
     print(f' Overall gcd : {np.mean(gcd):.3f} Km')
     plt.show()
 
-class Plot_per_epoch_revised(object):
+class Plot_per_epoch(object):
     def __init__(self, n_comp_overall, n_comp_subclass, pop_order, rev_pop_dict, pop_arr, **kwargs):
         self.n_comp_overall = n_comp_overall
         self.n_comp_subclass = n_comp_subclass

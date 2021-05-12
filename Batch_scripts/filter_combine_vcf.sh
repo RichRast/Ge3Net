@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# sample command: ./Batch_scripts/filter_combine_vcf.sh -gt dogs -sm expt1 -f 0.0 -st_chm 1 -ed_chm 38 -s_win 100 -c
+# sample command: ./Batch_scripts/filter_combine_vcf.sh -gt dogs -sm expt1 -f 0.0 -st_chm 1 -ed_chm 38 -s_win 100 -c 
 # or ./Batch_scripts/filter_combine_vcf.sh -gt dogs -sm expt1 -f 0.0 -st_chm 1 -ed_chm 38 -c -ld 0.2
+# ./Batch_scripts/filter_combine_vcf.sh -gt humans -st_chm 1 -ed_chm 22 -vt ukb -c
 # sample_map for dogs can be expt1, a, b, c
-cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
 Help()
@@ -32,7 +32,9 @@ while [[ $# -gt 0 ]]; do
     -s_win|--sample_win ) shift 1; sample_win=$1 ;;
     -st_chm|--start_chm ) shift ; start_chm=$1 ;;
     -ed_chm|--end_chm ) shift ; end_chm=$1 ;;
-    -ld|ld_prune ) shift; ld_prune=$1 ;;
+    -ld|--ld_prune ) shift; ld_prune=$1 ;;
+    -bcf_combine )  shift; bcf_combine=$1 ;;
+    -vt|--vcf_type )  shift; vcf_type=$1 ;;
     -h | --help ) Help ; exit ;;
     \? ) echo "Error: Invalid option"; exit 1;;
     esac; shift
@@ -46,9 +48,12 @@ if [[ -z $combine ]] ; then echo "Missing combine argument, no chms will be comb
 if [[ -z $start_chm ]] ; then echo "Missing start chm number" ; exit 1; fi
 if [[ -z $end_chm ]] ; then echo "Missing end chm number" ; exit 1; fi
 if [[ (-z $sample_map) && ($geno_type = "dogs") ]] ; then echo "Missing the vcf type" ; exit 1; fi
+if [[ (-z $sample_map) && ($geno_type = "humans") ]] ; then sample_map="None"; fi
 if [[ ($combine == "False") && ($filter == 0.0) ]] ; then echo "Invalid arguments, exiting" ; exit 1 ; fi
 if [[ -z $sample_win ]] ; then echo "subsample option not selected, setting sample_win to default of 0 "; sample_win=0 ; fi
 if [[ -z $ld_prune ]] ; then echo "ld pruning not selected"; ld_prune="False" ; fi
+if [[ -z $bcf_combine ]] ; then echo "only combining with python and not using bcftools"; bcf_combine="False"; fi
+if [[ -z $vcf_type ]] ; then echo "no specific vcf type specified"; fi
 
 # form the list of vcf filenames for the st and end chm
 # ToDo make this loop less verbose by re-running the missing snp and 
@@ -57,7 +62,9 @@ if [[ -z $ld_prune ]] ; then echo "ld pruning not selected"; ld_prune="False" ; 
 vcf_filename=()
 for chm in $(seq ${start_chm} ${end_chm})
     do
-        if [[ ${geno_type} = "humans" ]] ; then
+        elif [[ (${geno_type} = "humans") && (${vcf_type} = "ukb") ]] ; then
+        vcf_filename+=($IN_PATH/${geno_type}/ukb/filtered_references/ukb_snps_chm_$chm.recode.vcf)
+        elif [[ (${geno_type} = "humans")  ]] ; then
         vcf_filename+=($IN_PATH/${geno_type}/master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr$chm.vcf.gz)
         elif [[ ($geno_type = "dogs") && (${ld_prune} = "False") ]] ; then
         vcf_filename+=($OUT_PATH/dogs/sm_${sample_map}/chr$chm/chr${chm}_biallelic.vcf.gz)
@@ -67,7 +74,7 @@ for chm in $(seq ${start_chm} ${end_chm})
     done
 echo ${vcf_filename[*]}
 
-save_path=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_${ld_prune}
+save_path=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_${ld_prune}/vcf_type_${vcf_type}
 echo "save path: ${save_path}"
 mkdir -p ${save_path}
 
@@ -79,7 +86,7 @@ sbatch<<EOT
 #SBATCH -c 1
 #SBATCH --mem=500G
 #SBATCH -t 24:00:00
-#SBATCH --output=$OUT_PATH/${geno_type}/sm_${sample_map}_chm_${filter}_combine_${combine}_chm_${start_chm}_chm_${end_chm}_sample_win_${sample_win}_ld_prune_${ld_prune}.out
+#SBATCH --output=$OUT_PATH/${geno_type}/sm_${sample_map}_chm_${filter}_combine_${combine}_chm_${start_chm}_chm_${end_chm}_sample_win_${sample_win}_ld_prune_${ld_prune}_${vcf_type}.out
 
 ml load py-pytorch/1.4.0_py36
 ml load py-scipy/1.4.1_py36
@@ -89,14 +96,16 @@ ml load py-pandas/1.0.3_py36
 ml load biology
 ml load bcftools/1.8
 
-cd /home/users/richras/Ge2Net_Repo
+cd $USER_PATH
 
 # also combine into a vcf file using bcftools
-echo "bcftools concateninating"
-bcftools concat ${vcf_filename[*]} -O z -o ${save_path}/combined.vcf.gz
+if [[ ${bcf_combine} = True ]] ; then
+    echo "bcftools concatenating"
+    bcftools concat ${vcf_filename[*]} -O z -o ${save_path}/combined.vcf.gz
+fi
 
 echo "Launching python script to combine"
-python3 ./src/createLabels/combineChms.py --data.variance_filter $filter \
+python3 combineChms.py --data.variance_filter $filter \
 --data.vcf_filenames ${vcf_filename[*]} \
 --data.save_path ${save_path} \
 --data.combine $combine \

@@ -3,10 +3,7 @@ import pandas as pd
 import torch 
 from torch.utils.data import Dataset
 import logging
-import os
 import os.path as osp
-import sys
-sys.path.insert(1, os.environ.get('USER_PATH'))
 from src.utils.dataUtil import load_path, getWinInfo
 from src.utils.labelUtil import repeat_pop_arr
 from src.utils.modelUtil import convert_nVector

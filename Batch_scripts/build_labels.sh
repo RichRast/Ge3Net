@@ -1,8 +1,8 @@
 #!/bin/bash
-cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
-# sample command ./Batch_scripts/build_labels.sh -gt=dogs -e=1 -sim -bl -n_o=3 -sm=expt1 -s=1234 -um=umap
+# sample command ./Batch_scripts/build_labels.sh -gt=dogs -e=1 -sim -bl -n_o=3 -sm=expt1 -s=1234 -um=umap 
+#./Batch_scripts/build_labels.sh -gt=humans -e=1 -sim -bl -n_o=3 -um=pca -vt=ukb 
 # sample_map for dogs can be expt1, a, b, c
 
 Help()
@@ -45,6 +45,7 @@ for argument in "$@"; do
         -n_o|--n_comp_overall )     n_comp_overall=$value;;
         -n_s|--n_comp_subclass )    n_comp_subclass=$value;;
         -um|--unsupMethod )          unsupMethod=$value;;
+        -vt|--vcf_type )            vcf_type=$value;;
         -h |--help ) Help ; exit ;;
         \? ) echo "Error: Invalid option"; exit 1;;
     esac    
@@ -69,14 +70,32 @@ if [[ ($simulate = "False") && (${create_lbls} = "False") ]]; then echo "Invalid
 if [[ -z $seed ]]; then seed=$RANDOM; echo "seed not specified, setting to a random seed = $seed "; fi
 if [[ (-z ${unsupMethod}) && (${create_lbls} = "True") ]]; then echo "No unsup method defined"; exit 1; fi
 if [[ (-z ${sample_map}) && (${geno_type} = "dogs") ]]; then echo "No sample map specified"; exit 1; fi
+if [[ (-z ${sample_map}) && (${geno_type} = "humans") ]]; then sample_map="None"; fi
+if [[ -z $vcf_type ]] ; then echo "no specific vcf type specified"; fi
 
 # set the vcf, genetic map and ref map according to genotype
 echo "Setting variables for ${geno_type}"
-if [[ ${geno_type} = 'humans' ]]; then
+if [[ (${geno_type} = 'humans') && (${vcf_type} != 'ukb') ]]; then
 vcf_dir=$IN_PATH/${geno_type}/master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr22.vcf.gz;
 ref_map=$IN_PATH/${geno_type}/reference_files/reference_panel_metadata.tsv;
 gen_map=$IN_PATH/${geno_type}/reference_files/allchrs.b38.gmap;
-all_chm_snps=$OUT_PATH/${geno_type}/combined_chm/all_chm_combined_snps_variance_filter_0.3.npy;
+all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_False/all_chm_combined_snps_variance_filter_0.09_sample_win_0.npy;
+# all_chm_snps=$OUT_PATH/${geno_type}/combined_chm/all_chm_combined_snps_variance_filter_0.3.npy;
+n_comp=44; # smallest number of samples in a class is 44, only used for extended/residual pca
+elif [[ (${geno_type} = 'humans') && (${vcf_type} = 'ukb') ]]; then
+# vcf_dir=$IN_PATH/${geno_type}/${vcf_type}/filtered_references/ukb_snps_chm_1.recode.vcf;
+vcf_filename=()
+    start_chm=1;
+    end_chm=22
+    for chm in $(seq ${start_chm} ${end_chm})
+        do
+            vcf_filename+=($IN_PATH/${geno_type}/ukb/filtered_references/ukb_snps_chm_$chm.recode.vcf)
+        done
+vcf_dir=${vcf_filename[*]}
+echo " vcf dir variable passed: ${vcf_dir}"
+ref_map=$IN_PATH/${geno_type}/reference_files/reference_panel_metadata.tsv;
+gen_map=$IN_PATH/${geno_type}/reference_files/allchrs.b38.gmap;
+all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_False/vcf_type_${vcf_type}/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy
 n_comp=44; # smallest number of samples in a class is 44, only used for extended/residual pca
 elif [[  ${geno_type} = 'dogs' ]]; then
 vcf_dir=$OUT_PATH/dogs/sm_${sample_map}/chr22/chr22_filtered.vcf;
@@ -89,7 +108,7 @@ else
 echo "${geno_type} not supported"; exit 1 ;
 fi
 
-echo "Starting build_labels for geno type ${geno_type} experiment ${exp_id} for $unsupMethod"
+echo "Starting build_labels for geno type ${geno_type} experiment ${exp_id} for $unsupMethod and vcf_type ${vcf_type}"
 mkdir -p $OUT_PATH/${geno_type}/labels/data_id_${exp_id}_$unsupMethod
 
 sbatch<<EOT
@@ -106,12 +125,12 @@ ml load py-numpy/1.18.1_py36
 ml load py-matplotlib/3.2.1_py36
 ml load py-pandas/1.0.3_py36
 
-cd /home/users/richras/Ge2Net_Repo
-python3 ./src/createLabels/buildLabels.py --data.seed $seed \
+cd $USER_PATH
+python3 buildLabels.py --data.seed $seed \
 --data.expt_id ${exp_id} \
 --data.reference_map ${ref_map} \
 --data.sample_map ${sample_map} \
---data.vcf_dir ${vcf_dir} \
+--data.vcf_dir ${vcf_dir[*]} \
 --data.genetic_map ${gen_map} \
 --data.geno_type ${geno_type} \
 --data.extended_pca ${ext_pca} \

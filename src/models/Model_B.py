@@ -1,10 +1,5 @@
 import torch
 from torch.autograd import Variable as V
-import numpy as np
-from collections import namedtuple
-import os
-import sys
-sys.path.insert(1, os.environ.get('USER_PATH'))
 from src.models.Model_A import model_A
 from src.utils.decorators import timer
 from src.utils.modelUtil import split_batch
@@ -31,7 +26,7 @@ class model_B(model_A):
             out_rnn_list.append(out_rnn_chunk)
             loss_main_chunk=self.criterion(out_rnn_chunk*cp_mask_chunk, batch_label_chunk*cp_mask_chunk)
             loss_main_list.append(loss_main_chunk.item())
-            sample_size=cp_mask_chunk.sum()
+            sample_size=cp_mask_chunk[...,0].sum()
             loss_main_chunk /=sample_size
             if self.params.cp_predict:
                 assert self.params.cp_detect, "cp detection is not true while cp prediction is true"
@@ -84,9 +79,7 @@ class model_B(model_A):
 
     def _outer(self, x, target, mask):
         outs, x_nxt, loss_inner = self._inner(x, target=target, mask=mask)
-        sample_size=mask.sum()
-        if self.params.geography:
-            sample_size /=3
+        sample_size=mask[...,0].sum()
         lossBack=loss_inner.loss_aux/sample_size
 
         if self.params.cp_predict:
@@ -99,7 +92,7 @@ class model_B(model_A):
         if not self.enable_tbptt and self.params.cp_predict: 
             lossBack+=cp_accr.loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
         lossBack.backward()
-        return outs, t_results(t_accr=t_accr(loss_main=loss_inner.loss_main, loss_aux=loss_inner.loss_aux), t_cp_accr=cp_accr)
+        return outs, t_results(t_accr=t_accr(loss_main=loss_inner.loss_main, loss_aux=loss_inner.loss_aux.detach()), t_cp_accr=cp_accr)
 
     
     

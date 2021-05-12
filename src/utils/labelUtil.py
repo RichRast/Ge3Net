@@ -1,12 +1,11 @@
 import numpy as np
 import pandas as pd
 import logging
-import sys 
 import os
+import allel
 import os.path as osp
-sys.path.insert(1,os.environ.get('USER_PATH'))
 from pyadmix.utils import get_chm_info, build_founders, create_non_rec_dataset, write_output 
-from src.utils.dataUtil import save_file
+from src.utils.dataUtil import save_file, getValueBySelection
 
 def filter_reference_file(ref_sample_map, verbose=True):
     """
@@ -73,7 +72,9 @@ def split_sample_maps(sample_map, split_perc, random_seed=10):
     
     return train_sample_map, valid_sample_map, test_sample_map
 
-def get_admixed_samples(genetic_map_path, vcf_founders, sample_map, save_path, num_samples, gens_to_ret, random_seed=10):
+# deprecate the below to be replaced by the more general getAdmixedCombineChm
+def get_admixed_samples(genetic_map_path, vcf_founders, sample_map, save_path, \
+    num_samples, gens_to_ret, random_seed=10):
     """
     Use XGMix simulation to create admixed dataset
     """
@@ -107,7 +108,7 @@ def createCoordinates(pop_arr, ref_map, save_path):
     df_labels=df_labels.merge(ref_map[['Sample', 'Latitude', 'Longitude']], how="inner", on="Sample").reset_index(drop=True)
     # save labelsBySample.tsv
     df_labelsBySample=df_labels[['Sample', 'ref_idx', 'Latitude', 'Longitude']]
-    df_labelsBySample['labels']=list(df_labels[['Latitude', 'Longitude']].values)
+    df_labelsBySample['labels']=list(df_labels[['Latitude', 'Longitude']].to_numpy())
     df_labelsBySample.drop(columns=['Latitude', 'Longitude'], inplace=True)
     df_labelsBySample.to_csv(osp.join(save_path, "labelsBySample.tsv"), sep="\t", index=None)
     # save labels.pkl as a dict with vcf_idx as key and coordinates as values
@@ -122,5 +123,53 @@ def getLabelsPath(geno_type, expt_id, method):
         logging.info(f"dataset out dir doesn't exist, making {str(data_out_path)}")
         os.makedirs(data_out_path , exist_ok=True)
     return data_out_path
+
+def getSampleNames(pop_arr: np.array, admixedY: np.array)-> list :
+
+    samples =[]
+    for i in range(admixedY.shape[0]):
+        admixedSample=admixedY[i,:].reshape(-1,1)
+        admixedSampleNames=list(map(lambda x: getValueBySelection(pop_arr, 1, x, 0), admixedSample))
+        samples.append(admixedSampleNames)
+    return samples
+
+def getAdmixedCombineChm(*args, **kwargs):
+    """
+    In order to run it for the usual admixture for a single chm, 
+    pass start_chm=end_chm= the desired chm number
+    """
+    start_chm=args[0]
+    end_chm=args[1]
+    genetic_map_path=kwargs.get('genetic_map_path') # one genetic map path for all chm
+    vcf_founders=kwargs.get('vcf_founders') # list of vcf_founders for all chms
+    sample_map=kwargs.get('sample_map')
+    num_samples=kwargs.get('num_samples')
+    gens_to_ret=kwargs.get('gens_to_ret')
+    random_seed=kwargs.get('random_seed')
+    save_path=kwargs.get('save_path')
+    pop_arr=kwargs.get('pop_arr')
+
+    prevAdmixedFlag=True if end_chm>start_chm else False
+    print(f"prevAdmixedFlag:{prevAdmixedFlag}")
+
+    for chm in range(start_chm-1, end_chm):
+        save_path_chm=osp.join(save_path, ''.join(['chm', str(chm+1)]))
+        if (vcf_founders[chm][-4:]=='.vcf') or (vcf_founders[chm][-3:]=='.gz'):
+            vcf_master = allel.read_vcf(str(vcf_founders[chm]))
+        else:
+            vcf_master = load_path(vcf_founders[chm], en_pickle=True)
+        genetic_map = get_chm_info(genetic_map_path, vcf_master)
+        founders, foundersIdx = build_founders(vcf_master, genetic_map, sample_map)
+        if chm==start_chm-1:
+            admixed_samples_start, select_idx = create_non_rec_dataset(founders, \
+                            num_samples, gens_to_ret, genetic_map["breakpoint_probability"], random_seed)
+            write_output(save_path_chm, admixed_samples_start)
+        else:
+            #getSampleNames(pop_arr, admixed_samples)
+            admixed_samples, select_idx = create_non_rec_dataset(founders, num_samples, gens_to_ret,\
+            genetic_map["breakpoint_probability"], random_seed, prevAdmixedFlag=prevAdmixedFlag,\
+                 prevAdmixed=admixed_samples_start, foundersIdx=foundersIdx)
+            write_output(save_path_chm, admixed_samples)
+        
 
 

@@ -1,10 +1,4 @@
 import torch
-from torch.autograd import Variable as V
-import numpy as np
-from collections import namedtuple
-import os
-import sys
-sys.path.insert(1, os.environ.get('USER_PATH'))
 from src.models.Model_B import model_B
 from src.utils.decorators import timer
 from src.utils.modelUtil import split_batch

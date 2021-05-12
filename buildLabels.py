@@ -1,35 +1,32 @@
 import numpy as np
 import pandas as pd
 import logging
-import os
 import os.path as osp
 import allel
-import sys
-sys.path.insert(1, os.environ.get('USER_PATH'))
 from src.utils.labelUtil import filter_reference_file, get_sample_map, getLabelsPath,\
-    repeat_pop_arr, split_sample_maps, get_admixed_samples, createCoordinates
+    repeat_pop_arr, split_sample_maps, get_admixed_samples, createCoordinates, getAdmixedCombineChm
 from src.utils.dataUtil import load_path, save_file, vcf2npy
-from unsupervisedMethods import pcaSpace, spectralEmbeddingSpace, umapSpace, \
+from src.createLabels.unsupervisedMethods import pcaSpace, spectralEmbeddingSpace, umapSpace, \
     tsneSpace, residualPca, thinningPcaSpace
-from settings_labels import parse_args
+from src.createLabels.settings_labels import parse_args
 from enum import Enum
 
 def main(config):
     # print the configurations in the log directory
     for k, v in config.items():
-        logging.info(f"config for {k} : {v}")
+        print(f"config for {k} : {v}")
         
     # set seed 
     seed = config['data.seed']
     np.random.seed(seed)
-    logging.info(f"seed used in this run : {seed}")
+    print(f"seed used in this run : {seed}")
 
     data_out_path=getLabelsPath(config['data.geno_type'],config['data.expt_id'],config['data.method'])
     
     # Note1: ref_idx will contain the idx for haplotypes that are at this intersection
     # of sample map and the vcf file
-    logging.info("Extracting snps that are at the intersection of vcf samples and sample map")
-    vcf_snp = allel.read_vcf(config['data.vcf_dir'])
+    print("Extracting snps that are at the intersection of vcf samples and sample map")
+    vcf_snp = allel.read_vcf(config['data.vcf_dir'][0])
     ref_sample_map = pd.read_csv(config['data.reference_map'], sep="\t")
     
     # select the intersection of snps between ref map and vcf
@@ -42,21 +39,25 @@ def main(config):
     if config['data.geno_type']=='humans':
         master_ref = filter_reference_file(master_ref)
     
-    pop_sample_map, granular_pop_dict, superpop_dict = get_sample_map(master_ref, config['data.pop_order'])
+    pop_sample_map, granular_pop_dict, superpop_dict = get_sample_map(master_ref)
     rev_pop_dict={v:k for k,v in granular_pop_dict.items()}
     # save the above three
     save_file(osp.join(data_out_path, 'pop_sample_map.tsv'), pop_sample_map, en_df=True)
     save_file(osp.join(data_out_path, 'granular_pop.pkl'), granular_pop_dict, en_pickle=True)
     save_file(osp.join(data_out_path, 'superpop.pkl'), superpop_dict, en_pickle=True)
     
+    pop_arr = repeat_pop_arr(pop_sample_map)
     if config['data.create_labels']:
         print(f"Creating labels using {config['data.method']}")
-        pop_arr = repeat_pop_arr(pop_sample_map)
+        
         if config['data.method'] == "geo":
             createCoordinates(pop_arr, master_ref, data_out_path)
         else:
             print("Loading vcf file for unsupervised methods")
             vcf_data = load_path(config['data.all_chm_snps']) if str(config['data.all_chm_snps'])!= 'None' else vcf2npy(config['data.vcf_dir'])
+            # filter the vcf_data with the same snps
+            vcf_data=vcf_data[pop_arr[:,1].astype(int),:]
+            
             print(f"vcf shape for unsupervised method:{vcf_data.shape}")
             print("Computing labels")
 
@@ -128,16 +129,28 @@ def main(config):
 
         print("Forming the dataset with simulation")
         
-        selected_idx={}
+        # selected_idx={}
+        # for i, val in enumerate(dataset_type):
+        #     save_path = osp.join(data_out_path, str(val))
+        #     genetic_map_path = str(config['data.genetic_map'])
+
+        #     if (config['data.vcf_dir'][-4:]=='.vcf') or (config['data.vcf_dir'][-3:]=='.gz'):
+        #         vcf_master = allel.read_vcf(str(config['data.vcf_dir']))
+        #     else:
+        #         vcf_master = load_path(config['data.vcf_dir'], en_pickle=True)
+        #     _, selected_idx[val] = get_admixed_samples(genetic_map_path, vcf_master, 
+        #     sample_map_lst[i], save_path, admixed_num_per_gen[i], config['data.gens_to_ret'])
+
         for i, val in enumerate(dataset_type):
+            config['data.start_chm'], config['data.end_chm']=1, 22
+            start_chm=config['data.start_chm']
+            end_chm=config['data.end_chm']
             save_path = osp.join(data_out_path, str(val))
             genetic_map_path = str(config['data.genetic_map'])
-            if (config['data.vcf_dir'][-4:]=='.vcf') or (config['data.vcf_dir'][-3:]=='.gz'):
-                vcf_master = allel.read_vcf(str(config['data.vcf_dir']))
-            else:
-                vcf_master = load_path(config['data.vcf_dir'], en_pickle=True)
-            _, selected_idx[val] = get_admixed_samples(genetic_map_path, vcf_master, 
-            sample_map_lst[i], save_path, admixed_num_per_gen[i], config['data.gens_to_ret'])
+            getAdmixedCombineChm(start_chm, end_chm, genetic_map_path=genetic_map_path, vcf_founders=config['data.vcf_dir'], \
+            sample_map=sample_map_lst[i], save_path=save_path, num_samples=admixed_num_per_gen[i], \
+            gens_to_ret=config['data.gens_to_ret'], pop_arr=pop_arr)
+        
 
 if __name__=="__main__":
     config = parse_args()

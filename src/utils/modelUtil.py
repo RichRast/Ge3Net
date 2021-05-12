@@ -65,6 +65,15 @@ def load_model(model_path, model_ls, optimizer=None):
     print(f"best val accuracy : {checkpoint['val_accr']['t_accr']}")
     print(f"at epoch : {checkpoint['epoch']}")
     print(f"train accuracy: {checkpoint['train_accr']['t_accr']}")
+
+    print(f"best val accuracy : {checkpoint['val_accr']['t_cp_accr']}")
+    print(f"train accuracy: {checkpoint['train_accr']['t_cp_accr']}")
+
+    print(f"best val accuracy : {checkpoint['val_accr']['t_sp_accr']}")
+    print(f"train accuracy: {checkpoint['train_accr']['t_sp_accr']}")
+
+    print(f"best val accuracy : {checkpoint['val_accr']['t_balanced_gcd']}")
+    print(f"train accuracy: {checkpoint['train_accr']['t_balanced_gcd']}")
     
     for i, model_state in enumerate(checkpoint['model_state_dict']):
         model_ls[i].load_state_dict(model_state)

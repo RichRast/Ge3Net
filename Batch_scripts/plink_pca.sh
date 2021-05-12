@@ -3,7 +3,6 @@
 # ./Batch_scripts/plink_pca.sh whole_genome expt1 dogs
 # sample_map can be "expt1" or "a" or "b" or "c" or "keep"
 
-cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 chm=$1
 sample_map=$2

@@ -6,7 +6,6 @@
 # sample command: ./Batch_scripts/extract_nMissing.sh <geno_type> <sample_map> <start_chm> <end_chm>
 # ./Batch_scripts/extract_nMissing.sh dogs a 1 38
 
-cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
 echo "Loading libraries for loading"

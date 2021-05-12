@@ -1,9 +1,8 @@
 import numpy as np
 import argparse
 import distutils.util 
-
-from utils.dataUtil import vcf2npy, filter_snps, save_file, filter_vcf
-from visualization import plot_dist
+from src.utils.dataUtil import vcf2npy, filter_snps, save_file, filter_vcf
+from src.main.visualization import plot_dist
 
 
 parser = argparse.ArgumentParser(description='Create labels for training')

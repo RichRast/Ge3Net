@@ -2,7 +2,6 @@ import os
 import os.path as osp
 import logging
 import sys
-sys.path.insert(1, os.environ.get('USER_PATH'))
 from src.models import LSTM, AuxiliaryTask, Conv, Attention, Transformer, BasicBlock, Model_A, \
 Model_B, Model_C
 # Model_D, Model_E, \
@@ -12,9 +11,9 @@ from src.utils.modelUtil import save_checkpoint, load_model, early_stopping, Par
 from src.utils.dataUtil import set_logger, load_path
 from src.utils.labelUtil import repeat_pop_arr
 from src.utils.decorators import timer
-from dataset import Haplotype
-from settings_model import parse_args, MODEL_CLASS
-from src.main.visualization import Plot_per_epoch_revised
+from src.main.dataset import Haplotype
+from src.main.settings_model import parse_args, MODEL_CLASS
+from src.main.visualization import Plot_per_epoch
 import matplotlib.pyplot as plt
 
 import torch
@@ -56,10 +55,13 @@ def main(config, params, trial=None):
     labels_path = config['data.labels_dir']
     training_dataset = Haplotype('train', params, labels_path)
     validation_dataset = Haplotype('valid', params, labels_path)
+    test_dataset = Haplotype('test', params, labels_path)
     
     training_generator = torch.utils.data.DataLoader(training_dataset, batch_size=params.batch_size, shuffle=True,
                                                     num_workers=0)
     validation_generator = torch.utils.data.DataLoader(validation_dataset, batch_size=params.batch_size, num_workers=0)
+
+    test_generator = torch.utils.data.DataLoader(test_dataset, batch_size=params.batch_size, num_workers=0)
      
     # Initiate the class for plotting per epoch
     plotObj=None
@@ -68,7 +70,7 @@ def main(config, params, trial=None):
         rev_pop_dict = {v:k for k,v in pop_dict.items()}
         pop_sample_map = pd.read_csv(osp.join(labels_path, params.pop_sample_map), sep='\t')
         pop_arr = repeat_pop_arr(pop_sample_map)
-        plotObj = Plot_per_epoch_revised(params.n_comp_overall, params.n_comp_subclass, params.pop_num, \
+        plotObj = Plot_per_epoch(params.n_comp_overall, params.n_comp_subclass, params.pop_num, \
             rev_pop_dict, pop_arr, geography=params.geography)
         
     #============================= Create and load the model ===============================#    
@@ -117,11 +119,21 @@ def main(config, params, trial=None):
         model_path = osp.join(config['model.working_dir'], config['model.pretrained_version'], 'best.pt')
         #model_main, model_aux, start_epoch, optimizer = load_model(model_path, model_aux, model_main, optimizer)
 
-    training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, plotObj, wandb)    
+    training_loop(model, model_params, middle_models, params, config, training_generator, \
+        validation_generator, test_generator, plotObj, wandb)    
    
+def epoch_logger(wandb, phase, result, epoch, geography, cp_predict, superpop_predict):
+    wandb.log({f"{phase}_metrics":result.t_accr._asdict(), "epoch":epoch})
+    if geography:
+        wandb.log({f"{phase}_metrics":result.t_balanced_gcd._asdict(), "epoch":epoch})
+    if cp_predict:
+        wandb.log({f"{phase}_metrics":result.t_cp_accr._asdict(), "epoch":epoch})
+    if superpop_predict:
+        wandb.log({f"{phase}_metrics":result.t_sp_accr._asdict(), "epoch":epoch})
     
 @timer
-def training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, plotObj, wandb):
+def training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, \
+    test_generator, plotObj, wandb):
      # optimizer
     optimizer = torch.optim.Adam(model_params)
     #custom_optimizer = custom_opt(optimizer, d_model=params.att['input_size'], \
@@ -140,18 +152,10 @@ def training_loop(model, model_params, middle_models, params, config, training_g
         eval_result = model.valid(validation_generator, plotObj=plotObj, wandb=wandb)
         plt.close('all')
         
-        if config['log.verbose']:
-            wandb.log({"train_metrics":train_result.t_accr._asdict(), "epoch":epoch})
-            wandb.log({"valid_metrics":eval_result.t_accr._asdict(), "epoch":epoch})
-            if params.geography:
-                wandb.log({"train_metrics":train_result.t_balanced_gcd._asdict(), "epoch":epoch})
-                wandb.log({"valid_metrics":eval_result.t_balanced_gcd._asdict(), "epoch":epoch})
-            if params.cp_predict:
-                wandb.log({"train_metrics":train_result.t_cp_accr._asdict(), "epoch":epoch})
-                wandb.log({"valid_metrics":eval_result.t_cp_accr._asdict(), "epoch":epoch})
-            if params.superpop_predict:
-                wandb.log({"train_metrics":train_result.t_sp_accr._asdict(), "epoch":epoch})
-                wandb.log({"valid_metrics":eval_result.t_sp_accr._asdict(), "epoch":epoch})
+        # Todo user partial here
+        if wandb is not None:
+            epoch_logger(wandb, "train", train_result, epoch, params.geography, params.cp_predict, params.superpop_predict)
+            epoch_logger(wandb, "valid", eval_result, epoch, params.geography, params.cp_predict, params.superpop_predict)
 
         # every step in the scheduler is per epoch
         exp_lr_scheduler.step(eval_result.t_accr.loss_main)
@@ -193,6 +197,13 @@ def training_loop(model, model_params, middle_models, params, config, training_g
             print(f"exception while saving params:{e}")
             pass
 
+        if epoch%20==0:
+            test_result = model.valid(test_generator, plotObj=plotObj, wandb=wandb)
+        plt.close('all')
+        
+        if wandb is not None:
+            epoch_logger(wandb, "test", test_result, epoch, params.geography, params.cp_predict, params.superpop_predict)
+        
         if params.hyper_search_type=='optuna':    
             trial.report(eval_result.accr.weighted_loss, epoch)
             if trial.should_prune():
@@ -203,7 +214,6 @@ def training_loop(model, model_params, middle_models, params, config, training_g
         training_generator, validation_generator
     torch.cuda.empty_cache()
 
-    
 if __name__=="__main__":
     config = parse_args()
     json_path = osp.join(config['data.params'], 'params.json')

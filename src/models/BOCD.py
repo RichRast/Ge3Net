@@ -1,7 +1,4 @@
 import torch
-import os
-import sys
-sys.path.insert(1, os.environ.get('USER_PATH'))
 from src.utils.decorators import timer
 
 class BOCD(object):

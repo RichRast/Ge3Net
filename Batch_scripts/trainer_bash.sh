@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # sample command ./Batch_scripts/trainer_bash.sh -gt dogs -e 7 -d 1_umap -m D
-cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
 Help()
@@ -57,9 +56,8 @@ ml load cuda/10.1.168
 ml load git-lfs/2.4.0
 ml load system nvtop
 
-# copy yaml params to the path where logs and model are stored
-
-python3 ./src/main/trainer.py  --data.params '$USER_PATH/src/main/experiments/exp_$model_type' \
+cd $USER_PATH
+python3 trainer.py  --data.params '$USER_PATH/src/main/experiments/exp_$model_type' \
 --data.geno_type $geno_type \
 --model.working_dir '$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/models_dir/' \
 --data.labels_dir '$OUT_PATH/$geno_type/labels/data_id_${data_id}' \

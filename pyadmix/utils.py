@@ -8,6 +8,7 @@ import allel
 import pandas as pd
 import os
 import scipy.interpolate
+import copy
 
 from .person import Person, create_new, create_new_non_rec
 
@@ -139,6 +140,7 @@ def build_founders(vcf_data, genetic_map_data, sample_map_data, sample_weight=No
 
     # building founders
     founders = []
+    founders_idx = {}
 
     for i in sample_map_data.iterrows():
 
@@ -146,6 +148,8 @@ def build_founders(vcf_data, genetic_map_data, sample_map_data, sample_weight=No
         # if not there, skip and print to log.
 
         index = i[1]["ref_idx"]
+        founders_idx[2*index]=i[0]
+        founders_idx[(2*index)+1]=i[0]
 
         name = i[1]["Sample"]
 
@@ -176,11 +180,27 @@ def build_founders(vcf_data, genetic_map_data, sample_map_data, sample_weight=No
     if sample_weight is not None:
         founders_weight = sample_map_data["sample_weight"]
 
-        return founders,founders_weight
+        return founders,founders_weight,founders_idx
     else:
-        return founders
+        return founders,founders_idx
 
-def create_dataset(founders,num_samples_per_gen,gens_to_ret,breakpoint_probability=None,random_seed=42,verbose=True, founders_weight=None):
+def getFoundersForCombineAdmix(prevAdmixedSample, originalFounders, foundersIdx):
+    """
+    returns the founders to be used for each admixture cycle/ admixture sample
+    """
+
+    # from the list of founders objects (Person instances), pick those instances where
+    # the founder object(Person instance) are equal
+    founders=[]
+    vcfIdxLs=list(np.unique(prevAdmixedSample.maternal['vcf_idx']))+ list(np.unique(prevAdmixedSample.paternal['vcf_idx']))
+    
+    for v in vcfIdxLs:
+        idx=foundersIdx[v]
+        founders.append(originalFounders[idx])
+    return founders
+
+def create_dataset(founders,num_samples_per_gen,gens_to_ret,breakpoint_probability=None,random_seed=42,\
+    verbose=True, founders_weight=None):
     
     np.random.seed(random_seed)
 
@@ -237,9 +257,15 @@ def create_dataset(founders,num_samples_per_gen,gens_to_ret,breakpoint_probabili
 
     return overall
 
-def create_non_rec_dataset(founders,num_samples_per_gen,gens_to_ret,breakpoint_probability=None,random_seed=42,verbose=True, founders_weight=None):
+def create_non_rec_dataset(founders,num_samples_per_gen,gens_to_ret,breakpoint_probability=None,random_seed=42,verbose=True, \
+    founders_weight=None, prevAdmixedFlag=False, prevAdmixed=None, foundersIdx=None):
     
     np.random.seed(random_seed)
+    print(f"prevAdmixedFlag:{prevAdmixedFlag}")
+    if prevAdmixedFlag:
+        assert (prevAdmixed is not None) and (foundersIdx is not None), "previous admixed flag is true but previous admixed\
+            sample data was not provided"
+        founders_copy=copy.deepcopy(founders)
 
     if breakpoint_probability is None:
         print("genetic map not taken into account when sampling breakpoints.")
@@ -264,10 +290,14 @@ def create_non_rec_dataset(founders,num_samples_per_gen,gens_to_ret,breakpoint_p
         this_gen_people = []
         
         for i in range(number_of_admixed_samples):
+            # additional logic for using previous admixed sample founders
+            if prevAdmixedFlag:
+                prevAdmixedSample = prevAdmixed[gen][i]
+                founders=getFoundersForCombineAdmix(prevAdmixedSample, founders_copy, foundersIdx)
             # use the new admixture tool for non-recursive simulation
             if founders_weight is None:
                 founders_weight = [1/len(founders) for _ in range(len(founders))]
-            adm, m_idx, p_idx = create_new_non_rec(founders,founders_weight,gen,breakpoint_probability)
+            adm, m_idx, p_idx = create_new_non_rec(founders,founders_weight,gen,breakpoint_probability,prevAdmixedFlag)
             this_gen_people.append(adm)
             select_idx[gen].append([m_idx,p_idx])
 

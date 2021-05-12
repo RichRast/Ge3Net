@@ -4,8 +4,7 @@
 # if given the option to watch the output file, will open up the output file 
 # for that job_id
 
-# sample script ./Batch_scripts/monitor.sh j_id=21823514 -w
-username='richras'
+# sample script ./Batch_scripts/monitor.sh uname=richras j_id=21823514 -w
 
 for arg in "$@" ; do
     key=${arg%%=*}
@@ -16,6 +15,7 @@ for arg in "$@" ; do
     echo "*******************"
 
     case "$key" in
+        uname|username )        username=$value'';;
         j_id|job_id )          job_id=$value;;
         -w|--watch )           watch="True";;        
         \? ) echo "Error: Invalid option"; exit 1;;

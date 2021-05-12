@@ -9,12 +9,10 @@ import seaborn as sns
 import scipy
 from scipy.spatial import distance
 from sklearn.metrics.pairwise import euclidean_distances
-import sys
 import os
 import os.path as osp
 import subprocess
 from abc import ABC, abstractmethod
-sys.path.insert(1,os.environ.get('USER_PATH'))
 from src.utils.dataUtil import load_path, save_file, getValueBySelection
 from src.utils.decorators import timer
 import umap
@@ -128,7 +126,7 @@ class UnsupervisedSpace(ABC):
         self.saveLabels(pop_arr)        
 
 class pcaSpace(UnsupervisedSpace):
-    def __init__(self, n_comp, data_out_path, pop_order, random_state, whiten=False):
+    def __init__(self, n_comp, data_out_path, pop_order, random_state, whiten=True):
         super().__init__(n_comp, data_out_path, pop_order, random_state)
         self.reducer = decomposition.PCA(n_components=self.n_comp, \
             random_state=self.random_state, whiten=whiten)
@@ -147,7 +145,7 @@ class pcaSpace(UnsupervisedSpace):
     def transform(self, X):
         super().transform(X)
         # eigenvecs (singular vecs across samples)
-        self.labels /= self.singularValues
+        # self.labels /= self.singularValues
 
     @timer
     def fit_transform(self, X):
@@ -266,7 +264,10 @@ class thinningPcaSpace(UnsupervisedSpace):
 
     def plot_embeddings(self):
         random_idx= np.random.choice(len(self.labels), 30)
-        fig, ax = plot3dEmbeddingsGeneric(self.labels, random_idx)
+        pca_labels=self.labels[['PC1', 'PC2', 'PC3']].values
+        pca_superpop=self.labels[['Superpopulation code']].values
+        pca_granularpop=self.labels[['Population']].values
+        fig, ax = plot3dEmbeddingsGeneric(pca_labels, pca_superpop, pca_granularpop, random_idx)
         plt.title("Thinning PCA whole genome")
         plt.show()
         fig.savefig(osp.join(self.data_out_path, f'labels.png'), bbox_inches='tight')
@@ -328,14 +329,14 @@ def MDS_space(x, distance_matrix, data_folder, verbose = True):
     
     return X_transformed, dissimilarity_matrix
 
-def plot3dEmbeddingsGeneric(df_labels, random_idx):
+def plot3dEmbeddingsGeneric(labels, superpop, granular_pop, random_idx):
     fig, ax = plt.subplots(figsize=(12,10))
     ax= Axes3D(fig)
-    superpop_num = df_labels["Superpopulation code"].unique()
+    superpop_num = superpop.unique()
     superpop_dict={k:v for k,v in zip(superpop_num, np.arange(len(superpop_num)))}
     colors_pop = sns.color_palette("rainbow", len(superpop_num))
-    ax.scatter(df_labels['PC1'], df_labels['PC2'], df_labels['PC3'], \
-            color=[colors_pop[superpop_dict[x]] for x in df_labels["Superpopulation code"]], s=50)
+    ax.scatter(labels[:,0], labels[:,1], labels[:,2], \
+            color=[colors_pop[superpop_dict[x]] for x in superpop], s=50)
     for a in [ax.xaxis, ax.yaxis, ax.zaxis]:
             # make the grid lines transparent
             a.set_pane_color((1.0, 1.0, 1.0, 0.0))
@@ -347,7 +348,7 @@ def plot3dEmbeddingsGeneric(df_labels, random_idx):
     ax.legend(handles=patches, bbox_to_anchor=(0.3,0.85,0.7,0),loc=5,ncol=4)
 
     for k in random_idx:
-        ax.text(df_labels.loc[k,'PC1'], df_labels.loc[k,'PC2'], df_labels.loc[k,'PC3'], \
-                s = df_labels.loc[k,'Population'],\
+        ax.text(labels[k,0], labels[k,1], labels[k,2], \
+                s = granular_pop[k],\
             fontweight='bold', fontsize = 12)
     return fig, ax

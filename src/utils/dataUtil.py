@@ -8,6 +8,7 @@ import os
 import os.path as osp
 import allel
 import copy
+from src.utils.decorators import guardAgainstDivideZero
     
 def load_path(path, en_pickle=False, en_df=False):
     
@@ -81,10 +82,11 @@ def filter_snps(mat_vcf_np, filter_thresh):
     filters snps by a given threshold
     filter_thresh: variance filter
     """
-    mean = mat_vcf_np.sum(axis=0, keepdims=True)/mat_vcf_np.shape[0]
-    # std = np.sqrt(np.mean(np.absolute(mat_vcf_np-mean)**2, axis=0, keepdims=True))
+    mean = divide(mat_vcf_np.sum(axis=0, keepdims=True),mat_vcf_np.shape[0])
+    var_tmp = np.mean(np.absolute(mat_vcf_np-mean)**2, axis=0, keepdims=True)
+    print(f"var_tmp max, min:{max(var_tmp)},{min(var_tmp)}")
     var = mat_vcf_np.var(axis=0, keepdims=True)
-    # print(f' variance shape :{var.shape}')
+    print(f" variance shape, max and min var :{var.shape}, {max(var)}, {min(var)}")
     # filter snps to informative snps -- if std > threshold
     # filtered_snp_idx = np.where(std[0,:]>=filter_thresh)[0]
     filtered_snp_idx = np.where(var[0,:]>=filter_thresh)[0]
@@ -210,3 +212,7 @@ def getWinInfo(chmLen, winSize):
     nWin = int(chmLen/winSize)
     chmLen = winSize*nWin
     return chmLen, nWin
+
+@guardAgainstDivideZero
+def divide(a,b):
+    return a/b

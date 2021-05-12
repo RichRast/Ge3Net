@@ -6,7 +6,7 @@ import distutils.util
 
 parser = argparse.ArgumentParser()                 
 parser.add_argument('--data.geno_type', type=str, required=True, choices=['humans', 'dogs'], help="genotype of humans or dogs")
-parser.add_argument('--data.vcf_dir', type=str, default=osp.join(os.environ.get('IN_PATH'), 'master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr22.vcf.gz'), help='directory where vcf file for the particular chm is saved')
+parser.add_argument('--data.vcf_dir', nargs="*", help='directory where vcf file for the particular chm is saved')
 parser.add_argument('--data.genetic_map', type=str, default=osp.join( os.environ.get('IN_PATH'), 'reference_files/allchrs.b38.gmap'), help='directory where genetic map is saved')
 parser.add_argument('--data.sample_map', type=str, required=False, help="type of sample map such as expt1, a, b c or keep")
 parser.add_argument('--data.reference_map', type=str, default=osp.join(os.environ.get('IN_PATH'), 'reference_files/reference_panel_metadata.tsv'), help="reference sample map")
@@ -28,6 +28,8 @@ parser.add_argument('--data.all_chm_snps', type=str, required=False, default=osp
 parser.add_argument('--data.samples_per_type', type=list, default=[400, 400, 400], help='num_samples per gen for each of train, valid and test')
 parser.add_argument('--data.split_perc', type=list, default=[0.7, 0.2, 0.1], help='split percentage for train, valid and test')
 parser.add_argument('--data.gens_to_ret', type=list, default=[2,4,8], help='gens to simulate') 
+parser.add_argument('--data.start_chm', type=int, required=False, help='start chm if doing admixture combined')
+parser.add_argument('--data.end_chm', type=int, required=False, help='end chm if doing admixture combined')
 
 # log args
 parser.add_argument('--log.verbose', type=distutils.util.strtobool, default='True', help='verbose')
