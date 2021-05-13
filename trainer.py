@@ -70,8 +70,8 @@ def main(config, params, trial=None):
         rev_pop_dict = {v:k for k,v in pop_dict.items()}
         pop_sample_map = pd.read_csv(osp.join(labels_path, params.pop_sample_map), sep='\t')
         pop_arr = repeat_pop_arr(pop_sample_map)
-        plotObj = Plot_per_epoch(params.n_comp_overall, params.n_comp_subclass, params.pop_num, \
-            rev_pop_dict, pop_arr, geography=params.geography)
+        plotObj = Plot_per_epoch(params.n_comp_overall, params.n_comp_subclass, \
+            rev_pop_dict, pop_arr, pop_order=params.pop_num, geography=params.geography)
         
     #============================= Create and load the model ===============================#    
     # Create the model

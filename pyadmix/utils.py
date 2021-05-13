@@ -191,13 +191,19 @@ def getFoundersForCombineAdmix(prevAdmixedSample, originalFounders, foundersIdx)
 
     # from the list of founders objects (Person instances), pick those instances where
     # the founder object(Person instance) are equal
-    founders=[]
-    vcfIdxLs=list(np.unique(prevAdmixedSample.maternal['vcf_idx']))+ list(np.unique(prevAdmixedSample.paternal['vcf_idx']))
+    foundersMat, foundersPat=[],[]
+    vcfIdxMatLs=list(np.unique(prevAdmixedSample.maternal['vcf_idx']))
+    vcfIdxPatLs=list(np.unique(prevAdmixedSample.paternal['vcf_idx']))
     
-    for v in vcfIdxLs:
+    for v in vcfIdxMatLs:
         idx=foundersIdx[v]
-        founders.append(originalFounders[idx])
-    return founders
+        foundersMat.append(originalFounders[idx])
+
+    for v in vcfIdxPatLs:
+        idx=foundersIdx[v]
+        foundersPat.append(originalFounders[idx])
+
+    return foundersMat, foundersPat
 
 def create_dataset(founders,num_samples_per_gen,gens_to_ret,breakpoint_probability=None,random_seed=42,\
     verbose=True, founders_weight=None):
@@ -290,14 +296,17 @@ def create_non_rec_dataset(founders,num_samples_per_gen,gens_to_ret,breakpoint_p
         this_gen_people = []
         
         for i in range(number_of_admixed_samples):
+            # use the new admixture tool for non-recursive simulation
+            if founders_weight is None:
+                founders_weight_used = [1/len(founders) for _ in range(len(founders))]
             # additional logic for using previous admixed sample founders
             if prevAdmixedFlag:
                 prevAdmixedSample = prevAdmixed[gen][i]
                 founders=getFoundersForCombineAdmix(prevAdmixedSample, founders_copy, foundersIdx)
-            # use the new admixture tool for non-recursive simulation
-            if founders_weight is None:
-                founders_weight = [1/len(founders) for _ in range(len(founders))]
-            adm, m_idx, p_idx = create_new_non_rec(founders,founders_weight,gen,breakpoint_probability,prevAdmixedFlag)
+                founders_weight_used = [1/len(founders[0]) for _ in range(len(founders[0]))],\
+                                        [1/len(founders[1]) for _ in range(len(founders[1]))]
+            
+            adm, m_idx, p_idx = create_new_non_rec(founders,founders_weight_used,gen,breakpoint_probability,prevAdmixedFlag)
             this_gen_people.append(adm)
             select_idx[gen].append([m_idx,p_idx])
 

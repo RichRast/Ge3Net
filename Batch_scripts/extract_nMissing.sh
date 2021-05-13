@@ -26,7 +26,7 @@ for (( chm=$3; chm<=$4; chm++ )); do
     # for sample, nMissing
     linenum=$(awk '/nMissing/{ print NR; exit }' $OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_nMissing.txt)
     echo "linenum $linenum"
-    sed -n '1249,1446p' $OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_biostats.txt | cut -f3,14 >>$OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_nMissing.txt
+    sed -n '1580,2108p' $OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_biostats.txt | cut -f3,14 >>$OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_nMissing.txt
 done
 
 echo "All Done"

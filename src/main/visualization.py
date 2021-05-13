@@ -151,13 +151,13 @@ def chm_plot(label,gcd):
     plt.show()
 
 class Plot_per_epoch(object):
-    def __init__(self, n_comp_overall, n_comp_subclass, pop_order, rev_pop_dict, pop_arr, **kwargs):
+    def __init__(self, n_comp_overall, n_comp_subclass, rev_pop_dict, pop_arr, **kwargs):
         self.n_comp_overall = n_comp_overall
         self.n_comp_subclass = n_comp_subclass
-        self.pop_order = pop_order
         self.rev_pop_dict = rev_pop_dict
         self.pop_arr = pop_arr
         self.geography=kwargs.get('geography')
+        self.pop_order = kwargs.get('pop_order')
         
     def plot_index(self, y_pred_overall, y_target, y_vcf_idx, **kwargs):
         y_pred_subclass=kwargs.get('y_pred_subclass')

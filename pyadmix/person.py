@@ -141,7 +141,7 @@ def create_new(p1,p2,breakpoint_probability=None):
 
     return Person(chm,chm_length_morgans,chm_length_snps,maternal,paternal)
 
-def non_rec_admix(founders,founders_weight,gen,breakpoint_probability, prevAdmixedFlag=False):
+def non_rec_admix(founders,founders_weight,gen,breakpoint_probability,prevAdmixedFlag=None):
 
     """
     create an admixed haploid from the paternal and maternal sequences
@@ -151,9 +151,11 @@ def non_rec_admix(founders,founders_weight,gen,breakpoint_probability, prevAdmix
     haploid_returns: dict with same keys as self.maternal and self.paternal
 
     """
-    # assert all founders have all keys.
     if not prevAdmixedFlag:
+        # assert all founders have all keys.
         assert len(founders) >= 2, "Too few founders!!!"
+    else:
+        assert len(founders)>=1, "No founders passed"
     order = [ 'snps', 'vcf_idx']
     chm_length_morgans = founders[0].chm_length_morgans
     chm_length_snps = founders[0].chm_length_snps
@@ -171,12 +173,9 @@ def non_rec_admix(founders,founders_weight,gen,breakpoint_probability, prevAdmix
     if num_crossovers == 0:
             
         haploid_returns = {}
-        if not prevAdmixedFlag:
-            select_id = np.random.choice(len(founders),p=founders_weight)
-            select = founders[select_id]
-            selected_idx.append(select_id)
-        else:
-            select= founders[0]
+        select_id = np.random.choice(len(founders),p=founders_weight)
+        select = founders[select_id]
+        selected_idx.append(select_id)
         
         choice = np.random.rand()>=0.5
         select = select.maternal if choice else select.paternal
@@ -201,12 +200,9 @@ def non_rec_admix(founders,founders_weight,gen,breakpoint_probability, prevAdmix
             end = breakpoints[i+1]
             # choose random founder for this segment
             # then choose randomly paternal or maternal for this founder
-            if not prevAdmixedFlag:
-                select_id = np.random.choice(len(founders),p=founders_weight)
-                select = founders[select_id]
-                selected_idx.append(select_id)
-            else:
-                select=founders[0]
+            select_id = np.random.choice(len(founders),p=founders_weight)
+            select = founders[select_id]
+            selected_idx.append(select_id)
             choice = np.random.rand()>=0.5
             select = select.maternal if choice else select.paternal
             
@@ -217,11 +213,15 @@ def non_rec_admix(founders,founders_weight,gen,breakpoint_probability, prevAdmix
 
 
 def create_new_non_rec(founders,founders_weight,gen,breakpoint_probability, prevAdmixedFlag=False):
-
-    maternal,m_idx = non_rec_admix(founders,founders_weight,gen,breakpoint_probability,prevAdmixedFlag)
-    paternal,p_idx = non_rec_admix(founders,founders_weight,gen,breakpoint_probability,prevAdmixedFlag)
-
-    p1 = founders[0]
+    if not prevAdmixedFlag:
+        maternal,m_idx = non_rec_admix(founders,founders_weight,gen,breakpoint_probability)
+        paternal,p_idx = non_rec_admix(founders,founders_weight,gen,breakpoint_probability)
+        p1 = founders[0]
+    else:
+        maternal,m_idx = non_rec_admix(founders[0],founders_weight[0],gen,breakpoint_probability,prevAdmixedFlag)
+        paternal,p_idx = non_rec_admix(founders[1],founders_weight[1],gen,breakpoint_probability,prevAdmixedFlag)
+        p1 = founders[0][0]
+    
     chm = p1.chm
     chm_length_morgans = p1.chm_length_morgans
     chm_length_snps = p1.chm_length_snps

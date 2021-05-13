@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # sample command: ./Batch_scripts/filter_combine_vcf.sh -gt dogs -sm expt1 -f 0.0 -st_chm 1 -ed_chm 38 -s_win 100 -c 
-# or ./Batch_scripts/filter_combine_vcf.sh -gt dogs -sm expt1 -f 0.0 -st_chm 1 -ed_chm 38 -c -ld 0.2
+# or ./Batch_scripts/filter_combine_vcf.sh -gt dogs -sm expt1 -f 0.0 -st_chm 1 -ed_chm 38 -ld 0.5 -c
 # ./Batch_scripts/filter_combine_vcf.sh -gt humans -st_chm 1 -ed_chm 22 -vt ukb -c
-# sample_map for dogs can be expt1, a, b, c
+# sample_map for dogs can be expt1, a, b, c, d ,e
 source ini.sh
 
 Help()
@@ -62,12 +62,12 @@ if [[ -z $vcf_type ]] ; then echo "no specific vcf type specified"; fi
 vcf_filename=()
 for chm in $(seq ${start_chm} ${end_chm})
     do
-        elif [[ (${geno_type} = "humans") && (${vcf_type} = "ukb") ]] ; then
+        if [[ (${geno_type} = "humans") && (${vcf_type} = "ukb") ]] ; then
         vcf_filename+=($IN_PATH/${geno_type}/ukb/filtered_references/ukb_snps_chm_$chm.recode.vcf)
         elif [[ (${geno_type} = "humans")  ]] ; then
         vcf_filename+=($IN_PATH/${geno_type}/master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr$chm.vcf.gz)
         elif [[ ($geno_type = "dogs") && (${ld_prune} = "False") ]] ; then
-        vcf_filename+=($OUT_PATH/dogs/sm_${sample_map}/chr$chm/chr${chm}_biallelic.vcf.gz)
+        vcf_filename+=($OUT_PATH/dogs/sm_${sample_map}/chr$chm/chr${chm}_filtered.vcf)
         elif [[ ($geno_type = "dogs")]] ; then
         vcf_filename+=($OUT_PATH/dogs/sm_${sample_map}/chr$chm/vcf_pruned_chr$chm.vcf)
         fi
@@ -99,6 +99,7 @@ ml load bcftools/1.8
 cd $USER_PATH
 
 # also combine into a vcf file using bcftools
+# this is to inspect the combined vcf's in case for example with dogs
 if [[ ${bcf_combine} = True ]] ; then
     echo "bcftools concatenating"
     bcftools concat ${vcf_filename[*]} -O z -o ${save_path}/combined.vcf.gz

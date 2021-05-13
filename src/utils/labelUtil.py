@@ -152,12 +152,13 @@ def getAdmixedCombineChm(*args, **kwargs):
     prevAdmixedFlag=True if end_chm>start_chm else False
     print(f"prevAdmixedFlag:{prevAdmixedFlag}")
 
-    for chm in range(start_chm-1, end_chm):
-        save_path_chm=osp.join(save_path, ''.join(['chm', str(chm+1)]))
-        if (vcf_founders[chm][-4:]=='.vcf') or (vcf_founders[chm][-3:]=='.gz'):
-            vcf_master = allel.read_vcf(str(vcf_founders[chm]))
+    for i, chm in enumerate(range(start_chm-1, end_chm)):
+        save_path_chm=osp.join(save_path, ''.join(['chm', str(chm+1)])) if prevAdmixedFlag else save_path
+        print(f"i:{i}, chm:{chm}")
+        if (vcf_founders[i][-4:]=='.vcf') or (vcf_founders[i][-3:]=='.gz'):
+            vcf_master = allel.read_vcf(str(vcf_founders[i]))
         else:
-            vcf_master = load_path(vcf_founders[chm], en_pickle=True)
+            vcf_master = load_path(vcf_founders[i], en_pickle=True)
         genetic_map = get_chm_info(genetic_map_path, vcf_master)
         founders, foundersIdx = build_founders(vcf_master, genetic_map, sample_map)
         if chm==start_chm-1:
