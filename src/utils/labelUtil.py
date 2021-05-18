@@ -5,7 +5,7 @@ import os
 import allel
 import os.path as osp
 from pyadmix.utils import get_chm_info, build_founders, create_non_rec_dataset, write_output 
-from src.utils.dataUtil import save_file, getValueBySelection
+from src.utils.dataUtil import save_file, getValueBySelection, load_path
 
 def filter_reference_file(ref_sample_map, verbose=True):
     """
@@ -147,7 +147,6 @@ def getAdmixedCombineChm(*args, **kwargs):
     gens_to_ret=kwargs.get('gens_to_ret')
     random_seed=kwargs.get('random_seed')
     save_path=kwargs.get('save_path')
-    pop_arr=kwargs.get('pop_arr')
 
     prevAdmixedFlag=True if end_chm>start_chm else False
     print(f"prevAdmixedFlag:{prevAdmixedFlag}")
@@ -166,11 +165,38 @@ def getAdmixedCombineChm(*args, **kwargs):
                             num_samples, gens_to_ret, genetic_map["breakpoint_probability"], random_seed)
             write_output(save_path_chm, admixed_samples_start)
         else:
-            #getSampleNames(pop_arr, admixed_samples)
             admixed_samples, select_idx = create_non_rec_dataset(founders, num_samples, gens_to_ret,\
             genetic_map["breakpoint_probability"], random_seed, prevAdmixedFlag=prevAdmixedFlag,\
                  prevAdmixed=admixed_samples_start, foundersIdx=foundersIdx)
             write_output(save_path_chm, admixed_samples)
         
+def getSuperpopBins(pop_arr: np.array, labels_path:str, preds: np.array)->np.array:
+    """
+    compute distance of preds from labels and assign the bin to the closest label
+    for a single example or a batch of examples
+    Input:
+        preds: shape (n_samples*n_win)x(n_dim)
+        pop_arr: [sample, vcf_idx, granular_pop, superpop]
+        labels_path: dir name for labels.pkl
+    Returns:
+        mappedSpArr: shape (n_samples*n_win)
+    """
+    labels=load_path(osp.join(labels_path, 'labels.pkl'), en_pickle=True)
+    labels_npy=np.array(list(labels.values())) #5930x3
+    preds=preds[:,np.newaxis,:]
+    preds=np.repeat(preds,labels_npy.shape[0], axis=1) #(100x605)x5930x3
+    L2Matrix=np.sum(np.square(preds-labels_npy), axis=2) #(100x605)x5930
+    idx=np.argmin(L2Matrix, axis=1)#60500
+
+    # use these idxes to find the mapped superpop bin
+    dict_idx={k:v for k,v in zip(range(len(labels)), list(labels.keys()))}
+    ref_idx=list(map(lambda x:dict_idx[x], idx))
+    mappedSp=list(map(lambda x:getValueBySelection(pop_arr,1,x,3),ref_idx))
+    mappedSpArr=np.array(mappedSp)
+    return mappedSpArr
+
+def getL2DistancePops():
+    ...
+
 
 

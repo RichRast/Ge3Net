@@ -27,8 +27,8 @@
     "hyper_search_type":"None",
     
     "train_gens":[0,2,4,8],
-    "valid_gens":[2,4,8],
-    "test_gens":[2,4,8],
+    "valid_gens":[0,2,4,8],
+    "test_gens":[0,2,4,8],
     "win_size" :1000,
     "dataset_dim":3,
     "coordinates":"labels.pkl",  

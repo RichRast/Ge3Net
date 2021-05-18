@@ -81,24 +81,17 @@ class model_B(model_A):
         outs, x_nxt, loss_inner = self._inner(x, target=target, mask=mask)
         sample_size=mask[...,0].sum()
         lossBack=loss_inner.loss_aux/sample_size
-
+        accr=t_accr(loss_aux=loss_inner.loss_aux.item())
         if self.params.cp_predict:
             cp_logits, cp_accr = self._changePointNet(x_nxt, target=target.cp_logits)
             outs=outs._replace(cp_logits=cp_logits)
+            cp_accr_detached=cp_accr._replace(loss_cp=cp_accr.loss_cp.items())
         else:
-            cp_accr=None
+            cp_accr_detached=None
         if not self.enable_tbptt:
             lossBack+= loss_inner.loss_main
+            accr=accr._replace(loss_main=loss_inner.loss_main.item())
         if not self.enable_tbptt and self.params.cp_predict: 
             lossBack+=cp_accr.loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
         lossBack.backward()
-        return outs, t_results(t_accr=t_accr(loss_main=loss_inner.loss_main, loss_aux=loss_inner.loss_aux.detach()), t_cp_accr=cp_accr)
-
-    
-    
-    
-
-    
-
-    
-            
+        return outs, t_results(t_accr=accr, t_cp_accr=cp_accr_detached)
