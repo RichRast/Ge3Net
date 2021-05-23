@@ -8,6 +8,7 @@ import os
 import os.path as osp
 import allel
 import copy
+from typing import Tuple, List
 from src.utils.decorators import guardAgainstDivideZero
     
 def load_path(path, en_pickle=False, en_df=False):
@@ -96,6 +97,9 @@ def square_normalize(y_pred):
     """
     square normalize a tensor with 3 dimensions - x, y and z
     used for normalizing for Geographical n vector
+    >>> square_normalize(torch.Tensor([[[1.0,3.0,5.0],[1.0,3.0,2.0]]]))
+    tensor([[[0.1690, 0.5071, 0.8452],
+             [0.2673, 0.8018, 0.5345]]])
     """
     eps=1e-4
     y_pred_square = torch.pow(y_pred, 2)
@@ -201,18 +205,34 @@ def getValueBySelection(arr, col1, val1, col2):
     This function returns the value of col2 for the row
     where col1 value matches val1 for a given 2d array arr
     """
-    return arr[np.where(arr[:,col1]==val1)[0],col2][0]
-
-def getWinInfo(chmLen, winSize):
+    return arr[np.where(arr[:,col1]==val1)[0],col2]
+    
+def getWinInfo(chmLen: int, winSize:int)->Tuple[int, int]:
     """
     Given the raw chm length and the window size, truncate the 
     last window snps and return the truncated chm length and
     number of windows
     """
     nWin = int(chmLen/winSize)
-    chmLen = winSize*nWin
-    return chmLen, nWin
+    newChmLen = winSize*nWin
+    return newChmLen, nWin
 
 @guardAgainstDivideZero
 def divide(a,b):
     return a/b
+
+def getFstIndex(pop_dict: dict, vcf_file: np.array, **kwargs)->np.array:
+    """
+    computes Fst index according to definition in 
+    https://en.wikipedia.org/wiki/Fixation_index
+    """
+    winSize=kwargs.get("winSize")
+    ...
+
+def getHudsonFst(pop_dict: dict, vcf_file: np.array)->np.array:
+    """
+    computes Fst index according to equation 3 in 
+    https://en.wikipedia.org/wiki/Fixation_index
+
+    """
+    ...

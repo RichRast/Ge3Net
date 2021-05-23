@@ -6,6 +6,7 @@ import allel
 import os.path as osp
 from pyadmix.utils import get_chm_info, build_founders, create_non_rec_dataset, write_output 
 from src.utils.dataUtil import save_file, getValueBySelection, load_path
+from typing import List
 
 def filter_reference_file(ref_sample_map, verbose=True):
     """
@@ -124,7 +125,7 @@ def getLabelsPath(geno_type, expt_id, method):
         os.makedirs(data_out_path , exist_ok=True)
     return data_out_path
 
-def getSampleNames(pop_arr: np.array, admixedY: np.array)-> list :
+def getSampleNames(pop_arr: np.ndarray, admixedY: np.ndarray)-> List :
 
     samples =[]
     for i in range(admixedY.shape[0]):
@@ -170,7 +171,7 @@ def getAdmixedCombineChm(*args, **kwargs):
                  prevAdmixed=admixed_samples_start, foundersIdx=foundersIdx)
             write_output(save_path_chm, admixed_samples)
         
-def getSuperpopBins(pop_arr: np.array, labels_path:str, preds: np.array)->np.array:
+def getSuperpopBins(pop_arr: np.ndarray, labels_path:str, preds: np.ndarray)->np.ndarray:
     """
     compute distance of preds from labels and assign the bin to the closest label
     for a single example or a batch of examples
@@ -195,7 +196,12 @@ def getSuperpopBins(pop_arr: np.array, labels_path:str, preds: np.array)->np.arr
     mappedSpArr=np.array(mappedSp)
     return mappedSpArr
 
-def getL2DistancePops():
+def getPairwiseDistancePops(**kwargs):
+    """
+    compute pairwise distance of populations across the windowed
+    dimension
+    """
+    distMetric=kwargs('distMetric')
     ...
 
 

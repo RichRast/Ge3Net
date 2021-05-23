@@ -21,7 +21,7 @@ def plot_coordinates_map(label, data_coordinates, lbl_coord, rev_pop_order, pop_
 
     for i in label_list:
         idx=np.nonzero(label==i)[0]
-        popIdx = getValueBySelection(pop_arr, 1, i, 2)
+        popIdx = getValueBySelection(pop_arr, 1, i, 2)[0]
         fig.add_trace(go.Scattergeo(lon=data_coordinates[idx,1], lat=data_coordinates[idx,0]\
                                         ,text = rev_pop_order[popIdx], name = rev_pop_order[popIdx]))
         fig.update_traces(marker_size = 5)
@@ -267,3 +267,12 @@ class Plot_per_epoch(object):
         plt.close('all')
         return fig, fig_geo
 
+def plotAlleleCounts2Pops(ac1: np.ndarray, ac2:np.ndarray):
+    """
+    Rough check for relation between two pops
+    """
+    plt.scatter(ac1, ac2)
+    plt.show()
+
+def plotFst(Fst):
+    ...

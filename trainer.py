@@ -1,13 +1,11 @@
-import os
 import os.path as osp
 import logging
-import sys
 from src.models import LSTM, AuxiliaryTask, Conv, Attention, Transformer, BasicBlock, Model_A, \
 Model_B, Model_C
 # Model_D, Model_E, \
 # Model_F, Seq2Seq, Model_G, Model_H, Model_I, Model_J, Model_K, Model_L, Model_M, Model_N, Model_O
 from src.utils.modelUtil import save_checkpoint, load_model, early_stopping, Params,\
-     weight_int, custom_opt, CustomDataParallel
+     weight_int, custom_opt, CustomDataParallel, countParams
 from src.utils.dataUtil import set_logger, load_path
 from src.utils.labelUtil import repeat_pop_arr
 from src.utils.decorators import timer
@@ -37,13 +35,14 @@ def main(config, params, trial=None):
         # cudnn benchmark enabled for memory space optimization
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.enabled = True
-        
+  
     if config['log.verbose']:
         # Set the logger
-        set_logger(config['log.dir'])
-        # use the major version only
-        wandb.init(project=''.join([str(params.model)]), config=params, allow_val_change=True)
+        set_logger(config['models.dir'])
+        wandb.init(project='Ge3Net', config=params, allow_val_change=True)
+        wandb.run.name='_'.join([str(params.model), str(config['model.summary'])])
         # params=wandb.config
+    
         
     # configure device
     params.device = torch.device(config['cuda'] if params.cuda else 'cpu')
@@ -52,16 +51,17 @@ def main(config, params, trial=None):
     # Create the input data pipeline
     logging.info("Loading the datasets...")
 
-    labels_path = config['data.labels_dir']
+    labels_path = config['data.labels']
     training_dataset = Haplotype('train', params, labels_path)
     validation_dataset = Haplotype('valid', params, labels_path)
-    test_dataset = Haplotype('test', params, labels_path)
     
-    training_generator = torch.utils.data.DataLoader(training_dataset, batch_size=params.batch_size, shuffle=True,
-                                                    num_workers=0)
-    validation_generator = torch.utils.data.DataLoader(validation_dataset, batch_size=params.batch_size, num_workers=0)
-
-    test_generator = torch.utils.data.DataLoader(test_dataset, batch_size=params.batch_size, num_workers=0)
+    
+    training_generator = torch.utils.data.DataLoader(training_dataset, batch_size=params.batch_size, shuffle=True, num_workers=0, pin_memory=True)
+    validation_generator = torch.utils.data.DataLoader(validation_dataset, batch_size=params.batch_size, num_workers=0, pin_memory=True)
+    test_generator=None
+    if params.evaluateTest:
+        test_dataset = Haplotype('test', params, labels_path)
+        test_generator = torch.utils.data.DataLoader(test_dataset, batch_size=params.batch_size, num_workers=0, pin_memory=True)
      
     # Initiate the class for plotting per epoch
     plotObj=None
@@ -79,6 +79,7 @@ def main(config, params, trial=None):
     
     model_params =[]
     middle_models=[]
+    count_params=[]
     
     for i, model_basic in enumerate(model_basics):
         params_dict={}
@@ -99,13 +100,16 @@ def main(config, params, trial=None):
         params_dict['lr'] = params.learning_rate[i]
         params_dict['weight_decay'] = params.weight_decay[i]
         model_params.append(params_dict)
-    
+        m_params_count=countParams(m)
+        print(f"Parameter count for model {model_basic}:{m_params_count}")
+        count_params.append(m_params_count)
+    # Total number of parameters
+    print(f"Total parameters:{sum(count_params)}")
+
     # initialize the weights and biases of models
     for m in middle_models:
         m.apply(weight_int)
         
-    # Total number of parameters
-
     if config['log.verbose']:
         #watch all the models
         for m in middle_models:
@@ -116,11 +120,11 @@ def main(config, params, trial=None):
     model = eval(model_subclass[0])(*middle_models, params=params)
 
     if config['model.pretrained']:
-        model_path = osp.join(config['model.working_dir'], config['model.pretrained_version'], 'best.pt')
+        model_path = osp.join(config['model.pretrained_version'], 'models_dir')
         #model_main, model_aux, start_epoch, optimizer = load_model(model_path, model_aux, model_main, optimizer)
 
     training_loop(model, model_params, middle_models, params, config, training_generator, \
-        validation_generator, test_generator, plotObj, wandb)    
+        validation_generator, plotObj=plotObj, wandb=wandb, test_generator=test_generator, trial=trial)    
    
 def epoch_logger(wandb, phase, result, epoch, geography, cp_predict, superpop_predict):
     wandb.log({f"{phase}_metrics":result.t_accr._asdict(), "epoch":epoch})
@@ -132,8 +136,11 @@ def epoch_logger(wandb, phase, result, epoch, geography, cp_predict, superpop_pr
         wandb.log({f"{phase}_metrics":result.t_sp_accr._asdict(), "epoch":epoch})
     
 @timer
-def training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, \
-    test_generator, plotObj, wandb):
+def training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, **kwargs):
+    plotObj=kwargs.get('plotObj')
+    wandb=kwargs.get('wandb')
+    test_generator=kwargs.get('test_generator')
+    trial=kwargs.get('trial')
      # optimizer
     optimizer = torch.optim.Adam(model_params)
     #custom_optimizer = custom_opt(optimizer, d_model=params.att['input_size'], \
@@ -152,11 +159,6 @@ def training_loop(model, model_params, middle_models, params, config, training_g
         eval_result = model.valid(validation_generator, plotObj=plotObj, wandb=wandb)
         plt.close('all')
         
-        # Todo user partial here
-        if wandb is not None:
-            epoch_logger(wandb, "train", train_result, epoch, params.geography, params.cp_predict, params.superpop_predict)
-            epoch_logger(wandb, "valid", eval_result, epoch, params.geography, params.cp_predict, params.superpop_predict)
-
         # every step in the scheduler is per epoch
         exp_lr_scheduler.step(eval_result.t_accr.loss_main)
         
@@ -174,10 +176,16 @@ def training_loop(model, model_params, middle_models, params, config, training_g
         
         val_prev_accr = eval_result.t_accr.loss_main
 
+        # Todo user partial here
+        if wandb is not None:
+            epoch_logger(wandb, "train", train_result, epoch, params.geography, params.cp_predict, params.superpop_predict)
+            epoch_logger(wandb, "valid", eval_result, epoch, params.geography, params.cp_predict, params.superpop_predict)
+            wandb.log({f"val best accuracy":best_val_accr, "epoch":epoch})
+
         # saving a model at every epoch
         print(f"Saving at epoch {epoch}")
         print(f'train accr: {train_result.t_accr.loss_main}, val accr: {eval_result.t_accr.loss_main}')
-        checkpoint = config['model.working_dir']
+        checkpoint = osp.join(config['models.dir'], 'models_dir')
         models_state_dict = [middle_models[i].state_dict() for i in range(len(middle_models))]
 
         save_checkpoint({
@@ -188,21 +196,18 @@ def training_loop(model, model_params, middle_models, params, config, training_g
             'train_accr': train_result._asdict()
             }, checkpoint, is_best=is_best)
         
-        
         try:
             if epoch==start_epoch: 
-                params.save(''.join([config['log.dir'], 'params.json']))
+                params.save(''.join([config['models.dir'], '/params.json']))
                 print(f"saving params at epoch:{epoch}")
         except Exception as e:
             print(f"exception while saving params:{e}")
             pass
 
-        if epoch%20==0:
+        if params.evaluateTest and epoch%20==0:
             test_result = model.valid(test_generator, plotObj=plotObj, wandb=wandb)
-        plt.close('all')
-        
-        if wandb is not None:
-            epoch_logger(wandb, "test", test_result, epoch, params.geography, params.cp_predict, params.superpop_predict)
+            plt.close('all')
+            if wandb is not None: epoch_logger(wandb, "test", test_result, epoch, params.geography, params.cp_predict, params.superpop_predict)
         
         if params.hyper_search_type=='optuna':    
             trial.report(eval_result.accr.weighted_loss, epoch)

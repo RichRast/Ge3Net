@@ -4,6 +4,8 @@ import os
 import shutil
 import os.path as osp
 import numpy as np
+import snoop
+import pdb
 
 def weight_int(m):
     if isinstance(m, torch.nn.LSTM):
@@ -93,9 +95,9 @@ def early_stopping(val_this_accr, val_prev_accr, patience, thresh):
 
 def convert_nVector(lat, lon):
     """
-    Not to be used for a batch.
-    util function to use for a single or a few examples 
-    one at a time
+    Used for a batch of numpy matrix
+    >>> convert_nVector(np.array([[54.00366 ,64.49884603]]), np.array([[-2.547855, 26.2746656]]))
+
     """
     # lat, lon = coord_map
     lat *= np.pi / 180
@@ -111,6 +113,9 @@ def convert_nVector(lat, lon):
     return nVector
 
 def convert_coordinates(*nVector):
+    """
+    >>> convert_coordinates()
+    """
     xcord, ycord, zcord = nVector
     coord_x = np.arctan2(zcord, np.hypot(xcord, ycord)) * 180 / np.pi
     coord_y = np.arctan2(ycord, xcord) * 180 / np.pi
@@ -126,12 +131,14 @@ def split_batch(seq_batch, bptt):
     """
     batch_splits = seq_batch.split(bptt, dim=1)
     return batch_splits
-    
+
+@snoop    
 def activate_mc_dropout(*models):
     for model in models:
         for m in model.modules():
             if m.__class__.__name__.startswith('Dropout'):
                 m.train()
+                pdb.set_trace()
 
 class custom_opt():
     """
@@ -166,3 +173,6 @@ class CustomDataParallel(torch.nn.DataParallel):
             return super().__attr__(name)
         except AttributeError:
             return getattr(self.module, name)
+
+def countParams(m):
+    return sum(p.numel() for p in m.parameters() if p.requires_grad)

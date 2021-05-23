@@ -13,34 +13,33 @@ import pdb
 import snoop
 
 class Haplotype(Dataset):
+    @snoop
+    @timer
     def __init__(self, dataset_type, params, labels_path):
         if dataset_type not in ["train", "valid", "test", "no_label"]:
             raise ValueError
         
         self.params = params
-        
-        if dataset_type=="train":
+        self.dataset_type=dataset_type
+        self.labels_path=labels_path
+        if self.dataset_type=="train":
             self.gens_to_ret =  self.params.train_gens
-        elif dataset_type=="valid":
+        elif self.dataset_type=="valid":
             self.gens_to_ret =  self.params.valid_gens
-        elif dataset_type=="test":
+        elif self.dataset_type=="test":
             self.gens_to_ret =  self.params.test_gens
         
-        logging.info(f" Loading {dataset_type} Dataset")
-
-        # can add more here, example granular_pop is not being used
-        self.data = {'X':None, 'y':None, 'y_vcf_idx':None, 'cps':None, 'superpop':None, 'granular_pop':None}
-        
-        if labels_path is None:
+        logging.info(f" Loading {self.dataset_type} Dataset")
+        if self.labels_path is None:
             logging.info(f'Loading snps data')
-            self.snps = load_path(osp.join(labels_path, str(dataset_type),'mat_vcf_2d.npy'))
-            logging.info(f"snps data shape : {self.data['X'].shape}")
+            self.snps = load_path(osp.join(self.labels_path, str(self.dataset_type),'mat_vcf_2d.npy'))
+            logging.info(f"snps data shape : {self.snps.shape}")
         else:
             for i, gen in enumerate(self.gens_to_ret):
                 logging.info(f"Loading gen {gen}")
-                curr_snps = load_path(osp.join(labels_path, str(dataset_type) ,'gen_' + str(gen), 'mat_vcf_2d.npy'))
+                curr_snps = load_path(osp.join(self.labels_path, str(self.dataset_type) ,'gen_' + str(gen), 'mat_vcf_2d.npy'))
                 logging.info(f' snps data: {curr_snps.shape}')
-                curr_vcf_idx = load_path(osp.join(labels_path , str(dataset_type) ,'gen_' + str(gen) ,'mat_map.npy'))
+                curr_vcf_idx = load_path(osp.join(self.labels_path , str(self.dataset_type) ,'gen_' + str(gen) ,'mat_map.npy'))
                 logging.info(f' y_labels data :{curr_vcf_idx.shape}')
 
                 if i>0:
@@ -51,18 +50,16 @@ class Haplotype(Dataset):
                     self.vcf_idx = curr_vcf_idx
    
         chmlen, n_win = getWinInfo(self.snps.shape[1], self.params.win_size)
-        params.n_win = n_win
-        params.chmlen = chmlen
-        self.data['X'] = torch.tensor(self.snps[:,:chmlen]).float()
-
-        if labels_path is not None:
-            pop_sample_map = pd.read_csv(osp.join(labels_path, self.params.pop_sample_map), sep='\t')
+        self.n_win = params.n_win = n_win
+        self.chmlen = params.chmlen = chmlen
+        
+        if self.labels_path is not None:
+            pop_sample_map = pd.read_csv(osp.join(self.labels_path, self.params.pop_sample_map), sep='\t')
             self.pop_arr = repeat_pop_arr(pop_sample_map)
-            self.coordinates = load_path(osp.join(labels_path, self.params.coordinates), en_pickle=True)
-            self.load_data(chmlen, n_win)
+            self.coordinates = load_path(osp.join(self.labels_path, self.params.coordinates), en_pickle=True)
         
     def __len__(self):
-        return len(self.data['X']) 
+        return len(self.snps) 
     
     def mapping_func(self, arr, b, dim):
         """
@@ -111,27 +108,28 @@ class Haplotype(Dataset):
         result = torch.tensor(result).float()
         return result
 
-    @snoop
-    @timer
-    def load_data(self, chmlen, n_win):        
+    def load_data(self, vcf_idx):        
         # take the mode according to windows for labels
         # map to coordinates according to ref_idx
         logging.info("Transforming the data")
-        y_tmp = torch.tensor(self.vcf_idx[:,:chmlen])
-        y_tmp = y_tmp.reshape(-1, n_win, self.params.win_size)
-        self.data['y_vcf_idx'] = (torch.mode(y_tmp, dim=2)[0]).detach().cpu().numpy()
+        # can add more here, example granular_pop is not being used
+        data = {'X':None, 'y':None, 'y_vcf_idx':None, 'cps':None, 'superpop':None, 'granular_pop':None}
         
-        self.data['y'] = self.mapping_func(self.data['y_vcf_idx'], self.coordinates, self.params.dataset_dim)
-        self.data['superpop'] = self.pop_mapping(self.data['y_vcf_idx'], self.pop_arr, type='superpop')
-        self.data['granular_pop'] = self.pop_mapping(self.data['y_vcf_idx'], self.pop_arr, type='granular_pop')
+        y_tmp = torch.tensor(vcf_idx)
+        y_tmp = y_tmp.reshape(-1, self.n_win, self.params.win_size)
+        data['y_vcf_idx'] = (torch.mode(y_tmp, dim=2)[0]).detach().cpu().numpy()
+        
+        data['y'] = self.mapping_func(data['y_vcf_idx'], self.coordinates, self.params.dataset_dim)
+        data['superpop'] = self.pop_mapping(data['y_vcf_idx'], self.pop_arr, type='superpop')
+        data['granular_pop'] = self.pop_mapping(data['y_vcf_idx'], self.pop_arr, type='granular_pop')
         
         if self.params.cp_detect:
             # if the only gen is gen 0 then there will be no changepoints with founders
             assert max(self.gens_to_ret)>0, "No changepoints will be found. Feeding only founders."
-            cps = self.data['granular_pop'][:,:-1]-self.data['granular_pop'][:,1:] #window dim is 1 less
-            assert cps.sum()!=0, "No changepoints found. Check the input file"
+            cps = data['granular_pop'][:,:-1]-data['granular_pop'][:,1:] #window dim is 1 less
+            # assert cps.sum()!=0, "No changepoints found. Check the input file
             # find window indices where diff for any dim !=0
-            cps_copy = torch.zeros_like(self.data['granular_pop'], dtype=torch.uint8)
+            cps_copy = torch.zeros_like(data['granular_pop'], dtype=torch.uint8)
             cps_idx = torch.nonzero(cps)
             cps_copy[cps_idx[:,0], cps_idx[:,1]] = 1
             for i in range(1,self.params.cp_tol+1):
@@ -141,17 +139,15 @@ class Haplotype(Dataset):
                 else:
                     cpsWin = list(map(lambda x: max(x-tolVal, 0), cps_idx[:,1]))
                 cps_copy[cps_idx[:,0], cpsWin] = 1
-            self.data['cps'] = cps_copy
+            data['cps'] = cps_copy
             del cps, cps_copy
         else:
-            self.data['cps'] = torch.zeros_like(self.data['granular_pop'])
+            data['cps'] = torch.zeros_like(data['granular_pop'])
         
-        torch.cuda.empty_cache()
+        return data
     
     def __getitem__(self, idx):
-        ls =[]
-        for k, v in self.data.items():
-            ls.append(self.data[k][idx])
-        return ls
-
-
+        if self.labels_path is not None:
+            data = self.load_data(self.vcf_idx[idx,:self.chmlen])
+        data['X'] = torch.tensor(self.snps[idx,:self.chmlen]).float()
+        return list(data.values())

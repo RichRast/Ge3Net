@@ -117,7 +117,7 @@ sbatch<<EOT
 #SBATCH -c 1
 #SBATCH --mem=1000G
 #SBATCH -t 24:00:00
-#SBATCH --output=$OUT_PATH/build_labels_gt_${geno_type}_sm_${sample_map}_exp_${exp_id}_seed_${seed}_um_$unsupMethod.out
+#SBATCH --output=$OUT_PATH/${geno_type}/labels/data_id_${exp_id}_$unsupMethod/log.out
 
 ml load py-pytorch/1.4.0_py36
 ml load py-scipy/1.4.1_py36
@@ -146,7 +146,7 @@ EOT
 sleep .5
 squeue -u richras
 sleep .5
-less +F $OUT_PATH/build_labels_gt_${geno_type}_sm_${sample_map}_exp_${exp_id}_seed_${seed}_um_$unsupMethod.out
+less +F $OUT_PATH/${geno_type}/labels/data_id_${exp_id}_$unsupMethod/log.out
 
 # sample command from the terminal directly 
 # cd /home/users/richras/Ge2Net_Repo

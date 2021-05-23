@@ -1,10 +1,7 @@
 import torch
 from src.models.Model_B import model_B
-from src.utils.decorators import timer
-from src.utils.modelUtil import split_batch
-from src.utils.dataUtil import square_normalize, get_gradient
-from src.main.evaluation import SmoothL1Loss, Weighted_Loss, GcdLoss, \
-    gradient_reg, eval_cp_batch, t_accr, t_out, t_cp_accr, t_results, Running_Average
+from src.utils.dataUtil import get_gradient
+
 
 class model_C(model_B):
     _network=['aux', 'lstm', 'cp']

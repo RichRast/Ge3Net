@@ -12,6 +12,7 @@ t_accr = namedtuple('t_accr', ['l1_loss', 'mse_loss', 'smoothl1_loss', 'weighted
 t_accr.__new__.__defaults__=(None,)*len(t_accr._fields)
 t_out = namedtuple('t_out', ['coord_aux','coord_main', 'cp_logits', 'y_var', 'sp'])
 t_out.__new__.__defaults__=(None,)*len(t_out._fields)
+t_rnnResults = namedtuple('t_rnnResults', ['out', 'out_nxt', 'loss_main'])
 t_balanced_gcd = namedtuple('t_balanced_gcd', ['median_gcd', 'meanBalancedGcdSp', \
     'meanBalancedGcdGp', 'medianBalancedGcdSp', 'medianBalancedGcdGp'])
 t_balanced_gcd.__new__.__defaults__=(None,)*len(t_out._fields)
@@ -19,19 +20,20 @@ t_results = namedtuple('t_results',['t_accr', 't_cp_accr', 't_sp_accr', 't_out',
 t_results.__new__.__defaults__=(None,)*len(t_results._fields)
 
 
-def eval_cp_matrix(true_cps, pred_cps, seq_len = 317, win_tol=2):
+def eval_cp_matrix(true_cps, pred_cps, seq_len, win_tol=2):
     """
     For a given haplotype, compute the accuracy metrics for changepoint
     true_cp = np.array of true cp indices
     pred_cp = np.array of predicted cp indices
     win_tol = +/- tolerance for location and count of cp
     
-    >>> eval_cp_matrix(true_cps=np.array([3,2]), pred_cps=np.array([4,1]))
-    (1.0, 1.0, array([[1., 2.],[2., 1.]]))
+    >>> eval_cp_matrix(true_cps=np.array([3,2]), pred_cps=np.array([4,1]), seq_len=317)
+    (1.0, 1.0, 1.0, 1.0, 1.0, array([[1., 2.],
+           [2., 1.]]))
 
-    >>> eval_cp_matrix(true_cps=np.array([3,2]), pred_cps=np.array([4,1,5,6]))
-    (0.6666666666666666, 1.0, array([[1., 2., 3., 4.],
-       [2., 1., 2., 3.]]))
+    >>> eval_cp_matrix(true_cps=np.array([3,2]), pred_cps=np.array([4,1,5,6]),seq_len=317)
+    (0.6666666666666666, 1.0, 0.9968454258675079, 0.9968253968253968, 0.9984126984126984, array([[1., 2., 3., 4.],
+           [2., 1., 2., 3.]]))
     """
 
     TP_count = 0
@@ -40,7 +42,7 @@ def eval_cp_matrix(true_cps, pred_cps, seq_len = 317, win_tol=2):
     n = len(true_cps)
     m = len(pred_cps)
     total_count = seq_len
-
+    assert total_count!=0, "check input, sequence length in eval_cp is 0"
     # assert statement to make sure fill_value > win_tol
     distance_matrix = np.full((n,m), fill_value=np.inf)
 
@@ -81,7 +83,7 @@ def eval_cp_matrix(true_cps, pred_cps, seq_len = 317, win_tol=2):
 
     return Precision, Recall, Accuracy, A_no_cp, Balanced_Accuracy, distance_matrix
 
-def eval_cp_batch(cp_target, cp_pred, seq_len = 317, win_tol=2):
+def eval_cp_batch(cp_target, cp_pred, seq_len, win_tol=2):
     """
     cp_pred : [Batch_size X T]
     1 for cp and 0 for no cp
@@ -121,11 +123,14 @@ class SmoothL1Loss():
         self.beta = beta
         self.reduction = reduction
 
-    def __call__(self, input_y, target, device):
-        tensor_1 = torch.tensor([1.0]).to(device)
-        tensor_0 = torch.tensor([0.0]).to(device)
-        mask = torch.where((input_y-target)<self.beta, tensor_1, tensor_0)
-        rev_mask = torch.where((input_y-target)<self.beta, tensor_0, tensor_1)
+    def __call__(self, input_y, target):
+        # tensor_1 = torch.tensor([1.0]).to(device)
+        # tensor_0 = torch.tensor([0.0]).to(device)
+        # mask = torch.where((input_y-target)<self.beta, tensor_1, tensor_0)
+        # rev_mask = torch.where((input_y-target)<self.beta, tensor_0, tensor_1)
+
+        mask=((input_y-target)<=self.beta)
+        rev_mask=((input_y-target)>self.beta)
         
         z1 = mask*0.5*(torch.pow((input_y-target),2)/self.beta)
         z2 = rev_mask*(abs(input_y - target) - 0.5*self.beta)
@@ -154,7 +159,7 @@ def gradient_reg(cp_detect, x, p=0.5):
     #return torch.mean(p*torch.log(torch.abs(x_diff)))
 
 class Changepoint_Metrics(object):
-    def __init__(self, name, seq_len=317, win_tol=2):
+    def __init__(self, name, seq_len, win_tol=2):
         self.Precision =None
         self.Recall = None #same as A_cp
         self.Accuracy = None

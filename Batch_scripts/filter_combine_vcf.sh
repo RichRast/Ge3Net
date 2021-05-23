@@ -86,7 +86,7 @@ sbatch<<EOT
 #SBATCH -c 1
 #SBATCH --mem=500G
 #SBATCH -t 24:00:00
-#SBATCH --output=$OUT_PATH/${geno_type}/sm_${sample_map}_chm_${filter}_combine_${combine}_chm_${start_chm}_chm_${end_chm}_sample_win_${sample_win}_ld_prune_${ld_prune}_${vcf_type}.out
+#SBATCH --output=${save_path}/log.out
 
 ml load py-pytorch/1.4.0_py36
 ml load py-scipy/1.4.1_py36
@@ -117,5 +117,5 @@ EOT
 sleep .5
 squeue -u richras
 
-echo log_dir:$OUT_PATH/${geno_type}/sm_${sample_map}_chm_${filter}_combine_${combine}_chm_${start_chm}_chm_${end_chm}_sample_win_${sample_win}_ld_prune_${ld_prune}.out
+echo log_dir:${save_path}/log.out
 exit 0

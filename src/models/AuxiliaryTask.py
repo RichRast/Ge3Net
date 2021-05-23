@@ -70,4 +70,35 @@ class AuxNetwork(nn.Module):
 
         return out_1, out_2, out_3, out_4
 
+class BaseNetwork(nn.Module):
+    def init(self, params):
+        super(BaseNetwork, self).__init__()
+        self.batch_size = params.batch_size
+        self.input = params.win_size
+        self.output = params.aux_net_out
+        self.hidden_unit = params.aux_net_hidden
+        self.n_win = params.n_win
+        self.linears = nn.ModuleList([nn.Linear(self.input, self.hidden_unit) for _ in range(self.n_win)])
+        self.dropout = nn.Dropout(p=params.aux_net_dropout)
+        self.layernorm = nn.LayerNorm(self.hidden_unit)
+        self.relu = nn.LeakyReLU(params.leaky_relu_slope)
+    def forward(self, x):
+        out_1 = torch.zeros([x.shape[0], self.hidden_unit, self.n_win]).to(self.device)
+
+        for i in range(self.n_win):
+            out_1[:, 0:self.hidden_unit, i] = self.linears[i](x[:, i * self.input:(i + 1) * self.input].clone())
+
+        out_1 = self.dropout(out_1)  # shape 256x100x317
+
+        out_1 = out_1.permute(0, 2, 1)  # shape 256x317x100
+        out_1 = out_1.contiguous()
+        out_1 = out_1.view(-1, self.hidden_unit)  # shape (256*317)x100
+        out_1 = self.layernorm(out_1)
+        out_1 = self.relu(out_1)
+
+        out_1 = out_1.view(x.shape[0], self.n_win, self.hidden_unit)  # shape 256x317x100
+        return out_1
+
+
+
 

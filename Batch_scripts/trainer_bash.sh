@@ -59,9 +59,8 @@ ml load system nvtop
 cd $USER_PATH
 python3 trainer.py  --data.params '$USER_PATH/src/main/experiments/exp_$model_type' \
 --data.geno_type $geno_type \
---model.working_dir '$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/models_dir/' \
---data.labels_dir '$OUT_PATH/$geno_type/labels/data_id_${data_id}' \
---log.dir '$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/'
+--data.labels '$OUT_PATH/$geno_type/labels/data_id_${data_id}' \
+--models.dir '$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/'
 EOT
 
 sleep .5
@@ -74,6 +73,4 @@ echo log_dir: $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id
 less +F $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
 
 # command from terminal directly
-# python3 ./src/main/trainer.py --data.params $USER_PATH/src/main/experiments/exp_A --data.gen
-# o_type dogs --model.working_dir $OUT_PATH/dogs/training/Model_A_exp_id_1_data_id_1_umap/models_dir/ --data.labels_dir $OUT_PATH/dogs
-# /labels/data_id_1_umap --log.dir $OUT_PATH/dogs/training/Model_A_exp_id_1_data_id_1_umap
+# python3 trainer.py --data.params $USER_PATH/src/main/experiments/exp_A --data.geno_type humans  --data.labels $OUT_PATH/humans/labels/data_id_7_pca --models.dir $OUT_PATH/humans/training/Model_A_exp_id_1_data_id_7_pca

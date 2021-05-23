@@ -9,6 +9,7 @@
     "mc_samples":100,
     "cp_detect":true,
     "cp_tol":1,
+    "evalCp":false,
     "reg_loss":false,
     "reg_loss_pow":1.0,
     "cp_predict":true,
@@ -32,6 +33,7 @@
     
     "train_gens":[0,2,4,8],
     "valid_gens":[0,2,4,8],
+    "evaluateTest":true,
     "test_gens":[0,2,4,8],
     "win_size" :1000,
     "chmlen":81000,
