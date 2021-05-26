@@ -42,7 +42,8 @@ def main(config, params, trial=None):
         wandb.init(project='Ge3Net', config=params, allow_val_change=True)
         wandb.run.name='_'.join([str(params.model), str(config['model.summary'])])
         # params=wandb.config
-    
+    else:
+        wandb=None
         
     # configure device
     params.device = torch.device(config['cuda'] if params.cuda else 'cpu')
@@ -127,13 +128,13 @@ def main(config, params, trial=None):
         validation_generator, plotObj=plotObj, wandb=wandb, test_generator=test_generator, trial=trial)    
    
 def epoch_logger(wandb, phase, result, epoch, geography, cp_predict, superpop_predict):
-    wandb.log({f"{phase}_metrics":result.t_accr._asdict(), "epoch":epoch})
+    wandb.log({f"{phase}_metrics":result.t_accr, "epoch":epoch})
     if geography:
-        wandb.log({f"{phase}_metrics":result.t_balanced_gcd._asdict(), "epoch":epoch})
+        wandb.log({f"{phase}_metrics":result.t_balanced_gcd, "epoch":epoch})
     if cp_predict:
-        wandb.log({f"{phase}_metrics":result.t_cp_accr._asdict(), "epoch":epoch})
+        wandb.log({f"{phase}_metrics":result.t_cp_accr, "epoch":epoch})
     if superpop_predict:
-        wandb.log({f"{phase}_metrics":result.t_sp_accr._asdict(), "epoch":epoch})
+        wandb.log({f"{phase}_metrics":result.t_sp_accr, "epoch":epoch})
     
 @timer
 def training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, **kwargs):
@@ -160,21 +161,21 @@ def training_loop(model, model_params, middle_models, params, config, training_g
         plt.close('all')
         
         # every step in the scheduler is per epoch
-        exp_lr_scheduler.step(eval_result.t_accr.loss_main)
+        exp_lr_scheduler.step(eval_result.t_accr['loss_main'])
         
         # logic for best model
         is_best = False
-        if (epoch==start_epoch) or (eval_result.t_accr.loss_main < best_val_accr):
-            best_val_accr = eval_result.t_accr.loss_main
+        if (epoch==start_epoch) or (eval_result.t_accr['loss_main'] < best_val_accr):
+            best_val_accr = eval_result.t_accr['loss_main']
             is_best = True
         
         if epoch!=start_epoch:
-            patience = early_stopping(eval_result.t_accr.loss_main, val_prev_accr, patience, params.thresh)
+            patience = early_stopping(eval_result.t_accr['loss_main'], val_prev_accr, patience, params.thresh)
             if patience == params.early_stopping_thresh:
                 logging.info("Early stopping...")
                 break
         
-        val_prev_accr = eval_result.t_accr.loss_main
+        val_prev_accr = eval_result.t_accr['loss_main']
 
         # Todo user partial here
         if wandb is not None:
@@ -184,7 +185,7 @@ def training_loop(model, model_params, middle_models, params, config, training_g
 
         # saving a model at every epoch
         print(f"Saving at epoch {epoch}")
-        print(f'train accr: {train_result.t_accr.loss_main}, val accr: {eval_result.t_accr.loss_main}')
+        print(f"train accr: {train_result.t_accr['loss_main']}, val accr: {eval_result.t_accr['loss_main']}")
         checkpoint = osp.join(config['models.dir'], 'models_dir')
         models_state_dict = [middle_models[i].state_dict() for i in range(len(middle_models))]
 

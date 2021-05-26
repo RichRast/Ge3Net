@@ -44,7 +44,7 @@ sbatch << EOT
 #SBATCH -c 10
 #SBATCH -G 1
 #SBATCH -C GPU_MEM:11GB
-#SBATCH --mem=80G
+#SBATCH --mem=250GB
 #SBATCH -t 24:00:00
 #SBATCH --output=$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
 

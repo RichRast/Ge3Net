@@ -111,7 +111,6 @@ class Haplotype(Dataset):
         result = torch.tensor(result).float()
         return result
 
-    @snoop
     @timer
     def load_data(self, chmlen, n_win):        
         # take the mode according to windows for labels
@@ -144,7 +143,7 @@ class Haplotype(Dataset):
             self.data['cps'] = cps_copy
             del cps, cps_copy
         else:
-            self.data['cps'] = torch.zeros_like(self.data['granular_pop'])
+            self.data['cps'] = torch.zeros_like(self.data['granular_pop'], dtype=torch.uint8)
         
         torch.cuda.empty_cache()
     

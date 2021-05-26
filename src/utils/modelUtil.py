@@ -131,14 +131,12 @@ def split_batch(seq_batch, bptt):
     """
     batch_splits = seq_batch.split(bptt, dim=1)
     return batch_splits
-
-@snoop    
+   
 def activate_mc_dropout(*models):
     for model in models:
         for m in model.modules():
             if m.__class__.__name__.startswith('Dropout'):
                 m.train()
-                pdb.set_trace()
 
 class custom_opt():
     """

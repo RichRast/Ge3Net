@@ -4,7 +4,7 @@ from src.models.Model_A import model_A
 from src.utils.decorators import timer
 from src.utils.modelUtil import split_batch
 from src.utils.dataUtil import square_normalize, get_gradient
-from src.main.evaluation import t_accr, t_out, t_results,t_cp_accr, t_rnnResults
+from src.main.evaluation import branchLoss, modelOuts, rnnResults
 import snoop
 import pdb
 
@@ -13,7 +13,6 @@ class model_B(model_A):
     def __init__(self, *args, params):
         super().__init__(*args, params=params)
 
-    @snoop 
     def _tbtt(self, x, target, mask):
         rnn_state = None
         bptt_batch_chunks = split_batch(x.clone(), self.params.tbptt_steps)
@@ -29,12 +28,12 @@ class model_B(model_A):
             out_rnn_list.append(out_rnn_chunk)
             loss_main_chunk=self.criterion(out_rnn_chunk*cp_mask_chunk, batch_label_chunk*cp_mask_chunk)
             loss_main_list.append(loss_main_chunk.item())
-            sample_size=cp_mask_chunk[...,0].sum()
+            sample_size=cp_mask_chunk.sum()
             loss_main_chunk /=sample_size
             if self.params.cp_predict:
                 assert self.params.cp_detect, "cp detection is not true while cp prediction is true"
-                cp_logits, accr_cp = self._changePointNet(vec_64, target=cps_chunk)
-                loss_main_chunk +=accr_cp.loss_cp/(cps_chunk.shape[0]*cps_chunk.shape[1])
+                cp_logits, loss_cp = self._changePointNet(vec_64, target=cps_chunk)
+                loss_main_chunk +=loss_cp/(cps_chunk.shape[0]*cps_chunk.shape[1])
             loss_main_chunk.backward()
             # after doing back prob, detach rnn state to implement TBPTT
             # now rnn_state was detached and chain of gradients was broken
@@ -43,28 +42,28 @@ class model_B(model_A):
         loss_main=sum(loss_main_list)
         out_rnn=torch.cat(out_rnn_list, 1).detach()
         vec_64=torch.cat(vec64_list, 1).detach()
-        return out_rnn, vec_64, loss_main
+        return rnnResults(out=out_rnn, out_nxt=vec_64, loss_main=loss_main)
         
     def _rnn(self, x):
         vec_64, out_rnn, _ = self.model['lstm'](x)
-        return  out_rnn, vec_64
-    @snoop
+        return rnnResults(out=out_rnn, out_nxt=vec_64)
+    
     def _rnnNet(self, x, **kwargs):
         target=kwargs.get('target')
         mask=kwargs.get('mask')
         if self.enable_tbptt:
             out_rnn, vec_64, loss_main= self._tbtt(x, target, mask)
-            return t_rnnResults(out=out_rnn, out_nxt=vec_64, loss_main=loss_main)
+            return rnnResults(out=out_rnn, out_nxt=vec_64, loss_main=loss_main)
         else:
             out_rnn, vec_64 = self._rnn(x)
             if self.params.geography: out_rnn=square_normalize(out_rnn)
             # loss_main=self.criterion(out_rnn*mask, target.coord_main*mask) if target is not None else None
-            return t_rnnResults(out=out_rnn, out_nxt=vec_64)
+            return rnnResults(out=out_rnn, out_nxt=vec_64)
         
     def _getLossInner(self, outs, target):
         auxLoss=self.criterion(outs.coord_aux, target.coord_main)
         mainLoss=self.criterion(outs.coord_main, target.coord_main)
-        return t_accr(loss_main=mainLoss, loss_aux=auxLoss)
+        return branchLoss(loss_main=mainLoss, loss_aux=auxLoss)
 
     def _inner(self,x,**kwargs):
         target=kwargs.get('target')
@@ -77,7 +76,7 @@ class model_B(model_A):
         out_aux, x_nxt = self._auxNet(x)
         if self.params.geography: out_aux=square_normalize(out_aux)
         rnnResults = self._rnnNet(x_nxt, target=target, mask=mask)
-        outs = t_out(coord_main = rnnResults.out*mask, coord_aux=out_aux*mask)
+        outs = modelOuts(coord_main = rnnResults.out*mask, coord_aux=out_aux*mask)
         if self.enable_tbptt:
             return outs, rnnResults.out_nxt, rnnResults.loss_main
         return outs, rnnResults.out_nxt
@@ -95,13 +94,11 @@ class model_B(model_A):
         if not self.enable_tbptt:
             lossBack+= loss_main_backprop
             loss_main = loss_main_backprop.item()
-        accr = t_results(t_accr(loss_aux=loss_aux.item(), loss_main=loss_main))
+        loss_inner = branchLoss(loss_aux=loss_aux.item(), loss_main=loss_main)
         if self.params.cp_predict:
-            cp_logits, cp_accr = self._changePointNet(out_nxt, target=target.cp_logits)
-            accr=accr._replace(t_cp_accr=t_cp_accr(loss_cp=cp_accr.loss_cp.item(), Precision=cp_accr.Precision, \
-            Recall=cp_accr.Recall, BalancedAccuracy=cp_accr.BalancedAccuracy))
-            outs=outs._replace(cp_logits=cp_logits)
+            cp_logits, loss_cp = self._changePointNet(out_nxt, target=target.cp_logits)
+            loss_inner.loss_cp=loss_cp.item()
+            outs.cp_logits=cp_logits
         if not self.enable_tbptt and self.params.cp_predict: 
-            lossBack+=cp_accr.loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
-        pdb.set_trace()
-        return outs, accr, lossBack
+            lossBack+=loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
+        return outs, loss_inner, lossBack
