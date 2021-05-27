@@ -68,7 +68,7 @@ class model_B(model_A):
     def _inner(self,x,**kwargs):
         target=kwargs.get('target')
         mask = kwargs.get('mask')
-        if mask is None: mask=torch.ones((x.shape[0],self.params.n_win,1), dtype=torch.uint8, device=self.params.device)
+        if mask is None: mask=1
         self.enable_tbptt=False
         if self.params.tbptt and any([m.training for m in list(self.model.values())]):
             # print("{}bling tbtt".format("ena" if self.params.tbptt and any([m.training for m in list(self.model.values())]) else "disa"))

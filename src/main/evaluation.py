@@ -78,7 +78,7 @@ def eval_cp_matrix(true_cps, pred_cps, seq_len, win_tol=2):
         FP_count = np.prod(matches_mask, axis=0).sum()
         FN_count = np.prod(matches_mask, axis=1).sum()
         TP_count = n-FN_count
-        
+
     TN_count = total_count - (TP_count + FP_count + FN_count)
     return TP_count, FP_count, FN_count, TN_count, distance_matrix
 
@@ -121,7 +121,7 @@ def computePrMetric(prCounts):
         return np.divide(num, den, out = np.ones_like(num), where =den!=0)
 
     Precision = getMetric(num=TP, den=TP+FP)
-    Recall = getMetric(num=TP, den=TP+TN)
+    Recall = getMetric(num=TP, den=TP+FN)
     Accuracy = getMetric(num=TP+TN, den=total_count)
     A_major=getMetric(num=TN, den=TN+FP)
     BalancedAccuracy=0.5*(Recall+A_major)
