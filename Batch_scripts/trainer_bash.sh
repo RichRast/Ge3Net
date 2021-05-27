@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# sample command ./Batch_scripts/trainer_bash.sh -gt dogs -e 7 -d 1_umap -m D
+# sample command ./Batch_scripts/trainer_bash.sh -gt dogs -e 7 -d 1_umap -m D -sum "umap run"
 source ini.sh
 
 Help()
@@ -13,6 +13,7 @@ Help()
     echo "-e|--expt_id     Specify the experiment number for Ge2Net training to run, example 3 "
     echo "-d|--data_id     Specify the data experiment number to run, example 3 "
     echo "-m|--model       Specify the model type and mjor version, example: D6"
+    echo "-sum|--summary  Specify summary or description of this run"
     echo "-h|--help        Print this help"
     echo
 }
@@ -23,6 +24,7 @@ while [[ $# -gt 0 ]]; do
     -d | --data_id ) shift ; data_id=$1 ;;
     -e | --expt_id ) shift ; expt_id=$1 ;;
     -m | --model ) shift ; model_type=$1 ;;
+    -sum | --summary ) shift ; model_summary=$1 ;;
     -h | --help ) Help ; exit ;;
     \? ) echo "Error: Invalid option"; exit 1;;
     esac; shift
@@ -60,7 +62,8 @@ cd $USER_PATH
 python3 trainer.py  --data.params '$USER_PATH/src/main/experiments/exp_$model_type' \
 --data.geno_type $geno_type \
 --data.labels '$OUT_PATH/$geno_type/labels/data_id_${data_id}' \
---models.dir '$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/'
+--models.dir '$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/' \
+--model.summary $model_summary
 EOT
 
 sleep .5

@@ -29,8 +29,8 @@ class model_A(object):
         runAvgObj={metric:Running_Average() for metric in lossesLs}
         cpRunAvgObj=None
         if self.params.cp_predict:
-            cpMetricLs=branchLosses[-1]
-            if self.params.evalCp:cpMetricLs +=t_prMetrics._fields 
+            cpMetricLs=[branchLosses[-1]]
+            if self.params.evalCp:cpMetricLs +=t_prMetrics._fields
             cpRunAvgObj={metric:Running_Average() for metric in cpMetricLs}
         return runAvgObj, cpRunAvgObj
 
@@ -86,7 +86,7 @@ class model_A(object):
                 self._logger(wandb, batchAvg=trainBatchAvg, batch_num=i)
                 # idx = np.random.choice(train_x.shape[0],1)[0]
                 idx=30
-                idxSample, idxLabel, idxVcf_idx = self._getSample(out=train_outs, label=train_labels, vcf_idx=vcf_idx, idx=idx)
+                idxSample, idxLabel, idxVcf_idx = self._getSample(out=train_outs.coord_main, label=train_labels.coord_main, vcf_idx=vcf_idx, idx=idx)
                 if plotObj is not None and random.uniform(0,1)>0.5: self._plotSample(wandb, plotObj, idxSample=idxSample, \
                     idxLabel=idxLabel, idx=idx, idxVcf_idx=idxVcf_idx)
             del train_x, train_y, cps
@@ -101,8 +101,6 @@ class model_A(object):
         wandb = kwargs.get('wandb')
         plotObj = kwargs.get('plotObj')
         valRunAvgObj, valCpRunAvgObj = self.getRunningAvgObj()
-        # valRunAvgObj = {k:Running_Average() for k in self.losses}
-        # valCpRunAvgObj = {k:Running_Average() for k in t_prMetrics._fields}
         valGcdBalancedMetrics=balancedMetrics() if self.params.geography else None
         valPredLs, valVarLs=[],[]
 
@@ -122,7 +120,7 @@ class model_A(object):
 
             val_outs_list, x_nxt_list, val_aux_list=[],[],[]
             for _ in range(self.params.mc_samples):
-                val_outs, x_nxt = self._inner(val_x, target=val_labels)
+                val_outs, x_nxt = self._inner(val_x)
                 # only collect and mc dropout for the main network
                 val_outs_list.append(val_outs.coord_main)
                 val_aux_list.append(val_outs.coord_aux)
@@ -159,7 +157,7 @@ class model_A(object):
                 self._logger(wandb, batchAvg=valBatchAvg, batch_num=i)
                 # idx = np.random.choice(val_x.shape[0],1)[0]
                 idx=30
-                idxSample, idxLabel, idxVcf_idx = self._getSample(out=val_outs, label=val_labels, vcf_idx=vcf_idx, idx=idx)
+                idxSample, idxLabel, idxVcf_idx = self._getSample(out=val_outs.coord_main, label=val_labels.coord_main, vcf_idx=vcf_idx, idx=idx)
                 if plotObj is not None : self._plotSample(wandb, plotObj, idxSample=idxSample, \
                     idxLabel=idxLabel, idx=idx, idxVcf_idx=idxVcf_idx)
             del val_x, val_y, cps, val_labels
@@ -208,7 +206,7 @@ class model_A(object):
             #logging
             if wandb:
                 idx = 0
-                idxSample = self._getSample(out=outs, idx=idx)
+                idxSample = self._getSample(out=outs.coord_main, idx=idx)
                 self._plotSample(idxSample=idxSample)
                 if plotObj is not None: self._plotSample(wandb, plotObj, idxSample=idxSample, idx=idx)
         del data_x  
@@ -235,10 +233,9 @@ class model_A(object):
         return out4, out_nxt
     
     def _inner(self, x, **kwargs):
-        target=kwargs.get('target')
         mask = kwargs.get('mask')
-        if mask is None and target is not None:
-            mask=torch.ones_like(target.cp_logits, dtype=torch.uint8)
+        if mask is None:
+            mask = 1
         out_aux, out_nxt = self._auxNet(x)
         if self.params.geography: out_aux= square_normalize(out_aux)
         outs = modelOuts(coord_main = out_aux*mask, coord_aux= out_aux*mask)
@@ -250,7 +247,7 @@ class model_A(object):
         return branchLoss(loss_main=mainLoss, loss_aux=auxLoss)
     
     def _outer(self, x, target, mask):
-        outs, out_nxt= self._inner(x, target=target, mask=mask)
+        outs, out_nxt= self._inner(x, mask=mask)
         loss_inner=self._getLossInner(outs, target)
         sample_size=mask.sum()
         lossBack=loss_inner.loss_aux/sample_size
@@ -296,15 +293,16 @@ class model_A(object):
             cp_pred = (torch.sigmoid(y.cp_logits)>cpThresh).int()
             cp_pred=cp_pred.squeeze(2) 
             if self.params.evalCp:
-                prCounts= eval_cp_batch(y.cp_logits.squeeze(2), cp_pred, self.params.n_win)
+                prCounts= eval_cp_batch(target.cp_logits.squeeze(2), cp_pred, self.params.n_win)
                 prMetrics = self.option['cpMetrics']['prMetric'](prCounts)
                 batchCpLoss={**batchCpLoss, **prMetrics}
 
             # update the running avg object
-            cpSampleSize=target.cp_logits.shape[0]*target.cp_logits.shape[1]
+            numSamples=target.cp_logits.shape[0]
+            numWin=target.cp_logits.shape[1]
             for key, val in cpRunAvgObj.items():
                 if batchCpLoss.get(key) is not None:
-                    val.update(batchCpLoss[key], cpSampleSize)
+                    val.update(batchCpLoss[key], (lambda x: numSamples*numWin if x=="loss_cp" else numSamples) (key))
             batchCpAvg={metric:cpRunAvgObj.get(metric)() if batchCpLoss.get(metric) is not None else None for metric in cpRunAvgObj}
             del batchCpLoss
         torch.cuda.empty_cache()
@@ -339,10 +337,8 @@ class model_A(object):
         data_vcf_idx=kwargs.get('vcf_idx')
         target=kwargs.get('label')
         y=kwargs.get('out')
-        target_idx = target.coord_main[idx,...].detach().cpu().numpy().reshape(-1, self.params.dataset_dim)
-        y_idx = y.coord_main[idx,:,:self.params.n_comp_overall].detach().cpu().numpy().reshape(-1, self.params.n_comp_overall)
-        if self.params.superpop_predict:
-            y_sp_idx = y.sp[idx,:].detach().cpu().numpy().reshape(1,-1)
+        target_idx = target[idx,...].detach().cpu().numpy().reshape(-1, self.params.dataset_dim)
+        y_idx = y[idx,:,:self.params.n_comp_overall].detach().cpu().numpy().reshape(-1, self.params.n_comp_overall)
         vcf_idx = data_vcf_idx[idx,:].detach().cpu().numpy().reshape(-1, 1)
         return y_idx, target_idx, vcf_idx
 

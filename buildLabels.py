@@ -142,7 +142,6 @@ def main(config):
         #     sample_map_lst[i], save_path, admixed_num_per_gen[i], config['data.gens_to_ret'])
 
         for i, val in enumerate(dataset_type):
-            config['data.start_chm'], config['data.end_chm']=22, 22
             start_chm=config['data.start_chm']
             end_chm=config['data.end_chm']
             save_path = osp.join(data_out_path, str(val))

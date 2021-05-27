@@ -4,6 +4,7 @@ import os
 import shutil
 import os.path as osp
 import numpy as np
+import torch.nn.functional as F
 import snoop
 import pdb
 
@@ -174,3 +175,6 @@ class CustomDataParallel(torch.nn.DataParallel):
 
 def countParams(m):
     return sum(p.numel() for p in m.parameters() if p.requires_grad)
+
+def swish(x):
+    return x * F.sigmoid(x)

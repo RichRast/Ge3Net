@@ -2,7 +2,7 @@
 source ini.sh
 
 # sample command ./Batch_scripts/build_labels.sh -gt=dogs -e=1 -sim -bl -n_o=3 -sm=expt1 -s=1234 -um=umap 
-#./Batch_scripts/build_labels.sh -gt=humans -e=1 -sim -bl -n_o=3 -um=pca -vt=ukb 
+#./Batch_scripts/build_labels.sh -gt=humans -e=1 -sim -bl -n_o=3 -um=pca -vt=ukb -st_chm=22 -ed_chm=22
 # sample_map for dogs can be expt1, a, b, c
 
 Help()
@@ -21,6 +21,8 @@ Help()
     echo "-n_o|--n_comp_overall  Specify the number of components for overall pca, typically 3"
     echo "-um|--unsupMethod      Specify which unsupervised method to use to create labels or use \"geo\" for geography "
     echo "-n_s|--n_comp_subclass Specify the number of components for subclasses for extended pca, typically 2"
+    echo "-st_chm|--start_chm   Start chm for simulation"
+    echo "-ed_chm|--end_chm     End chm for simulation"
     echo "-h|--help             Print this help manual"
     echo
 }
@@ -46,6 +48,8 @@ for argument in "$@"; do
         -n_s|--n_comp_subclass )    n_comp_subclass=$value;;
         -um|--unsupMethod )          unsupMethod=$value;;
         -vt|--vcf_type )            vcf_type=$value;;
+        -st_chm|--start_chm )       start_chm=$value;;
+        -ed_chm|--end_chm )         end_chm=$value;;
         -h |--help ) Help ; exit ;;
         \? ) echo "Error: Invalid option"; exit 1;;
     esac    
@@ -140,7 +144,9 @@ python3 buildLabels.py --data.seed $seed \
 --data.n_comp_subclass ${n_comp_subclass} \
 --data.n_comp ${n_comp} \
 --data.all_chm_snps ${all_chm_snps} \
---data.method ${unsupMethod}
+--data.method ${unsupMethod} \
+--data.start_chm ${start_chm} \
+--data.end_chm ${end_chm}
 EOT
 
 sleep .5

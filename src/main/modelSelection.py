@@ -1,7 +1,8 @@
 import torch
 import torch.nn.functional as F
-from src.main.evaluation import SmoothL1Loss, Weighted_Loss, GcdLoss, eval_cp_batch,\
-    class_accuracy, computePrMetric, t_prMetrics
+from src.main.evaluation import SmoothL1Loss, Weighted_Loss, GcdLoss,\
+    class_accuracy, computePrMetric
+from src.utils.modelUtil import swish
 
 class Selections():
     _losses={
@@ -31,6 +32,13 @@ class Selections():
         'LayerNorm': lambda input_units: torch.nn.LayerNorm(input_units),
         'BatchNorm': lambda input_units: torch.nn.BatchNorm1d(input_units),
         'GroupNorm': lambda input_units: torch.nn.GroupNorm(input_units),
+    }
+    _activation={
+        'swish':None,
+        'relu': None,
+        'leakyRelu':None,
+        'gelu':None,
+        'no_activation':None,
     }
 
     @classmethod

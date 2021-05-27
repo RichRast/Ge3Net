@@ -35,15 +35,24 @@ def main(config, params, trial=None):
         # cudnn benchmark enabled for memory space optimization
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.enabled = True
-  
+    
+    labels_path = config['data.labels']
+    plotObj=None
     if config['log.verbose']:
         # Set the logger
         set_logger(config['models.dir'])
         wandb.init(project='Ge3Net', config=params, allow_val_change=True)
         wandb.run.name='_'.join([str(params.model), str(config['model.summary'])])
         # params=wandb.config
-    else:
-        wandb=None
+
+        # Initiate the class for plotting per epoch
+        if params.plotting:
+            pop_dict = load_path(osp.join(labels_path, 'granular_pop.pkl'), en_pickle=True)
+            rev_pop_dict = {v:k for k,v in pop_dict.items()}
+            pop_sample_map = pd.read_csv(osp.join(labels_path, params.pop_sample_map), sep='\t')
+            pop_arr = repeat_pop_arr(pop_sample_map)
+            plotObj = Plot_per_epoch(params.n_comp_overall, params.n_comp_subclass, \
+                rev_pop_dict, pop_arr, pop_order=params.pop_num, geography=params.geography)
         
     # configure device
     params.device = torch.device(config['cuda'] if params.cuda else 'cpu')
@@ -51,8 +60,6 @@ def main(config, params, trial=None):
     #============================= Create and load datasets ===============================#
     # Create the input data pipeline
     logging.info("Loading the datasets...")
-
-    labels_path = config['data.labels']
     training_dataset = Haplotype('train', params, labels_path)
     validation_dataset = Haplotype('valid', params, labels_path)
     
@@ -63,17 +70,7 @@ def main(config, params, trial=None):
     if params.evaluateTest:
         test_dataset = Haplotype('test', params, labels_path)
         test_generator = torch.utils.data.DataLoader(test_dataset, batch_size=params.batch_size, num_workers=0, pin_memory=True)
-     
-    # Initiate the class for plotting per epoch
-    plotObj=None
-    if params.plotting:
-        pop_dict = load_path(osp.join(labels_path, 'granular_pop.pkl'), en_pickle=True)
-        rev_pop_dict = {v:k for k,v in pop_dict.items()}
-        pop_sample_map = pd.read_csv(osp.join(labels_path, params.pop_sample_map), sep='\t')
-        pop_arr = repeat_pop_arr(pop_sample_map)
-        plotObj = Plot_per_epoch(params.n_comp_overall, params.n_comp_subclass, \
-            rev_pop_dict, pop_arr, pop_order=params.pop_num, geography=params.geography)
-        
+         
     #============================= Create and load the model ===============================#    
     # Create the model
     model_subclass, model_basics = MODEL_CLASS[params.model]
@@ -125,7 +122,8 @@ def main(config, params, trial=None):
         #model_main, model_aux, start_epoch, optimizer = load_model(model_path, model_aux, model_main, optimizer)
 
     training_loop(model, model_params, middle_models, params, config, training_generator, \
-        validation_generator, plotObj=plotObj, wandb=wandb, test_generator=test_generator, trial=trial)    
+        validation_generator, plotObj=plotObj, wandb=(lambda x: wandb if x else None)(config['log.verbose']), \
+        test_generator=test_generator, trial=trial)    
    
 def epoch_logger(wandb, phase, result, epoch, geography, cp_predict, superpop_predict):
     wandb.log({f"{phase}_metrics":result.t_accr, "epoch":epoch})

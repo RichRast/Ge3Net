@@ -90,6 +90,7 @@
     "aux_net_block":false,
     "activation_type":"leaky_relu",
     "leaky_relu_slope":0.1,
+    "aux_next_norm":"LayerNorm",
     
     "rnn_net_out":3,
     "rnn_net_hidden":32,

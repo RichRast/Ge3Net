@@ -5,7 +5,7 @@ from src.utils.dataUtil import get_gradient
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import Any
-
+import pdb
 
 t_results = namedtuple('t_results',['t_accr', 't_cp_accr', 't_sp_accr', 't_out', 't_balanced_gcd'])
 t_results.__new__.__defaults__=(None,)*len(t_results._fields)
@@ -21,7 +21,7 @@ class modelOuts:
     sp:Any=None
 
 @dataclass
-class rnnResults:
+class RnnResults:
     out:Any=None
     out_nxt:Any=None
     loss_main:Any=None
@@ -53,34 +53,33 @@ def eval_cp_matrix(true_cps, pred_cps, seq_len, win_tol=2):
     n = len(true_cps)
     m = len(pred_cps)
     total_count = seq_len
-    TP_count = n-FN_count
-    TN_count = total_count - (TP_count + FP_count + FN_count)
     assert total_count!=0, "check input, sequence length in eval_cp is 0"
     # assert statement to make sure fill_value > win_tol
     distance_matrix = np.full((n,m), fill_value=np.inf)
 
     if n==m==0:
         TP_count, FP_count, FN_count  = 0, 0 , 0
-        return TP_count, FP_count, FN_count, TN_count, distance_matrix
     elif n==0:
         TP_count, FP_count, FN_count = 0, m, 0
-        return TP_count, FP_count, FN_count, TN_count, pred_cps
+        distance_matrix = pred_cps
     elif m==0:
         TP_count, FP_count, FN_count = 0, 0, n
-        return TP_count, FP_count, FN_count, TN_count, true_cps
+        distance_matrix = true_cps
+    else:
+        #sort the true_cp and pred_cp list
+        true_cp = sorted(true_cps)
+        pred_cp = sorted(pred_cps)
 
-    #sort the true_cp and pred_cp list
-    true_cp = sorted(true_cps)
-    pred_cp = sorted(pred_cps)
+        for j, val_b in enumerate(pred_cp):
+                distance_matrix[:,j] = abs(true_cp - val_b)
 
-    for j, val_b in enumerate(pred_cp):
-            distance_matrix[:,j] = abs(true_cp - val_b)
-
-    matches_mask = np.where(distance_matrix<=win_tol,0,1)
-    
-    FP_count = np.prod(matches_mask, axis=0).sum()
-    FN_count = np.prod(matches_mask, axis=1).sum()
-    
+        matches_mask = np.where(distance_matrix<=win_tol,0,1)
+        
+        FP_count = np.prod(matches_mask, axis=0).sum()
+        FN_count = np.prod(matches_mask, axis=1).sum()
+        TP_count = n-FN_count
+        
+    TN_count = total_count - (TP_count + FP_count + FN_count)
     return TP_count, FP_count, FN_count, TN_count, distance_matrix
 
 def eval_cp_batch(cp_target, cp_pred, seq_len, win_tol=2):
@@ -110,19 +109,19 @@ def eval_cp_batch(cp_target, cp_pred, seq_len, win_tol=2):
         true_cps = cp_target_idx
         pred_cps = cp_pred_idx
         
-        countsArr[i,:], distance_matrix_tmp = eval_cp_matrix(true_cps, pred_cps, seq_len, win_tol)
-        distance_matrix.append(distance_matrix_tmp)
+        countsArr[i,0], countsArr[i,1], countsArr[i,2], countsArr[i,3], _ = eval_cp_matrix(true_cps, pred_cps, seq_len, win_tol)
+        # distance_matrix.append(distance_matrix_tmp)
     
     return t_prCounts(TP=countsArr[:,0], FP=countsArr[:,1], TN=countsArr[:,2], FN=countsArr[:,3])
 
 def computePrMetric(prCounts):
     TP, FP, TN, FN=prCounts.TP, prCounts.FP, prCounts.TN, prCounts.FN
-    total_count = np.sum((TP, FP, TN, FN), axis=1)
+    total_count = TP+FP+TN+FN
     def getMetric(num, den):
         return np.divide(num, den, out = np.ones_like(num), where =den!=0)
 
-    Precision = getMetric(num=TP, den=TP + FP)
-    Recall = getMetric(num=TP, den=TP + TN)
+    Precision = getMetric(num=TP, den=TP+FP)
+    Recall = getMetric(num=TP, den=TP+TN)
     Accuracy = getMetric(num=TP+TN, den=total_count)
     A_major=getMetric(num=TN, den=TN+FP)
     BalancedAccuracy=0.5*(Recall+A_major)

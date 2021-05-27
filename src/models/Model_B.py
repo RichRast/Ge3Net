@@ -4,7 +4,7 @@ from src.models.Model_A import model_A
 from src.utils.decorators import timer
 from src.utils.modelUtil import split_batch
 from src.utils.dataUtil import square_normalize, get_gradient
-from src.main.evaluation import branchLoss, modelOuts, rnnResults
+from src.main.evaluation import branchLoss, modelOuts, RnnResults
 import snoop
 import pdb
 
@@ -42,23 +42,23 @@ class model_B(model_A):
         loss_main=sum(loss_main_list)
         out_rnn=torch.cat(out_rnn_list, 1).detach()
         vec_64=torch.cat(vec64_list, 1).detach()
-        return rnnResults(out=out_rnn, out_nxt=vec_64, loss_main=loss_main)
+        return RnnResults(out=out_rnn, out_nxt=vec_64, loss_main=loss_main)
         
     def _rnn(self, x):
         vec_64, out_rnn, _ = self.model['lstm'](x)
-        return rnnResults(out=out_rnn, out_nxt=vec_64)
+        return RnnResults(out=out_rnn, out_nxt=vec_64)
     
     def _rnnNet(self, x, **kwargs):
         target=kwargs.get('target')
         mask=kwargs.get('mask')
         if self.enable_tbptt:
-            out_rnn, vec_64, loss_main= self._tbtt(x, target, mask)
-            return rnnResults(out=out_rnn, out_nxt=vec_64, loss_main=loss_main)
+            rnnResults = self._tbtt(x, target, mask)
+            return rnnResults
         else:
-            out_rnn, vec_64 = self._rnn(x)
-            if self.params.geography: out_rnn=square_normalize(out_rnn)
+            rnnResults = self._rnn(x)
+            if self.params.geography: rnnResults.out=square_normalize(rnnResults.out)
             # loss_main=self.criterion(out_rnn*mask, target.coord_main*mask) if target is not None else None
-            return rnnResults(out=out_rnn, out_nxt=vec_64)
+            return rnnResults
         
     def _getLossInner(self, outs, target):
         auxLoss=self.criterion(outs.coord_aux, target.coord_main)
@@ -68,7 +68,7 @@ class model_B(model_A):
     def _inner(self,x,**kwargs):
         target=kwargs.get('target')
         mask = kwargs.get('mask')
-        if mask is None: mask=torch.ones((x.shape[0],self.params.n_win,1), dtype=torch.uint8)
+        if mask is None: mask=torch.ones((x.shape[0],self.params.n_win,1), dtype=torch.uint8, device=self.params.device)
         self.enable_tbptt=False
         if self.params.tbptt and any([m.training for m in list(self.model.values())]):
             # print("{}bling tbtt".format("ena" if self.params.tbptt and any([m.training for m in list(self.model.values())]) else "disa"))
