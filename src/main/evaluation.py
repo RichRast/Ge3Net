@@ -80,6 +80,7 @@ def eval_cp_matrix(true_cps, pred_cps, seq_len, win_tol=2):
         TP_count = n-FN_count
 
     TN_count = total_count - (TP_count + FP_count + FN_count)
+    # pdb.set_trace()
     return TP_count, FP_count, FN_count, TN_count, distance_matrix
 
 def eval_cp_batch(cp_target, cp_pred, seq_len, win_tol=2):
@@ -112,10 +113,11 @@ def eval_cp_batch(cp_target, cp_pred, seq_len, win_tol=2):
         countsArr[i,0], countsArr[i,1], countsArr[i,2], countsArr[i,3], _ = eval_cp_matrix(true_cps, pred_cps, seq_len, win_tol)
         # distance_matrix.append(distance_matrix_tmp)
     
-    return t_prCounts(TP=countsArr[:,0], FP=countsArr[:,1], TN=countsArr[:,2], FN=countsArr[:,3])
+    return t_prCounts(TP=countsArr[:,0], FP=countsArr[:,1], FN=countsArr[:,2], TN=countsArr[:,3])
 
 def computePrMetric(prCounts):
     TP, FP, TN, FN=prCounts.TP, prCounts.FP, prCounts.TN, prCounts.FN
+    
     total_count = TP+FP+TN+FN
     def getMetric(num, den):
         return np.divide(num, den, out = np.ones_like(num), where =den!=0)
