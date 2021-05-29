@@ -316,7 +316,6 @@ class model_A(object):
         gcdObj.balancedMetric(superpop, granularpop)
         meanBalancedGcd=self.option['balancedMetrics']['meanBalanced'](gcdObj)()
         medianBalancedGcd=self.option['balancedMetrics']['medianBalanced'](gcdObj)()
-        pdb.set_trace()
         balancedGcdMetrics['meanBalancedGcdSp'], balancedGcdMetrics['meanBalancedGcdGp'] = meanBalancedGcd
         balancedGcdMetrics['medianBalancedGcdSp'], balancedGcdMetrics['medianBalancedGcdGp'] = medianBalancedGcd
         balancedGcdMetrics['median']=self.option['balancedMetrics']['median'](gcdObj)

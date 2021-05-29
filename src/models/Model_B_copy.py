@@ -13,6 +13,12 @@ class model_B(model_A):
     def __init__(self, *args, params):
         super().__init__(*args, params=params)
 
+    def _auxNet(self, x):
+        out1, _, _, out4 = self.model['aux'](x)
+        aux_diff = get_gradient(out4)
+        out_nxt = torch.cat((out4, aux_diff), dim =2)
+        return out4, out_nxt
+
     def _tbtt(self, x, target):
         rnn_state = None
         bptt_batch_chunks = split_batch(x.clone(), self.params.tbptt_steps)

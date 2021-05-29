@@ -30,7 +30,7 @@ parser.add_argument('--model.pretrained_dir', type=str, required=False, help='sp
 parser.add_argument('--cuda', type=str, required=False, default='cuda', help='which cuda device to use')
 parser.add_argument('--models.dir', type=str, required=True, help='model logging directory')
 parser.add_argument('--model.summary', type=str, default='default', help='description of what makes this model run special')
-
+parser.add_argument('--data.dataset_type', type=str, required=False, default='valid', choices=['train', 'valid', 'test'], help='used for testing/inference')
 # log args
 parser.add_argument('--log.verbose', type=distutils.util.strtobool, default='True', help='verbose')
 parser.add_argument('--log.wandb_dir', type=str, default=osp.join( os.environ.get('USER_SCRATCH_PATH'), 'Batch_jobs/wandb'), help='wandb logging dir')

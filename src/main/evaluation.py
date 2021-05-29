@@ -1,8 +1,5 @@
-import enum
-from os import TMP_MAX
-
-from matplotlib.pyplot import ticklabel_format
 import numpy as np
+import pandas as pd
 import torch
 from src.utils.dataUtil import get_gradient
 from collections import namedtuple
@@ -269,20 +266,17 @@ def class_accuracy(y_pred, y_test):
     acc = acc * 100
     return acc
 
-def prMetricsByThresh(cp_pred_raw, cp_target, steps):
+def prMetricsByThresh(method_name, cp_pred_raw, cp_target, steps):
     num_samples = cp_target.shape[0]
     seqlen = cp_target.shape[1]
     min_prob = 0.0
     max_prob = 1.0
     increment = (max_prob - min_prob)/steps
-    out = np.zeros((steps, 5))
-    i = 0
-    for thresh in arange(min_prob, max_prob + increment, increment):
-        out[i,0] = thresh
-        prMetrics = reportChangePointMetrics(cpMethod.neural_network.name, cp_pred_raw, cp_target, seqlen, thresh)
-        for k, value in enumerate(prMetrics.values()):
-            out[i,k+1] = value
-        i+=1
-    return out
+    df=pd.DataFrame(columns=list(t_prMetrics._fields)+['thresh'])
+    for thresh in np.arange(min_prob, max_prob + increment, increment):
+        prMetrics = reportChangePointMetrics(method_name, cp_pred_raw, cp_target, seqlen, thresh)
+        prMetrics['thresh']=thresh
+        df=df.append(prMetrics, ignore_index=True)
+    return df
 
 

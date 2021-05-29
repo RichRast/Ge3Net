@@ -16,7 +16,7 @@ class Haplotype(Dataset):
     @timer
     def __init__(self, dataset_type, params, data_dir, **kwargs):
         labels_path = kwargs.get('labels_path')
-        if dataset_type not in ["train", "valid", "test", "no_label"]:
+        if dataset_type not in ["train", "valid", "test"]:
             raise ValueError
         
         self.params = params
@@ -41,7 +41,7 @@ class Haplotype(Dataset):
                 logging.info(f"Loading gen {gen}")
                 curr_snps = load_path(osp.join(data_dir, str(dataset_type) ,'gen_' + str(gen), 'mat_vcf_2d.npy'))
                 logging.info(f' snps data: {curr_snps.shape}')
-                curr_vcf_idx = load_path(osp.join(labels_path , str(dataset_type) ,'gen_' + str(gen) ,'mat_map.npy'))
+                curr_vcf_idx = load_path(osp.join(data_dir , str(dataset_type) ,'gen_' + str(gen) ,'mat_map.npy'))
                 logging.info(f' y_labels data :{curr_vcf_idx.shape}')
 
                 if i>0:

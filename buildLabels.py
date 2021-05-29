@@ -128,22 +128,10 @@ def main(config):
         admixed_num_per_gen = config['data.samples_per_type']
 
         print("Forming the dataset with simulation")
-        
-        # selected_idx={}
-        # for i, val in enumerate(dataset_type):
-        #     save_path = osp.join(data_out_path, str(val))
-        #     genetic_map_path = str(config['data.genetic_map'])
-
-        #     if (config['data.vcf_dir'][-4:]=='.vcf') or (config['data.vcf_dir'][-3:]=='.gz'):
-        #         vcf_master = allel.read_vcf(str(config['data.vcf_dir']))
-        #     else:
-        #         vcf_master = load_path(config['data.vcf_dir'], en_pickle=True)
-        #     _, selected_idx[val] = get_admixed_samples(genetic_map_path, vcf_master, 
-        #     sample_map_lst[i], save_path, admixed_num_per_gen[i], config['data.gens_to_ret'])
-
         for i, val in enumerate(dataset_type):
             start_chm=config['data.start_chm']
             end_chm=config['data.end_chm']
+            print(f"Simulating for dataset {val} for start chm {start_chm} end chm {end_chm}")
             save_path = osp.join(data_out_path, str(val))
             genetic_map_path = str(config['data.genetic_map'])
             getAdmixedCombineChm(start_chm, end_chm, genetic_map_path=genetic_map_path, vcf_founders=config['data.vcf_dir'], \

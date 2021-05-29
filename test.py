@@ -33,10 +33,7 @@ def main(config, params):
 
     labels_path = config['data.labels']
     data_path=config['data.dir']
-    if labels_path is None:
-        test_dataset = Haplotype('np_label', data_path, params)
-    else:
-        test_dataset = Haplotype('valid', params, data_path, labels_path=labels_path)
+    test_dataset = Haplotype(config['data.dataset_type'], params, data_path, labels_path=labels_path)
     test_generator = torch.utils.data.DataLoader(test_dataset, batch_size=params.batch_size, num_workers=0, pin_memory=True)
          
     #================================ Create the model ================================
