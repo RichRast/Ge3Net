@@ -78,7 +78,7 @@ class model_A(object):
 
             trainBalancedGcd=None
             if self.params.geography and self.params.evalBalancedGcd:
-                gcdTensor=loss_inner.loss_main.item() if self.params.criteria=='gcd' else GcdLoss().rawGcd(train_outs.coord_main, train_labels.coord_main).item()
+                gcdTensor=GcdLoss().rawGcd(train_outs.coord_main, train_labels.coord_main).detach().cpu().numpy()
                 trainBalancedGcd=self.getExtraGcdMetrics(trainGcdBalancedMetrics, gcdTensor, superpop, granularpop)
             
             #logging
@@ -102,7 +102,7 @@ class model_A(object):
         plotObj = kwargs.get('plotObj')
         valRunAvgObj, valCpRunAvgObj = self.getRunningAvgObj()
         valGcdBalancedMetrics=balancedMetrics() if self.params.geography else None
-        valPredLs, valVarLs=[],[]
+        valPredLs, valVarLs, valCpLs=[],[],[]
 
         for _, m in self.model.items():
             m.eval()
@@ -116,8 +116,7 @@ class model_A(object):
 
             if self.params.mc_dropout: activate_mc_dropout(*list(self.model.values()))
             else: self.params.mc_samples=1
-            # assert self.params.mc_samples==1, "MC dropout disabled"
-
+           
             val_outs_list, x_nxt_list, val_aux_list=[],[],[]
             for _ in range(self.params.mc_samples):
                 val_outs, x_nxt = self._inner(val_x)
@@ -131,15 +130,17 @@ class model_A(object):
                 val_outs_aux, _ = self._getFromMcSamples(val_aux_list)
                 val_outs=modelOuts(coord_main=val_outs_main, coord_aux=val_outs_aux, y_var=y_var)
                 x_nxt, _ = self._getFromMcSamples(x_nxt_list)
-                valVarLs.append(val_outs.y_var.detach().cpu().numpy())
-            
-            valPredLs.append(val_outs.coord_main.detach().cpu().numpy())
+
             loss_inner=self._getLossInner(val_outs, val_labels)
 
             loss_cp=None
             if self.params.cp_predict: 
                 cp_logits, loss_cp = self._changePointNet(x_nxt, target=val_labels.cp_logits)
-                val_outs.cp_logits=cp_logits                   
+                val_outs.cp_logits=cp_logits
+            if self.params.rtnOuts:   
+                valPredLs.append(val_outs.coord_main.detach().cpu().numpy())
+                if self.params.cp_predict:valCpLs.append(val_outs.cp_logits.detach().cpu().numpy()) 
+                if self.params.mc_dropout:valVarLs.append(val_outs.y_var.detach().cpu().numpy())                  
             
             sample_size=val_labels.coord_main.shape[0]*val_labels.coord_main.shape[1]
             
@@ -149,7 +150,7 @@ class model_A(object):
             
             valBalancedGcd=None
             if self.params.geography and self.params.evalBalancedGcd:
-                gcdTensor=loss_inner.loss_main.item() if self.params.criteria=='gcd' else GcdLoss().rawGcd(val_outs.coord_main, val_labels.coord_main).item()
+                gcdTensor=GcdLoss().rawGcd(val_outs.coord_main, val_labels.coord_main).detach().cpu().numpy()
                 valBalancedGcd=self.getExtraGcdMetrics(valGcdBalancedMetrics, gcdTensor, superpop, granularpop)
     
             #logging
@@ -161,8 +162,10 @@ class model_A(object):
                 if plotObj is not None : self._plotSample(wandb, plotObj, idxSample=idxSample, \
                     idxLabel=idxLabel, idx=idx, idxVcf_idx=idxVcf_idx)
             del val_x, val_y, cps, val_labels
-        val_outs.coord_main=np.concatenate((valPredLs), axis=0)
-        if self.params.mc_dropout: val_outs.y_var=np.concatenate((valVarLs), axis=0)
+        if self.params.rtnOuts:
+            val_outs.coord_main=np.concatenate((valPredLs), axis=0)
+            if self.params.cp_predict:val_outs.cp_logits=np.concatenate((valCpLs), axis=0)
+            if self.params.mc_dropout: val_outs.y_var=np.concatenate((valVarLs), axis=0)
         # delete tensors for memory optimization
         torch.cuda.empty_cache()
         return t_results(t_accr=valBatchAvg, t_cp_accr=valCpBatchAvg, t_out=val_outs, t_balanced_gcd=valBalancedGcd)
@@ -311,8 +314,9 @@ class model_A(object):
     def getBalancedClassGcd(self, superpop, granularpop, gcdObj):
         balancedGcdMetrics={}
         gcdObj.balancedMetric(superpop, granularpop)
-        meanBalancedGcd=self.option['balancedMetrics']['meanBalanced'](gcdObj)
-        medianBalancedGcd=self.option['balancedMetrics']['medianBalanced'](gcdObj)
+        meanBalancedGcd=self.option['balancedMetrics']['meanBalanced'](gcdObj)()
+        medianBalancedGcd=self.option['balancedMetrics']['medianBalanced'](gcdObj)()
+        pdb.set_trace()
         balancedGcdMetrics['meanBalancedGcdSp'], balancedGcdMetrics['meanBalancedGcdGp'] = meanBalancedGcd
         balancedGcdMetrics['medianBalancedGcdSp'], balancedGcdMetrics['medianBalancedGcdGp'] = medianBalancedGcd
         balancedGcdMetrics['median']=self.option['balancedMetrics']['median'](gcdObj)

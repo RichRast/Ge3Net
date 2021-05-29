@@ -13,12 +13,13 @@ import pdb
 import snoop
 
 class Haplotype(Dataset):
-    def __init__(self, dataset_type, params, labels_path):
+    @timer
+    def __init__(self, dataset_type, params, data_dir, **kwargs):
+        labels_path = kwargs.get('labels_path')
         if dataset_type not in ["train", "valid", "test", "no_label"]:
             raise ValueError
         
         self.params = params
-        
         if dataset_type=="train":
             self.gens_to_ret =  self.params.train_gens
         elif dataset_type=="valid":
@@ -33,12 +34,12 @@ class Haplotype(Dataset):
         
         if labels_path is None:
             logging.info(f'Loading snps data')
-            self.snps = load_path(osp.join(labels_path, str(dataset_type),'mat_vcf_2d.npy'))
+            self.snps = load_path(osp.join(data_dir, str(dataset_type),'mat_vcf_2d.npy'))
             logging.info(f"snps data shape : {self.data['X'].shape}")
         else:
             for i, gen in enumerate(self.gens_to_ret):
                 logging.info(f"Loading gen {gen}")
-                curr_snps = load_path(osp.join(labels_path, str(dataset_type) ,'gen_' + str(gen), 'mat_vcf_2d.npy'))
+                curr_snps = load_path(osp.join(data_dir, str(dataset_type) ,'gen_' + str(gen), 'mat_vcf_2d.npy'))
                 logging.info(f' snps data: {curr_snps.shape}')
                 curr_vcf_idx = load_path(osp.join(labels_path , str(dataset_type) ,'gen_' + str(gen) ,'mat_map.npy'))
                 logging.info(f' y_labels data :{curr_vcf_idx.shape}')
@@ -59,7 +60,7 @@ class Haplotype(Dataset):
             pop_sample_map = pd.read_csv(osp.join(labels_path, self.params.pop_sample_map), sep='\t')
             self.pop_arr = repeat_pop_arr(pop_sample_map)
             self.coordinates = load_path(osp.join(labels_path, self.params.coordinates), en_pickle=True)
-            self.load_data(chmlen, n_win)
+            self.transform_data(chmlen, n_win)
         
     def __len__(self):
         return len(self.data['X']) 
@@ -112,7 +113,7 @@ class Haplotype(Dataset):
         return result
 
     @timer
-    def load_data(self, chmlen, n_win):        
+    def transform_data(self, chmlen, n_win):        
         # take the mode according to windows for labels
         # map to coordinates according to ref_idx
         logging.info("Transforming the data")

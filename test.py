@@ -1,22 +1,11 @@
-import sys
-import argparse
-import os
 import os.path as osp
-import logging
-import copy
-
-from models import LSTM, AuxiliaryTask, Conv, Attention, Transformer, BasicBlock, Model_A, Model_B, Model_C, Model_D, Model_E, \
-Model_F, Seq2Seq, Model_G, Model_H, Model_I, Model_J, Model_K, Model_L, Model_M, Model_N, Model_O
-from utils.dataUtil import set_logger
-from utils.modelUtil import load_model
-from dataset import Haplotype
-from settings import parse_args, MODEL_CLASS
-
 import torch
 import numpy as np
-from collections import namedtuple
-import wandb
-from decorators import timer
+from src.models import LSTM, AuxiliaryTask, Conv, Attention, Transformer, BasicBlock, Model_A, Model_B, Model_C
+from src.utils.modelUtil import load_model, Params
+from src.utils.decorators import timer
+from src.main.dataset import Haplotype
+from src.main.settings_model import parse_args, MODEL_CLASS
 
 @timer
 def main(config, params):
@@ -34,30 +23,24 @@ def main(config, params):
         # cudnn benchmark enabled for memory space optimization
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.enabled = True
-        
-    if config['log.verbose']:
-        # Set the logger
-        set_logger(osp.join(config['log.train'], config['model_version']))
-        # use the major version only
-        wandb.init(project=''.join([str(params.model), '_', str(params.major_version)]), config=params)
-        params=wandb.config
-
+          
     # configure device
     params.device = torch.device(config['cuda'] if params.cuda else 'cpu')
+    print(f" device used: {params.device}")
 
     # Create the input data pipeline
-    logging.info("Loading the datasets...")
+    print("Loading the datasets...")
 
-    dataset_path = osp.join(str(config['data.data_out']), config['data.experiment_name'], str(config['data.experiment_id']))
-    test_dataset = Haplotype('no_label', dataset_path, params)
-    
-    test_generator = torch.utils.data.DataLoader(test_dataset, batch_size=params.batch_size, shuffle=True,
-                                                    num_workers=0)
-     
-    # Create the model
+    labels_path = config['data.labels']
+    data_path=config['data.dir']
+    if labels_path is None:
+        test_dataset = Haplotype('np_label', data_path, params)
+    else:
+        test_dataset = Haplotype('valid', params, data_path, labels_path=labels_path)
+    test_generator = torch.utils.data.DataLoader(test_dataset, batch_size=params.batch_size, num_workers=0, pin_memory=True)
+         
+    #================================ Create the model ================================
     model_subclass, model_basics = MODEL_CLASS[params.model]
-    
-    model_params =[]
     middle_models=[]
     
     for i, model_basic in enumerate(model_basics):
@@ -66,17 +49,23 @@ def main(config, params):
         middle_models.append(m)
         print(f'model {model_subclass} : {model_basic}')
             
-    model_path = osp.join(config['log.dir'], 'models_dir')
+    model_path = osp.join(config['models.dir'], 'models_dir')
     model_ret = load_model(''.join([str(model_path),'/best.pt']), middle_models)
-
     # call to the corresponding model, example - Model_L.model_L
     model = eval(model_subclass[0])(*model_ret, params=params)
-
-    test_result = model.pred(test_generator, wandb=wandb)
+    #================================ Create the model ================================
     
-    return test_result
+    if labels_path is not None:
+        test_result = model.valid(test_generator)
+    else:
+         test_result = model.pred(test_generator)
+    
+    return test_result, test_dataset
     
 if __name__=="__main__":
-    config, params = parse_args()
-    config['model_version'] = ''.join([str(params.model), '_', str(params.major_version), '.', str(params.minor_version)])
+    config = parse_args()
+    json_path = osp.join(config['models.dir'], 'params.json')
+    assert osp.isfile(json_path), "No json configuration file found at {}".format(json_path)
+    params = Params(json_path)
+    params.rtnOuts=True
     main(config, params)

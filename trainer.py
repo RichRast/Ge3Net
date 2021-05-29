@@ -1,3 +1,6 @@
+import torch
+import numpy as np
+import pandas as pd
 import os.path as osp
 import logging
 from src.models import LSTM, AuxiliaryTask, Conv, Attention, Transformer, BasicBlock, Model_A, \
@@ -14,9 +17,7 @@ from src.main.settings_model import parse_args, MODEL_CLASS
 from src.main.visualization import Plot_per_epoch
 import matplotlib.pyplot as plt
 
-import torch
-import numpy as np
-import pandas as pd
+import optuna
 import wandb
 
 @timer
@@ -37,6 +38,7 @@ def main(config, params, trial=None):
         torch.backends.cudnn.enabled = True
     
     labels_path = config['data.labels']
+    data_path=config['data.dir']
     plotObj=None
     if config['log.verbose']:
         # Set the logger
@@ -46,7 +48,7 @@ def main(config, params, trial=None):
         # params=wandb.config
 
         # Initiate the class for plotting per epoch
-        if params.plotting:
+        if params.plotting and labels_path is not None:
             pop_dict = load_path(osp.join(labels_path, 'granular_pop.pkl'), en_pickle=True)
             rev_pop_dict = {v:k for k,v in pop_dict.items()}
             pop_sample_map = pd.read_csv(osp.join(labels_path, params.pop_sample_map), sep='\t')
@@ -60,30 +62,24 @@ def main(config, params, trial=None):
     #============================= Create and load datasets ===============================#
     # Create the input data pipeline
     logging.info("Loading the datasets...")
-    training_dataset = Haplotype('train', params, labels_path)
-    validation_dataset = Haplotype('valid', params, labels_path)
-    
-    
+    training_dataset = Haplotype('train', params, data_path, labels_path=labels_path)
+    validation_dataset = Haplotype('valid', params, data_path, labels_path=labels_path)
     training_generator = torch.utils.data.DataLoader(training_dataset, batch_size=params.batch_size, shuffle=True, num_workers=0, pin_memory=True)
     validation_generator = torch.utils.data.DataLoader(validation_dataset, batch_size=params.batch_size, num_workers=0, pin_memory=True)
     test_generator=None
     if params.evaluateTest:
-        test_dataset = Haplotype('test', params, labels_path)
+        test_dataset = Haplotype('test', params, data_path, labels_path=labels_path)
         test_generator = torch.utils.data.DataLoader(test_dataset, batch_size=params.batch_size, num_workers=0, pin_memory=True)
          
     #============================= Create and load the model ===============================#    
     # Create the model
     model_subclass, model_basics = MODEL_CLASS[params.model]
-    
     model_params =[]
     middle_models=[]
     count_params=[]
-    
     for i, model_basic in enumerate(model_basics):
         params_dict={}
         # instantiate the model class
-        # if not params.dict.get(model_basic):
-        #     continue
         m = eval(model_basic)(params)
         # use parallel GPU's
         if torch.cuda.device_count() > 1:
@@ -103,24 +99,21 @@ def main(config, params, trial=None):
         count_params.append(m_params_count)
     # Total number of parameters
     print(f"Total parameters:{sum(count_params)}")
-
     # initialize the weights and biases of models
     for m in middle_models:
-        m.apply(weight_int)
-        
+        m.apply(weight_int)    
     if config['log.verbose']:
         #watch all the models
         for m in middle_models:
             wandb.log({"model_name":str(m)})
             wandb.watch(m, log='all')
-    
     # call to the corresponding model, example - Model_L.model_L
     model = eval(model_subclass[0])(*middle_models, params=params)
-
     if config['model.pretrained']:
-        model_path = osp.join(config['model.pretrained_version'], 'models_dir')
+        model_path = osp.join(config['model.pretrained_dir'], 'models_dir')
         #model_main, model_aux, start_epoch, optimizer = load_model(model_path, model_aux, model_main, optimizer)
-
+    #============================= Create and load the model ===============================#   
+    
     training_loop(model, model_params, middle_models, params, config, training_generator, \
         validation_generator, plotObj=plotObj, wandb=(lambda x: wandb if x else None)(config['log.verbose']), \
         test_generator=test_generator, trial=trial)    
@@ -209,7 +202,7 @@ def training_loop(model, model_params, middle_models, params, config, training_g
             if wandb is not None: epoch_logger(wandb, "test", test_result, epoch, params.geography, params.cp_predict, params.superpop_predict)
         
         if params.hyper_search_type=='optuna':    
-            trial.report(eval_result.accr.weighted_loss, epoch)
+            trial.report(eval_result.t_accr['loss_main'], epoch)
             if trial.should_prune():
                 raise optuna.exceptions.TrialPruned()
             return best_val_accr
@@ -223,6 +216,6 @@ if __name__=="__main__":
     json_path = osp.join(config['data.params'], 'params.json')
     assert osp.isfile(json_path), "No json configuration file found at {}".format(json_path)
     params = Params(json_path)
-    params.dict['n_win']=0
+    params.dict['n_win']=0 # these are set during data load
     params.dict['chmlen']=0
     main(config, params)

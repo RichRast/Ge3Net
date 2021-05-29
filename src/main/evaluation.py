@@ -1,16 +1,22 @@
+import enum
 from os import TMP_MAX
+
+from matplotlib.pyplot import ticklabel_format
 import numpy as np
 import torch
 from src.utils.dataUtil import get_gradient
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import Any
+from enum import Enum
 import pdb
 
 t_results = namedtuple('t_results',['t_accr', 't_cp_accr', 't_sp_accr', 't_out', 't_balanced_gcd'])
 t_results.__new__.__defaults__=(None,)*len(t_results._fields)
 t_prCounts = namedtuple('t_prCounts', ['TP', 'FP', 'TN', 'FN'])
 t_prMetrics = namedtuple('t_prMetrics', ['Precision', 'Recall', 'Accuracy', 'A_major', 'BalancedAccuracy'])
+
+cpMethod=Enum('cpMethod', 'neural_network gradient mc_dropout BOCD', start=0)
 
 @dataclass
 class modelOuts:
@@ -165,41 +171,25 @@ def gradient_reg(cp_detect, x, p=0.5):
     return torch.mean(torch.pow(torch.abs(x_diff), p))
     #return torch.mean(p*torch.log(torch.abs(x_diff)))
 
-class Changepoint_Metrics(object):
-    def __init__(self, name, seq_len, win_tol=2):
-        self.Precision =None
-        self.Recall = None #same as A_cp
-        self.Accuracy = None
-        self.A_no_cp = None
-        self.Balanced_Accuracy = None
-        self.seq_len = seq_len
-        self.win_tol = win_tol
-        self.name = name
-        
-    def __call__(self, cp_target, cp_pred):
-        self.Precision, self.Recall, self.Accuracy, self.A_no_cp, self.Balanced_Accuracy = \
-        eval_cp_batch(cp_target, cp_pred, self.seq_len, self.win_tol)
-    
-    def get_name(self):
-        print(self.name)
-
-class Changepoint_gradient(Changepoint_Metrics):
-    def transform(self, cp_pred_raw):
-        Batch_size, T = cp_pred_raw.shape[0], cp_pred_raw.shape[1]
-        gradient_thresh = 0.18
-        cp_gradient_pred = torch.zeros((Batch_size, T))
-        cp_gradient_idx = torch.nonzero(torch.abs(cp_pred_raw[:,1:,:]-cp_pred_raw[:,:-1,:])>gradient_thresh)
-        cp_gradient_pred[cp_gradient_idx[:,0], cp_gradient_idx[:,1]]=1
-        return cp_gradient_pred
-    
-class Changepoint_mc_drop(Changepoint_Metrics):
-    def transform(self, cp_pred_raw):
-        Batch_size, T = cp_pred_raw.shape[0], cp_pred_raw.shape[1]
-        mc_dropout_thresh = 0.10
-        cp_mc_pred = torch.zeros((Batch_size, T))
-        cp_mc_idx = torch.nonzero(cp_pred_raw>mc_dropout_thresh)
-        cp_mc_pred[cp_mc_idx[:,0], cp_mc_idx[:,1]]=1
-        return cp_mc_pred
+def reportChangePointMetrics(name : str, cp_pred_raw: torch.Tensor, cp_target: torch.tensor, seq_len: int, cpThresh: float)->t_prMetrics:
+    Batch_size, T = cp_pred_raw.shape[0], cp_pred_raw.shape[1]
+    cp_pred = torch.zeros((Batch_size, T))
+    if name==cpMethod.gradient.name:
+        cp_idx = torch.nonzero(torch.abs(cp_pred_raw[:,1:,:]-cp_pred_raw[:,:-1,:])>cpThresh)
+        cp_pred[cp_idx[:,0], cp_idx[:,1]]=1
+    elif name==cpMethod.mc_dropout.name:
+        cp_idx = torch.nonzero(cp_pred_raw>cpThresh)
+        cp_pred[cp_idx[:,0], cp_idx[:,1]]=1
+    elif name==cpMethod.neural_network.name:
+        cp_pred = (torch.sigmoid(cp_pred_raw)>cpThresh).int()
+    elif name==cpMethod.BOCD.name:
+        pass
+    prCounts = eval_cp_batch(cp_target, cp_pred, seq_len)
+    prMetricsSum = computePrMetric(prCounts)
+    prMetrics={}
+    for k,v in prMetricsSum.items():
+        prMetrics[k] = v/Batch_size
+    return prMetrics
 
 class Running_Average():
     def __init__(self):
@@ -249,8 +239,8 @@ class balancedMetrics():
 
     def balancedMetric(self, superpop, granular_pop):
         gcdTensor = self.batchMetricLs[-1]
-        superpop_num=np.unique(superpop)
-        granularpop_num=np.unique(granular_pop)
+        superpop_num=np.unique(superpop).astype(int)
+        granularpop_num=np.unique(granular_pop).astype(int)
         for i in superpop_num:
             if self.classSuperpop.get(i) is None: self.classSuperpop[i]=Running_Average()
             idx=torch.nonzero(superpop==i)
@@ -279,6 +269,20 @@ def class_accuracy(y_pred, y_test):
     acc = acc * 100
     return acc
 
-
+def prMetricsByThresh(cp_pred_raw, cp_target, steps):
+    num_samples = cp_target.shape[0]
+    seqlen = cp_target.shape[1]
+    min_prob = 0.0
+    max_prob = 1.0
+    increment = (max_prob - min_prob)/steps
+    out = np.zeros((steps, 5))
+    i = 0
+    for thresh in arange(min_prob, max_prob + increment, increment):
+        out[i,0] = thresh
+        prMetrics = reportChangePointMetrics(cpMethod.neural_network.name, cp_pred_raw, cp_target, seqlen, thresh)
+        for k, value in enumerate(prMetrics.values()):
+            out[i,k+1] = value
+        i+=1
+    return out
 
 
