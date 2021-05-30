@@ -180,13 +180,20 @@ def reportChangePointMetrics(name : str, cp_pred_raw: torch.Tensor, cp_target: t
     elif name==cpMethod.neural_network.name:
         cp_pred = (torch.sigmoid(cp_pred_raw)>cpThresh).int()
     elif name==cpMethod.BOCD.name:
-        pass
+        cp_pred_diff = cp_pred_raw[:,1:]-cp_pred_raw[:,:-1]
+        cp_pred = torch.zeros((Batch_size, T))
+        cp_idx = torch.nonzero((cp_pred_diff<-cpThresh))
+        for i,j in zip(cp_idx[:,0], cp_idx[:,1]):
+            if j+1 < seq_len:
+                if cp_pred_raw[i,j+1]<cpThresh:
+                    cp_pred[i,j]=1
+        
     prCounts = eval_cp_batch(cp_target, cp_pred, seq_len)
     prMetricsSum = computePrMetric(prCounts)
     prMetrics={}
     for k,v in prMetricsSum.items():
         prMetrics[k] = v/Batch_size
-    return prMetrics
+    return prMetrics, cp_pred
 
 class Running_Average():
     def __init__(self):

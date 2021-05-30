@@ -266,7 +266,7 @@ class model_A(object):
     def _changePointNet(self, x, **kwargs):
         target=kwargs.get('target')
         cp_logits = self.model['cp'](x)
-        loss_cp = self.option['cpMetrics']['loss_cp'](cp_logits, target) if target is not None else None
+        loss_cp = self.option['cpMetrics']['loss_cp'](cp_logits, target, reduction='sum') if target is not None else None
         return cp_logits, loss_cp
     
     def _evaluateAccuracy(self, y, target, **kwargs):
@@ -292,7 +292,7 @@ class model_A(object):
 
         batchCpAvg=None
         if self.params.cp_predict:  
-            if cpThresh is None: cpThresh=0.5
+            if cpThresh is None: cpThresh=0.45
             cp_pred = (torch.sigmoid(y.cp_logits)>cpThresh).int()
             cp_pred=cp_pred.squeeze(2) 
             if self.params.evalCp:

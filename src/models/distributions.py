@@ -36,7 +36,7 @@ class Multivariate_Gaussian(object):
         
         self.mu = torch.cat((self.mu_prior, temp_mu), dim=1)
 
-    def sample():
+    def sample(self):
         # Todo using sample or rsample
         dist = torch.distributions.multivariate_normal.MultivariateNormal(self.mu, self.cov)
         return dist.sample()

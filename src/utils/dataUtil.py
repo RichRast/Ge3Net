@@ -9,7 +9,7 @@ import os.path as osp
 import allel
 import copy
 from typing import Tuple, List
-from src.utils.decorators import guardAgainstDivideZero
+from src.utils.decorators import guardAgainstDivideZero, timer
     
 def load_path(path, en_pickle=False, en_df=False):
     
@@ -152,6 +152,7 @@ def filter_vcf(vcf_filepath, thresh, verbose=True):
 
     return subsetted_vcf
 
+@timer
 def get_recomb_rate(genetic_map_path, vcf_file_path, chm='chr22'):   
     df_gm = load_path(genetic_map_path, en_df=True)
     df_gm.rename(columns={0:'chm_no.', 1:'physical_pos', 2:'genetic_pos'}, inplace=True)
@@ -165,12 +166,14 @@ def get_recomb_rate(genetic_map_path, vcf_file_path, chm='chr22'):
     
     return df_gm_chm, df_vcf, df_gm_pos
 
+@timer
 def interpolate_genetic_pos(df_gm_pos, df_gm_chm):
     xvals = df_gm_pos['physical_pos']
     yinterp = np.interp(xvals, df_gm_chm['physical_pos'], df_gm_chm['genetic_pos'])
     df_gm_pos['genetic_pos'] = yinterp
     return df_gm_pos
-    
+
+@timer    
 def form_windows(df_snp_pos, chmlen, win_size):
     recomb_w = torch.tensor(df_snp_pos['genetic_pos'].values[:chmlen]\
         .reshape(-1, win_size)).float()

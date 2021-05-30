@@ -1,6 +1,6 @@
 import torch
 from torch.autograd import Variable as V
-from src.models.Model_A import model_B
+from src.models.Model_B import model_B
 from src.utils.dataUtil import get_gradient
 
 

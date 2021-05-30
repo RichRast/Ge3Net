@@ -50,9 +50,8 @@ class model_B(model_A):
     
     def _rnnNet(self, x, **kwargs):
         target=kwargs.get('target')
-        mask=kwargs.get('mask')
         if self.enable_tbptt:
-            rnnResults = self._tbtt(x, target, mask)
+            rnnResults = self._tbtt(x, target)
             return rnnResults
         else:
             rnnResults = self._rnn(x)
@@ -75,7 +74,7 @@ class model_B(model_A):
             self.enable_tbptt=True
         out_aux, x_nxt = self._auxNet(x)
         if self.params.geography: out_aux=square_normalize(out_aux)
-        rnnResults = self._rnnNet(x_nxt, target=target, mask=mask)
+        rnnResults = self._rnnNet(x_nxt, target=target)
         outs = modelOuts(coord_main = rnnResults.out*mask, coord_aux=out_aux*mask)
         if self.enable_tbptt:
             return outs, rnnResults.out_nxt, rnnResults.loss_main
