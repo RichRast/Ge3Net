@@ -1,11 +1,10 @@
 import os
 import os.path as osp
 import pickle
-
 import optuna
 import wandb
 import trainer
-
+from src.utils.modelUtil import Params
 from src.main.settings_model import parse_args
 
 class objective(object):
@@ -125,6 +124,10 @@ def main(config, params):
             print(f'accuracy:{accuracy}')
 
 if __name__=="__main__":
-    config, params = parse_args()
-    config['model_version'] = ''.join([str(params.model), '_', str(params.major_version), '.', str(params.minor_version)])
+    config = parse_args()
+    json_path = osp.join(config['data.params'], 'params.json')
+    assert osp.isfile(json_path), "No json configuration file found at {}".format(json_path)
+    params = Params(json_path)
+    params.dict['n_win']=0 # these are set during data load
+    params.dict['chmlen']=0
     main(config, params)

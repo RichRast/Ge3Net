@@ -16,7 +16,9 @@ class BOCD(object):
         if (t==0|t==self.T-1):
             hazard = 0
         else:
-            hazard = self.recomb_rate[t]/100
+            # hazard = self.recomb_rate[t]/100
+            hazard=6/self.T
+
    
         return hazard
     
@@ -38,7 +40,7 @@ class BOCD(object):
             
             # get UPM probabilities for each possible value of run length 
             pred_probs = self.likelihood_model.get_log_pdf(x) 
-            pred_probs = pred_probs.clone().detach().requires_grad_(True).to(device)
+            # pred_probs = pred_probs.clone().detach().requires_grad_(True).to(device)
             
             #predictive
             log_p_xt1_given_xt[:,t-1,:] = torch.logsumexp(log_prob_r_given_x[:,0:t,t-1] + pred_probs, dim =1).unsqueeze(1)

@@ -2,10 +2,13 @@ import numpy as np
 import pandas as pd
 import torch
 from src.utils.dataUtil import get_gradient
+from src.utils.decorators import timer
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import Any
 from enum import Enum
+from sklearn.metrics import recall_score, precision_score, \
+balanced_accuracy_score, accuracy_score
 import pdb
 
 t_results = namedtuple('t_results',['t_accr', 't_cp_accr', 't_sp_accr', 't_out', 't_balanced_gcd'])
@@ -123,7 +126,12 @@ def computePrMetric(prCounts):
     
     total_count = TP+FP+TN+FN
     def getMetric(num, den):
-        return np.divide(num, den, out = np.ones_like(num), where =den!=0)
+        results=np.zeros_like(num)
+        idx=np.nonzero(num==den)[0]
+        for i in idx:
+            if results[i]==0:
+                results[i]=1
+        return np.divide(num, den, out = results, where =den!=0)
 
     Precision = getMetric(num=TP, den=TP+FP)
     Recall = getMetric(num=TP, den=TP+FN)
@@ -168,8 +176,8 @@ def gradient_reg(cp_detect, x, p=0.5):
     return torch.mean(torch.pow(torch.abs(x_diff), p))
     #return torch.mean(p*torch.log(torch.abs(x_diff)))
 
-def reportChangePointMetrics(name : str, cp_pred_raw: torch.Tensor, cp_target: torch.tensor, seq_len: int, cpThresh: float)->t_prMetrics:
-    Batch_size, T = cp_pred_raw.shape[0], cp_pred_raw.shape[1]
+def reportChangePointMetrics(name : str, cp_pred_raw: torch.Tensor, cp_target: torch.tensor, cpThresh: float, win_tol=2)->t_prMetrics:
+    Batch_size, T = cp_target.shape[0], cp_target.shape[1]
     cp_pred = torch.zeros((Batch_size, T))
     if name==cpMethod.gradient.name:
         cp_idx = torch.nonzero(torch.abs(cp_pred_raw[:,1:,:]-cp_pred_raw[:,:-1,:])>cpThresh)
@@ -182,13 +190,12 @@ def reportChangePointMetrics(name : str, cp_pred_raw: torch.Tensor, cp_target: t
     elif name==cpMethod.BOCD.name:
         cp_pred_diff = cp_pred_raw[:,1:]-cp_pred_raw[:,:-1]
         cp_pred = torch.zeros((Batch_size, T))
-        cp_idx = torch.nonzero((cp_pred_diff<-cpThresh))
+        cp_idx = torch.nonzero((cp_pred_diff<0))
         for i,j in zip(cp_idx[:,0], cp_idx[:,1]):
-            if j+1 < seq_len:
-                if cp_pred_raw[i,j+1]<cpThresh:
-                    cp_pred[i,j]=1
+            if cp_pred_raw[i,j+1]<=cpThresh:
+                cp_pred[i,j-1]=1
         
-    prCounts = eval_cp_batch(cp_target, cp_pred, seq_len)
+    prCounts = eval_cp_batch(cp_target, cp_pred, T, win_tol=win_tol)
     prMetricsSum = computePrMetric(prCounts)
     prMetrics={}
     for k,v in prMetricsSum.items():
@@ -273,16 +280,20 @@ def class_accuracy(y_pred, y_test):
     acc = acc * 100
     return acc
 
-def prMetricsByThresh(method_name, cp_pred_raw, cp_target, steps):
-    num_samples = cp_target.shape[0]
-    seqlen = cp_target.shape[1]
-    min_prob = 0.0
-    max_prob = 1.0
-    increment = (max_prob - min_prob)/steps
+@timer
+def prMetricsByThresh(method_name, cp_pred_raw, cp_target, steps, minThresh, maxThresh, win_tol=2, byWindows=False):
+    increment = (maxThresh - minThresh)/steps
     df=pd.DataFrame(columns=list(t_prMetrics._fields)+['thresh'])
-    for thresh in np.arange(min_prob, max_prob + increment, increment):
-        prMetrics = reportChangePointMetrics(method_name, cp_pred_raw, cp_target, seqlen, thresh)
+    for thresh in np.arange(minThresh, maxThresh + increment, increment):
+        prMetrics, cp_pred = reportChangePointMetrics(method_name, cp_pred_raw, cp_target, thresh, win_tol)
+        if byWindows: 
+            prMetrics={}
+            prMetrics['Precision']=precision_score(cp_target.flatten(), cp_pred.flatten())
+            prMetrics['Recall']=recall_score(cp_target.flatten(), cp_pred.flatten())
+            prMetrics['BalancedAccuracy']=balanced_accuracy_score(cp_target.flatten(), cp_pred.flatten())
+            prMetrics['Accuracy']=accuracy_score(cp_target.flatten(), cp_pred.flatten())
         prMetrics['thresh']=thresh
+        prMetrics['F1']=2*prMetrics['Precision']*prMetrics['Recall']/(prMetrics['Precision']+prMetrics['Recall'])
         df=df.append(prMetrics, ignore_index=True)
     return df
 

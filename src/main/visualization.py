@@ -7,6 +7,7 @@ import numpy as np
 import seaborn as sns
 from src.utils.modelUtil import convert_coordinates
 from src.utils.dataUtil import getValueBySelection
+from src.main.evaluation import cpMethod
 
 def plot_coordinates_map(label, data_coordinates, lbl_coord, rev_pop_order, pop_arr):
     """
@@ -74,41 +75,35 @@ def plot_chmBaratBottom(rev_pop_dict):
     # plt.show()
     ...
 
-def plot_changepoint_predictions(y_pred_index_np, y_pred_var, cp_pred_index_np, bocd_cp, cp_mask, y_vcf_idx, rev_pop_dict, granular_pop_map):
+def plot_changepoints(true_cps, pred_cps, y_pred, bocp_rl, y_var, popNames):
     """
-    plot for sample wise comparison of predicted changepoints
-    and true changepoints for various methods
+    For a single haplotype, plot the comparison of changepoint detection
+    by different methods
     """
-    fig, ax = plt.subplots(figsize=[18,25])
-    ax1 = fig.add_subplot(7,1,1)
-    ax2 = fig.add_subplot(7,1,2)
-    ax3 = fig.add_subplot(7,1,3)
-    ax4 = fig.add_subplot(7,1,4)
-    ax5 = fig.add_subplot(7,1,5)
-    ax6 = fig.add_subplot(7,1,6)
-    ax7 = fig.add_subplot(7,1,7)
-    ax1.plot(y_pred_index_np)
-    ax1.text(0, np.max(y_pred_index_np), s=rev_pop_dict[granular_pop_map[int(y_vcf_idx[1,:].item())]])
-    for i in true_cps:
-        ax1.plot([i,i], [np.min(y_pred_index_np), np.max(y_pred_index_np)], 'r' )
-        ax1.text(i, np.max(y_pred_index_np), s=rev_pop_dict[granular_pop_map[int(y_vcf_idx[i+1,:].item())]])
-    ax2.plot(y_pred_index_np[:-1,:]-y_pred_index_np[1:,:])
-    ax3.plot(y_pred_var.detach().cpu().numpy()[index,:,:])
-    ax4.plot(cp_pred_index_np)
-    ax5.plot(np.arange(T+1), bocp_rl[index,:])
-    ax6.plot(bocd_cp[index,:])
-    ax7.plot(~cp_mask[index,:,0].bool())
-    ax1.set_title("n_vectors")
-    ax2.set_title("Simple gradient(post_process)")
-    ax3.set_title("Mc dropout")
-    ax4.set_title("Neural Network predicted cp")
-    ax5.set_title("BOCD (post process) run_length")
-    ax6.set_title("BOCD (post process) cp")
-    ax7.set_title("cp target (cp_mask)")
+    fig, ax = plt.subplots(8,1,figsize=[18,30])
+    T=len(true_cps)
+    ax[0].plot(y_pred)
+    ax[0].text(0, np.max(y_pred)-0.5, s=popNames[0], size=15)
+    for i in np.nonzero(true_cps)[0]:
+        ax[0].plot([i,i], [np.min(y_pred), np.max(y_pred)], 'r' )
+        ax[0].text(i, np.max(y_pred)-0.5, s=popNames[i+1], size=15)
+    ax[1].plot(pred_cps[cpMethod.gradient.name])
+    ax[2].plot(y_var)
+    ax[3].plot(pred_cps[cpMethod.mc_dropout.name])
+    ax[4].plot(pred_cps[cpMethod.neural_network.name])
+    ax[5].plot(np.arange(T+1), bocp_rl)
+    ax[6].plot(pred_cps[cpMethod.BOCD.name])
+    ax[7].plot(true_cps)
     
-    # log image/fig to wandb
-    
-    # plt.show()
+    ax[0].set_title("n_vectors")
+    ax[1].set_title("Simple gradient(post_process)")
+    ax[2].set_title("Mc dropout variance")
+    ax[3].set_title("Mc dropout")
+    ax[4].set_title("Neural Network predicted cp")
+    ax[5].set_title("BOCD (post process) run_length")
+    ax[6].set_title("BOCD (post process) cp")
+    ax[7].set_title("True Cps")
+    plt.show()
     return fig
 
 def chm_plot(label,gcd):
