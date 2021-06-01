@@ -47,7 +47,10 @@ def main(config, params):
         print(f'model {model_subclass} : {model_basic}')
             
     model_path = osp.join(config['models.dir'], 'models_dir')
-    model_ret = load_model(''.join([str(model_path),'/best.pt']), middle_models)
+    if config['model.loadBest']:
+        model_ret = load_model(''.join([str(model_path),'/best.pt']), middle_models)
+    else:
+        model_ret = load_model(''.join([str(model_path),'/last.pt']), middle_models)
     # call to the corresponding model, example - Model_L.model_L
     model = eval(model_subclass[0])(*model_ret, params=params)
     #================================ Create the model ================================

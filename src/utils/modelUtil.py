@@ -111,7 +111,6 @@ def convert_nVector(lat, lon):
     x=x[...,np.newaxis]
     y=y[...,np.newaxis]
     z=z[...,np.newaxis]
-    print(f"x:{x.shape}")
     nVector = np.stack((x, y, z), axis=2).squeeze(3)
     return nVector
 

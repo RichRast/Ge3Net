@@ -157,6 +157,59 @@ class SmoothL1Loss():
             return z.sum()
         return z.mean()
     
+def getCpPred(name, cp_pred_raw, cpThresh, Batch_size, T):
+    cp_pred = torch.zeros((Batch_size, T))
+    if name in [cpMethod.gradient.name, cpMethod.mc_dropout.name]:
+        ShapeWithBatchLen=3
+    elif name in [cpMethod.neural_network.name, cpMethod.BOCD.name]:
+        ShapeWithBatchLen=2
+    if len(cp_pred_raw.shape)<ShapeWithBatchLen:
+        cp_pred_raw=cp_pred_raw.unsqueeze(0) if torch.is_tensor(cp_pred_raw) else \
+        torch.tensor(cp_pred_raw[np.newaxis,...])# unsqueeze for batch dimension
+    if name==cpMethod.gradient.name:
+        cp_idx = torch.nonzero(torch.abs(cp_pred_raw[:,1:,:]-cp_pred_raw[:,:-1,:])>cpThresh)
+        cp_pred[cp_idx[:,0], cp_idx[:,1]]=1
+    elif name==cpMethod.mc_dropout.name:
+        cp_idx = torch.nonzero(cp_pred_raw>cpThresh)
+        cp_pred[cp_idx[:,0], cp_idx[:,1]]=1
+    elif name==cpMethod.neural_network.name:
+        cp_pred = (torch.sigmoid(cp_pred_raw)>cpThresh).int()
+    elif name==cpMethod.BOCD.name:
+        cp_pred_diff = cp_pred_raw[:,1:]-cp_pred_raw[:,:-1]
+        cp_pred = torch.zeros((Batch_size, T))
+        cp_idx = torch.nonzero((cp_pred_diff<0))
+        for i,j in zip(cp_idx[:,0], cp_idx[:,1]):
+            if cp_pred_raw[i,j+1]<=cpThresh:
+                cp_pred[i,j-1]=1
+    return cp_pred
+
+def reportChangePointMetrics(name : str, cp_pred_raw: torch.Tensor, cp_target: torch.tensor, cpThresh: float, win_tol=2)->t_prMetrics:
+    Batch_size, T = cp_target.shape[0], cp_target.shape[1]
+    cp_pred = getCpPred(name, cp_pred_raw, cpThresh, Batch_size, T)
+    prCounts = eval_cp_batch(cp_target, cp_pred, T, win_tol=win_tol)
+    prMetricsSum = computePrMetric(prCounts)
+    prMetrics={}
+    for k,v in prMetricsSum.items():
+        prMetrics[k] = v/Batch_size
+    return prMetrics, cp_pred
+
+@timer
+def prMetricsByThresh(method_name, cp_pred_raw, cp_target, steps, minThresh, maxThresh, win_tol=2, byWindows=False):
+    increment = (maxThresh - minThresh)/steps
+    df=pd.DataFrame(columns=list(t_prMetrics._fields)+['thresh'])
+    for thresh in np.arange(minThresh, maxThresh + increment, increment):
+        prMetrics, cp_pred = reportChangePointMetrics(method_name, cp_pred_raw, cp_target, thresh, win_tol)
+        if byWindows: 
+            prMetrics={}
+            prMetrics['Precision']=precision_score(cp_target.flatten(), cp_pred.flatten())
+            prMetrics['Recall']=recall_score(cp_target.flatten(), cp_pred.flatten())
+            prMetrics['BalancedAccuracy']=balanced_accuracy_score(cp_target.flatten(), cp_pred.flatten())
+            prMetrics['Accuracy']=accuracy_score(cp_target.flatten(), cp_pred.flatten())
+        prMetrics['thresh']=thresh
+        prMetrics['F1']=2*prMetrics['Precision']*prMetrics['Recall']/(prMetrics['Precision']+prMetrics['Recall'])
+        df=df.append(prMetrics, ignore_index=True)
+    return df
+
 class Weighted_Loss():
     def __init__(self, reduction='mean', alpha = 1.0):
         self.alpha = alpha
@@ -175,32 +228,6 @@ def gradient_reg(cp_detect, x, p=0.5):
     x_diff = get_gradient(x)   
     return torch.mean(torch.pow(torch.abs(x_diff), p))
     #return torch.mean(p*torch.log(torch.abs(x_diff)))
-
-def reportChangePointMetrics(name : str, cp_pred_raw: torch.Tensor, cp_target: torch.tensor, cpThresh: float, win_tol=2)->t_prMetrics:
-    Batch_size, T = cp_target.shape[0], cp_target.shape[1]
-    cp_pred = torch.zeros((Batch_size, T))
-    if name==cpMethod.gradient.name:
-        cp_idx = torch.nonzero(torch.abs(cp_pred_raw[:,1:,:]-cp_pred_raw[:,:-1,:])>cpThresh)
-        cp_pred[cp_idx[:,0], cp_idx[:,1]]=1
-    elif name==cpMethod.mc_dropout.name:
-        cp_idx = torch.nonzero(cp_pred_raw>cpThresh)
-        cp_pred[cp_idx[:,0], cp_idx[:,1]]=1
-    elif name==cpMethod.neural_network.name:
-        cp_pred = (torch.sigmoid(cp_pred_raw)>cpThresh).int()
-    elif name==cpMethod.BOCD.name:
-        cp_pred_diff = cp_pred_raw[:,1:]-cp_pred_raw[:,:-1]
-        cp_pred = torch.zeros((Batch_size, T))
-        cp_idx = torch.nonzero((cp_pred_diff<0))
-        for i,j in zip(cp_idx[:,0], cp_idx[:,1]):
-            if cp_pred_raw[i,j+1]<=cpThresh:
-                cp_pred[i,j-1]=1
-        
-    prCounts = eval_cp_batch(cp_target, cp_pred, T, win_tol=win_tol)
-    prMetricsSum = computePrMetric(prCounts)
-    prMetrics={}
-    for k,v in prMetricsSum.items():
-        prMetrics[k] = v/Batch_size
-    return prMetrics, cp_pred
 
 class Running_Average():
     def __init__(self):
@@ -280,21 +307,16 @@ def class_accuracy(y_pred, y_test):
     acc = acc * 100
     return acc
 
-@timer
-def prMetricsByThresh(method_name, cp_pred_raw, cp_target, steps, minThresh, maxThresh, win_tol=2, byWindows=False):
-    increment = (maxThresh - minThresh)/steps
-    df=pd.DataFrame(columns=list(t_prMetrics._fields)+['thresh'])
-    for thresh in np.arange(minThresh, maxThresh + increment, increment):
-        prMetrics, cp_pred = reportChangePointMetrics(method_name, cp_pred_raw, cp_target, thresh, win_tol)
-        if byWindows: 
-            prMetrics={}
-            prMetrics['Precision']=precision_score(cp_target.flatten(), cp_pred.flatten())
-            prMetrics['Recall']=recall_score(cp_target.flatten(), cp_pred.flatten())
-            prMetrics['BalancedAccuracy']=balanced_accuracy_score(cp_target.flatten(), cp_pred.flatten())
-            prMetrics['Accuracy']=accuracy_score(cp_target.flatten(), cp_pred.flatten())
-        prMetrics['thresh']=thresh
-        prMetrics['F1']=2*prMetrics['Precision']*prMetrics['Recall']/(prMetrics['Precision']+prMetrics['Recall'])
-        df=df.append(prMetrics, ignore_index=True)
-    return df
 
-
+def getMeanBalancedLoss(lossObj, pred, target, labels, mask=None):
+    avgLoss = 0.0
+    uniqueLabels=np.unique(labels).astype(int)
+    numUniqueLabels=len(uniqueLabels)
+    for i in uniqueLabels:
+        idx=torch.nonzero(labels==i)
+        if mask is None:
+            mask = 1
+        numIdx = sum(mask[idx])
+        loss = lossObj((pred*mask)[idx], (target*mask)[idx])/numIdx
+        avgLoss += loss
+    return avgLoss/numUniqueLabels

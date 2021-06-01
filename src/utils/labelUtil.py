@@ -6,6 +6,7 @@ import allel
 import os.path as osp
 from pyadmix.utils import get_chm_info, build_founders, create_non_rec_dataset, write_output 
 from src.utils.dataUtil import save_file, getValueBySelection, load_path
+from src.utils.decorators import timer
 from typing import List
 
 def filter_reference_file(ref_sample_map, verbose=True):
@@ -170,7 +171,8 @@ def getAdmixedCombineChm(*args, **kwargs):
             genetic_map["breakpoint_probability"], random_seed, prevAdmixedFlag=prevAdmixedFlag,\
                  prevAdmixed=admixed_samples_start, foundersIdx=foundersIdx)
             write_output(save_path_chm, admixed_samples)
-        
+
+@timer   
 def getSuperpopBins(pop_arr: np.ndarray, labels_path:str, preds: np.ndarray)->np.ndarray:
     """
     compute distance of preds from labels and assign the bin to the closest label

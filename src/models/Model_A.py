@@ -8,6 +8,7 @@ from src.main.evaluation import GcdLoss, eval_cp_batch, gradient_reg, balancedMe
 Running_Average, modelOuts, branchLoss, t_prMetrics
 from src.main.modelSelection import Selections
 from dataclasses import fields
+from copy import deepcopy
 import pdb
 import snoop
 
@@ -78,8 +79,8 @@ class model_A(object):
 
             trainBalancedGcd=None
             if self.params.geography and self.params.evalBalancedGcd:
-                gcdTensor=GcdLoss().rawGcd(train_outs.coord_main, train_labels.coord_main).detach().cpu().numpy()
-                trainBalancedGcd=self.getExtraGcdMetrics(trainGcdBalancedMetrics, gcdTensor, superpop, granularpop)
+                gcdMatrix=GcdLoss().rawGcd(train_outs.coord_main, train_labels.coord_main).detach()
+                trainBalancedGcd=self.getExtraGcdMetrics(trainGcdBalancedMetrics, gcdMatrix, superpop, granularpop)
             
             #logging
             if wandb:
@@ -150,8 +151,8 @@ class model_A(object):
             
             valBalancedGcd=None
             if self.params.geography and self.params.evalBalancedGcd:
-                gcdTensor=GcdLoss().rawGcd(val_outs.coord_main, val_labels.coord_main).detach().cpu().numpy()
-                valBalancedGcd=self.getExtraGcdMetrics(valGcdBalancedMetrics, gcdTensor, superpop, granularpop)
+                gcdMatrix=GcdLoss().rawGcd(val_outs.coord_main, val_labels.coord_main).detach()
+                valBalancedGcd=self.getExtraGcdMetrics(valGcdBalancedMetrics, gcdMatrix, superpop, granularpop)
     
             #logging
             if wandb:
@@ -254,7 +255,7 @@ class model_A(object):
         loss_inner=self._getLossInner(outs, target)
         sample_size=mask.sum()
         lossBack=loss_inner.loss_aux/sample_size
-        loss_inner.loss_aux = loss_inner.loss_aux .item()
+        loss_inner.loss_aux = loss_inner.loss_aux.item()
         loss_inner.loss_main=loss_inner.loss_main.item()
         if self.params.cp_predict: 
             cp_logits, loss_cp = self._changePointNet(out_nxt, target=target.cp_logits)
@@ -318,11 +319,11 @@ class model_A(object):
         medianBalancedGcd=self.option['balancedMetrics']['medianBalanced'](gcdObj)()
         balancedGcdMetrics['meanBalancedGcdSp'], balancedGcdMetrics['meanBalancedGcdGp'] = meanBalancedGcd
         balancedGcdMetrics['medianBalancedGcdSp'], balancedGcdMetrics['medianBalancedGcdGp'] = medianBalancedGcd
-        balancedGcdMetrics['median']=self.option['balancedMetrics']['median'](gcdObj)
+        balancedGcdMetrics['median']=self.option['balancedMetrics']['median'](gcdObj)()
         return  balancedGcdMetrics
 
-    def getExtraGcdMetrics(self, gcdMetricsObj, gcdTensor, superpop, granularpop):        
-        gcdMetricsObj.fillData(gcdTensor)
+    def getExtraGcdMetrics(self, gcdMetricsObj, gcdMatrix, superpop, granularpop):        
+        gcdMetricsObj.fillData(gcdMatrix.clone())
         trainBalancedGcd = self.getBalancedClassGcd(superpop, granularpop, gcdMetricsObj)
         accAtGcd=gcdMetricsObj.accAtThresh()
         return trainBalancedGcd
