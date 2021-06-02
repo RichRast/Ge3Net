@@ -139,7 +139,7 @@ class model_A(object):
                 cp_logits, loss_cp = self._changePointNet(x_nxt, target=val_labels.cp_logits)
                 val_outs.cp_logits=cp_logits
             if self.params.rtnOuts:   
-                valPredLs.append(val_outs.coord_main.detach().cpu().numpy())
+                valPredLs.append(torch.stack(val_outs_list, dim=0).detach().cpu().numpy())
                 if self.params.cp_predict:valCpLs.append(val_outs.cp_logits.detach().cpu().numpy()) 
                 if self.params.mc_dropout:valVarLs.append(val_outs.y_var.detach().cpu().numpy())                  
             
@@ -164,7 +164,7 @@ class model_A(object):
                     idxLabel=idxLabel, idx=idx, idxVcf_idx=idxVcf_idx)
             del val_x, val_y, cps, val_labels
         if self.params.rtnOuts:
-            val_outs.coord_main=np.concatenate((valPredLs), axis=0)
+            val_outs.coord_main=np.concatenate((valPredLs), axis=1)
             if self.params.cp_predict:val_outs.cp_logits=np.concatenate((valCpLs), axis=0)
             if self.params.mc_dropout: val_outs.y_var=np.concatenate((valVarLs), axis=0)
         # delete tensors for memory optimization

@@ -7,6 +7,7 @@ import os.path as osp
 from pyadmix.utils import get_chm_info, build_founders, create_non_rec_dataset, write_output 
 from src.utils.dataUtil import save_file, getValueBySelection, load_path
 from src.utils.decorators import timer
+from src.utils.modelUtil import convert_nVector
 from typing import List
 
 def filter_reference_file(ref_sample_map, verbose=True):
@@ -185,7 +186,11 @@ def getSuperpopBins(pop_arr: np.ndarray, labels_path:str, preds: np.ndarray)->np
         mappedSpArr: shape (n_samples*n_win)
     """
     labels=load_path(osp.join(labels_path, 'labels.pkl'), en_pickle=True)
-    labels_npy=np.array(list(labels.values())) #5930x3
+    labels_npy=np.array(list(labels.values())) #5930x3 #samplesxdim
+    if labels_npy.shape[1]==2: # not n vectors but lat/long
+        lat=labels_npy[..., 0]
+        long=labels_npy[..., 1] 
+        labels_npy=convert_nVector(lat,long)
     preds=preds[:,np.newaxis,:]
     preds=np.repeat(preds,labels_npy.shape[0], axis=1) #(100x605)x5930x3
     L2Matrix=np.sum(np.square(preds-labels_npy), axis=2) #(100x605)x5930

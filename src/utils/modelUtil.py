@@ -111,7 +111,7 @@ def convert_nVector(lat, lon):
     x=x[...,np.newaxis]
     y=y[...,np.newaxis]
     z=z[...,np.newaxis]
-    nVector = np.stack((x, y, z), axis=2).squeeze(3)
+    nVector = np.stack((x, y, z), axis=-2).squeeze(-1)
     return nVector
 
 def convert_coordinates(*nVector):
@@ -123,7 +123,7 @@ def convert_coordinates(*nVector):
     coord_y = np.arctan2(ycord, xcord) * 180 / np.pi
     coord_x=coord_x[...,np.newaxis]
     coord_y=coord_y[...,np.newaxis]
-    coordinates=np.stack((coord_x, coord_y), axis=2).squeeze(3)
+    coordinates=np.stack((coord_x, coord_y), axis=-2).squeeze(-1)
     return coordinates
 
 def split_batch(seq_batch, bptt):
