@@ -5,7 +5,7 @@ from src.utils.decorators import timer
 from src.utils.modelUtil import activate_mc_dropout
 from src.utils.dataUtil import square_normalize, get_gradient
 from src.main.evaluation import GcdLoss, eval_cp_batch, gradient_reg, balancedMetrics, t_results, \
-Running_Average, modelOuts, branchLoss, t_prMetrics
+Running_Average, modelOuts, branchLoss, PrCounts, computePrMetric, cpMethod, getCpPred
 from src.main.modelSelection import Selections
 from dataclasses import fields
 from copy import deepcopy
@@ -31,8 +31,9 @@ class model_A(object):
         cpRunAvgObj=None
         if self.params.cp_predict:
             cpMetricLs=[branchLosses[-1]]
-            if self.params.evalCp:cpMetricLs +=t_prMetrics._fields
             cpRunAvgObj={metric:Running_Average() for metric in cpMetricLs}
+            if self.params.evalCp:cpRunAvgObj["prCounts"]=PrCounts()
+
         return runAvgObj, cpRunAvgObj
 
     @timer
@@ -91,7 +92,8 @@ class model_A(object):
                 if plotObj is not None and random.uniform(0,1)>0.5: self._plotSample(wandb, plotObj, idxSample=idxSample, \
                     idxLabel=idxLabel, idx=idx, idxVcf_idx=idxVcf_idx)
             del train_x, train_y, cps
-    
+
+        trainCpBatchAvg['prMetrics']=computePrMetric(trainCpRunAvgObj['prCounts'])
         # delete tensors for memory optimization
         torch.cuda.empty_cache()
         return t_results(t_accr=trainBatchAvg, t_cp_accr=trainCpBatchAvg, t_out=train_outs, t_balanced_gcd=trainBalancedGcd)
@@ -132,22 +134,27 @@ class model_A(object):
                 val_outs=modelOuts(coord_main=val_outs_main, coord_aux=val_outs_aux, y_var=y_var)
                 x_nxt, _ = self._getFromMcSamples(x_nxt_list)
 
-            loss_inner=self._getLossInner(val_outs, val_labels)
-
             loss_cp=None
+            cp_mask=1.0
+            batchSize=val_labels.coord_main.shape[0]
+            seqLen=val_labels.coord_main.shape[1]
+            # cpThresh=0.5
             if self.params.cp_predict: 
                 cp_logits, loss_cp = self._changePointNet(x_nxt, target=val_labels.cp_logits)
                 val_outs.cp_logits=cp_logits
+                # cp_pred=getCpPred(cpMethod.gradient.name, val_outs.coord_main, cpThresh, batchSize, seqLen).to(self.params.device).unsqueeze(2)
+                cp_mask=(cps==0)
             if self.params.rtnOuts:   
                 valPredLs.append(torch.stack(val_outs_list, dim=0).detach().cpu().numpy())
                 if self.params.cp_predict:valCpLs.append(val_outs.cp_logits.detach().cpu().numpy()) 
                 if self.params.mc_dropout:valVarLs.append(val_outs.y_var.detach().cpu().numpy())                  
             
-            sample_size=val_labels.coord_main.shape[0]*val_labels.coord_main.shape[1]
+            loss_inner=self._getLossInner(val_outs, val_labels, mask=cp_mask)
+            sample_size=batchSize*seqLen
             
             valBatchAvg, valCpBatchAvg = self._evaluateAccuracy(val_outs, val_labels,\
                 sample_size=sample_size, batchLoss={'loss_main':loss_inner.loss_main.item(), 'loss_aux':loss_inner.loss_aux.item()}, \
-            batchCpLoss={'loss_cp':loss_cp.item()}, runAvgObj=valRunAvgObj, cpRunAvgObj=valCpRunAvgObj)
+            batchCpLoss={'loss_cp':loss_cp.item()}, runAvgObj=valRunAvgObj, cpRunAvgObj=valCpRunAvgObj, mask=cp_mask)
             
             valBalancedGcd=None
             if self.params.geography and self.params.evalBalancedGcd:
@@ -167,59 +174,11 @@ class model_A(object):
             val_outs.coord_main=np.concatenate((valPredLs), axis=1)
             if self.params.cp_predict:val_outs.cp_logits=np.concatenate((valCpLs), axis=0)
             if self.params.mc_dropout: val_outs.y_var=np.concatenate((valVarLs), axis=0)
+        
+        valCpBatchAvg['prMetrics']=computePrMetric(valCpRunAvgObj['prCounts'])
         # delete tensors for memory optimization
         torch.cuda.empty_cache()
         return t_results(t_accr=valBatchAvg, t_cp_accr=valCpBatchAvg, t_out=val_outs, t_balanced_gcd=valBalancedGcd)
-
-    @timer
-    @torch.no_grad()
-    def pred(self, data_generator, **kwargs):
-        wandb = kwargs.get('wandb')
-        plotObj = kwargs.get('plotObj')
-        PredLs, VarLs=[], []
-        for _, m in self.model.items():
-                m.eval()
-        
-        for i, data_gen in enumerate(data_generator):
-            data_x = data_gen
-            data_x = data_x.to(self.params.device)
-            
-            if self.params.mc_dropout:
-                activate_mc_dropout(*list(self.model.values()))
-            else:
-                self.params.mc_samples=1
-
-            outs_list, x_nxt_list, aux_list=[],[], []
-            for _ in range(self.params.mc_samples):
-                outs, x_nxt = self._inner(data_x)
-                outs_list.append(outs.coord_main)
-                aux_list.append(outs.coord_aux)
-                x_nxt_list.append(x_nxt)
-                
-            if self.params.mc_dropout:
-                outs_main, y_var = self._getFromMcSamples(outs_list, getVariance=True)
-                outs_aux, _ = self._getFromMcSamples(aux_list)
-                x_nxt,_ = self._getFromMcSamples(x_nxt_list)
-                outs=modelOuts(coord_main=outs_main, coord_aux=outs_aux, y_var=y_var)
-                VarLs.append(outs.y_var.detach().cpu().numpy())
-            PredLs.append(outs.coord_main.detach().cpu().numpy())
-            if self.params.cp_predict: 
-                cp_logits, _ = self._changePointNet(x_nxt)
-                outs=outs._replace(cp_logits=cp_logits)
-            
-            #logging
-            if wandb:
-                idx = 0
-                idxSample = self._getSample(out=outs.coord_main, idx=idx)
-                self._plotSample(idxSample=idxSample)
-                if plotObj is not None: self._plotSample(wandb, plotObj, idxSample=idxSample, idx=idx)
-        del data_x  
-        outs=outs._replace(coord_main=np.concatenate((PredLs), axis=0))
-        if self.params.mc_dropout:
-            outs=outs._replace(y_var=np.concatenate((VarLs), axis=0))                       
-        # delete tensors for memory optimization
-        torch.cuda.empty_cache()
-        return outs
 
     def _get_n_comp(self):
         if self.params.residual:
@@ -238,15 +197,16 @@ class model_A(object):
     
     def _inner(self, x, **kwargs):
         mask = kwargs.get('mask')
-        if mask is None:
-            mask = 1
+        if mask is None: mask = 1.0
         out_aux, out_nxt = self._auxNet(x)
         if self.params.geography: out_aux= square_normalize(out_aux)
         outs = modelOuts(coord_main = out_aux*mask, coord_aux= out_aux*mask)
         return outs, out_nxt
 
-    def _getLossInner(self, outs, target):
-        auxLoss=self.criterion(outs.coord_aux, target.coord_main)
+    def _getLossInner(self, outs, target, **kwargs):
+        mask = kwargs.get('mask')
+        if mask is None: mask = 1.0
+        auxLoss=self.criterion(outs.coord_aux*mask, target.coord_main*mask)
         mainLoss=auxLoss
         return branchLoss(loss_main=mainLoss, loss_aux=auxLoss)
     
@@ -277,9 +237,10 @@ class model_A(object):
         batchCpLoss=kwargs.get('batchCpLoss')
         sample_size=kwargs.get('sample_size')
         cpThresh=kwargs.get('cpThresh')
-        
+        mask = kwargs.get('mask')
+        if mask is None: mask = 1.0
         if self.params.evalExtraMainLosses:
-            batchLoss={**batchLoss, **{metric:self.losses[metric](y.coord_main, target.coord_main).item() for metric in self.losses if self.losses[metric] is not None}}
+            batchLoss={**batchLoss, **{metric:self.losses[metric](y.coord_main*mask, target.coord_main*mask).item() for metric in self.losses if self.losses[metric] is not None}}
             
         # update the running avg object
         for key, val in runAvgObj.items():
@@ -298,16 +259,13 @@ class model_A(object):
             cp_pred=cp_pred.squeeze(2) 
             if self.params.evalCp:
                 prCounts= eval_cp_batch(target.cp_logits.squeeze(2), cp_pred, self.params.n_win)
-                prMetrics = self.option['cpMetrics']['prMetric'](prCounts)
-                batchCpLoss={**batchCpLoss, **prMetrics}
-
+                cpRunAvgObj["prCounts"].update(prCounts)
             # update the running avg object
             numSamples=target.cp_logits.shape[0]
             numWin=target.cp_logits.shape[1]
-            for key, val in cpRunAvgObj.items():
-                if batchCpLoss.get(key) is not None:
-                    val.update(batchCpLoss[key], (lambda x: numSamples*numWin if x=="loss_cp" else numSamples) (key))
-            batchCpAvg={metric:cpRunAvgObj.get(metric)() if batchCpLoss.get(metric) is not None else None for metric in cpRunAvgObj}
+            cpRunAvgObj["loss_cp"].update(batchCpLoss["loss_cp"], numSamples*numWin)
+            batchCpAvg={"loss_cp":cpRunAvgObj["loss_cp"]()}
+            
             del batchCpLoss
         torch.cuda.empty_cache()
         return batchAvg, batchCpAvg

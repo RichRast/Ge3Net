@@ -174,7 +174,7 @@ def getAdmixedCombineChm(*args, **kwargs):
             write_output(save_path_chm, admixed_samples)
 
 @timer   
-def getSuperpopBins(pop_arr: np.ndarray, labels_path:str, preds: np.ndarray)->np.ndarray:
+def getSuperpopBins(labels_path:str, preds: np.ndarray)->np.ndarray:
     """
     compute distance of preds from labels and assign the bin to the closest label
     for a single example or a batch of examples
@@ -185,21 +185,24 @@ def getSuperpopBins(pop_arr: np.ndarray, labels_path:str, preds: np.ndarray)->np
     Returns:
         mappedSpArr: shape (n_samples*n_win)
     """
-    labels=load_path(osp.join(labels_path, 'labels.pkl'), en_pickle=True)
-    labels_npy=np.array(list(labels.values())) #5930x3 #samplesxdim
-    if labels_npy.shape[1]==2: # not n vectors but lat/long
-        lat=labels_npy[..., 0]
-        long=labels_npy[..., 1] 
+    labels_all=load_path(osp.join(labels_path, 'labels.pkl'), en_pickle=True)
+    train_sample_map=pd.read_csv(osp.join(labels_path, 'train_sample_map.tsv'), sep="\t")
+    n_dim=list(labels_all.values())[0].shape[-1] # dim of labels stored, if 2 dim then lat/long
+    labels_train=np.zeros((2*len(train_sample_map),n_dim))
+    for i, k in enumerate(train_sample_map['ref_idx']):
+        labels_train[i,:]=labels_all.get(2*k)
+        labels_train[i+1,:]=labels_all.get(2*k+1) #5930x3 #samplesxdim
+    if n_dim==2: # not n vectors but lat/long
+        lat=labels_train[..., 0]
+        long=labels_train[..., 1] 
         labels_npy=convert_nVector(lat,long)
+    labels_npy=labels_npy[np.newaxis,:,:]
     preds=preds[:,np.newaxis,:]
     preds=np.repeat(preds,labels_npy.shape[0], axis=1) #(100x605)x5930x3
     L2Matrix=np.sum(np.square(preds-labels_npy), axis=2) #(100x605)x5930
     idx=np.argmin(L2Matrix, axis=1)#60500
-
     # use these idxes to find the mapped superpop bin
-    dict_idx={k:v for k,v in zip(range(len(labels)), list(labels.keys()))}
-    ref_idx=list(map(lambda x:dict_idx[x], idx))
-    mappedSp=list(map(lambda x:getValueBySelection(pop_arr,1,x,3),ref_idx))
+    mappedSp=list(map(lambda x:train_sample_map.loc[x,'superpop'], idx))
     mappedSpArr=np.array(mappedSp)
     return mappedSpArr
 

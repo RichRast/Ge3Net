@@ -13,10 +13,25 @@ import pdb
 
 t_results = namedtuple('t_results',['t_accr', 't_cp_accr', 't_sp_accr', 't_out', 't_balanced_gcd'])
 t_results.__new__.__defaults__=(None,)*len(t_results._fields)
-t_prCounts = namedtuple('t_prCounts', ['TP', 'FP', 'TN', 'FN'])
 t_prMetrics = namedtuple('t_prMetrics', ['Precision', 'Recall', 'Accuracy', 'A_major', 'BalancedAccuracy'])
 
 cpMethod=Enum('cpMethod', 'neural_network gradient mc_dropout BOCD', start=0)
+
+@dataclass
+class PrCounts:
+    TP:int=0
+    FP:int=0
+    TN:int=0
+    FN:int=0
+
+    def update(self, x):
+        if isinstance(x, PrCounts):
+            self.TP +=x.TP
+            self.FP +=x.FP
+            self.TN +=x.TN
+            self.FN +=x.FN
+        else:
+            print(f" object passed was not an instance of {self.__class__.__name__}")
 
 @dataclass
 class modelOuts:
@@ -119,7 +134,7 @@ def eval_cp_batch(cp_target, cp_pred, seq_len, win_tol=2):
         countsArr[i,0], countsArr[i,1], countsArr[i,2], countsArr[i,3], _ = eval_cp_matrix(true_cps, pred_cps, seq_len, win_tol)
         # distance_matrix.append(distance_matrix_tmp)
     
-    return t_prCounts(TP=countsArr[:,0], FP=countsArr[:,1], FN=countsArr[:,2], TN=countsArr[:,3])
+    return PrCounts(TP=countsArr[:,0].sum(), FP=countsArr[:,1].sum(), FN=countsArr[:,2].sum(), TN=countsArr[:,3].sum())
 
 def computePrMetric(prCounts):
     TP, FP, TN, FN=prCounts.TP, prCounts.FP, prCounts.TN, prCounts.FN
@@ -127,10 +142,6 @@ def computePrMetric(prCounts):
     total_count = TP+FP+TN+FN
     def getMetric(num, den):
         results=np.zeros_like(num)
-        idx=np.nonzero(num==den)[0]
-        for i in idx:
-            if results[i]==0:
-                results[i]=1
         return np.divide(num, den, out = results, where =den!=0)
 
     Precision = getMetric(num=TP, den=TP+FP)
@@ -138,8 +149,8 @@ def computePrMetric(prCounts):
     Accuracy = getMetric(num=TP+TN, den=total_count)
     A_major=getMetric(num=TN, den=TN+FP)
     BalancedAccuracy=0.5*(Recall+A_major)
-    return t_prMetrics(Precision=Precision.sum(0), Recall=Recall.sum(0), Accuracy=Accuracy.sum(0), \
-    A_major=A_major.sum(0), BalancedAccuracy=BalancedAccuracy.sum(0))._asdict()
+    return t_prMetrics(Precision=Precision, Recall=Recall, Accuracy=Accuracy, \
+    A_major=A_major, BalancedAccuracy=BalancedAccuracy)._asdict()
 
 class SmoothL1Loss():
     def __init__(self, reduction='mean', alpha=1.0):

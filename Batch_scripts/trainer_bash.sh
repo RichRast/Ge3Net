@@ -77,4 +77,4 @@ echo log_dir: $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id
 less +F $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
 
 # command from terminal directly
-# python3 trainer.py --data.params $USER_PATH/src/main/experiments/exp_B --data.geno_type humans  --data.labels $OUT_PATH/humans/labels/data_id_7_geo --data.dir $OUT_PATH/humans/labels/data_id_7_geo --models.dir $OUT_PATH/humans/training/Model_B_exp_id_1_data_id_7_geo --model.summary "tb_with_geo"
+# python3 trainer.py --data.params $USER_PATH/src/main/experiments/exp_B --data.geno_type humans  --data.labels $OUT_PATH/humans/labels/data_id_3_pca --data.dir $OUT_PATH/humans/labels/data_id_3_pca --models.dir $OUT_PATH/humans/training/Model_B_exp_id_11_data_id_3_pca --model.summary "tb_with_geo"

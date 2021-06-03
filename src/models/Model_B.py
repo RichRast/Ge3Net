@@ -59,9 +59,11 @@ class model_B(model_A):
             # loss_main=self.criterion(out_rnn*mask, target.coord_main*mask) if target is not None else None
             return rnnResults
         
-    def _getLossInner(self, outs, target):
-        auxLoss=self.criterion(outs.coord_aux, target.coord_main)
-        mainLoss=self.criterion(outs.coord_main, target.coord_main)
+    def _getLossInner(self, outs, target, **kwargs):
+        mask = kwargs.get('mask')
+        if mask is None: mask = 1.0
+        auxLoss=self.criterion(outs.coord_aux*mask, target.coord_main*mask)
+        mainLoss=self.criterion(outs.coord_main*mask, target.coord_main*mask)
         return branchLoss(loss_main=mainLoss, loss_aux=auxLoss)
 
     def _inner(self,x,**kwargs):
