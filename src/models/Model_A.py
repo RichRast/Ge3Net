@@ -80,7 +80,7 @@ class model_A(object):
 
             trainBalancedGcd=None
             if self.params.geography and self.params.evalBalancedGcd:
-                gcdMatrix=GcdLoss().rawGcd(train_outs.coord_main, train_labels.coord_main).detach()
+                gcdMatrix=GcdLoss().rawGcd(train_outs.coord_main*cp_mask, train_labels.coord_main*cp_mask).detach()
                 trainBalancedGcd=self.getExtraGcdMetrics(trainGcdBalancedMetrics, gcdMatrix, superpop, granularpop)
             
             #logging
@@ -145,7 +145,7 @@ class model_A(object):
                 # cp_pred=getCpPred(cpMethod.gradient.name, val_outs.coord_main, cpThresh, batchSize, seqLen).to(self.params.device).unsqueeze(2)
                 cp_mask=(cps==0)
             if self.params.rtnOuts:   
-                valPredLs.append(torch.stack(val_outs_list, dim=0).detach().cpu().numpy())
+                valPredLs.append(torch.stack(val_outs_list, dim=0).contiguous().detach().cpu().numpy())
                 if self.params.cp_predict:valCpLs.append(val_outs.cp_logits.detach().cpu().numpy()) 
                 if self.params.mc_dropout:valVarLs.append(val_outs.y_var.detach().cpu().numpy())                  
             
@@ -158,7 +158,7 @@ class model_A(object):
             
             valBalancedGcd=None
             if self.params.geography and self.params.evalBalancedGcd:
-                gcdMatrix=GcdLoss().rawGcd(val_outs.coord_main, val_labels.coord_main).detach()
+                gcdMatrix=GcdLoss().rawGcd(val_outs.coord_main*cp_mask, val_labels.coord_main*cp_mask).detach()
                 valBalancedGcd=self.getExtraGcdMetrics(valGcdBalancedMetrics, gcdMatrix, superpop, granularpop)
     
             #logging
@@ -205,8 +205,10 @@ class model_A(object):
 
     def _getLossInner(self, outs, target, **kwargs):
         mask = kwargs.get('mask')
+        classLabels=kwargs.get('classLabels')
         if mask is None: mask = 1.0
         auxLoss=self.criterion(outs.coord_aux*mask, target.coord_main*mask)
+        # auxLoss=getMeanBalancedLoss(self.criterion, outs.coord_main*mask, target.coord_main*mask, classLabels)
         mainLoss=auxLoss
         return branchLoss(loss_main=mainLoss, loss_aux=auxLoss)
     

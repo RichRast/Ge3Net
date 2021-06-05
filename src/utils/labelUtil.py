@@ -188,22 +188,20 @@ def getSuperpopBins(labels_path:str, preds: np.ndarray)->np.ndarray:
     labels_all=load_path(osp.join(labels_path, 'labels.pkl'), en_pickle=True)
     train_sample_map=pd.read_csv(osp.join(labels_path, 'train_sample_map.tsv'), sep="\t")
     n_dim=list(labels_all.values())[0].shape[-1] # dim of labels stored, if 2 dim then lat/long
-    labels_train=np.zeros((2*len(train_sample_map),n_dim))
-    for i, k in enumerate(train_sample_map['ref_idx']):
-        labels_train[i,:]=labels_all.get(2*k)
-        labels_train[i+1,:]=labels_all.get(2*k+1) #5930x3 #samplesxdim
+    pop_arr_train = repeat_pop_arr(train_sample_map)
+    labelsTrainArr=np.zeros((len(pop_arr_train), n_dim))
+    for i,j in enumerate(pop_arr_train[:,1]):
+        labelsTrainArr[i,:]=labels_all.get(j) #5930x3 #samplesxdim
     if n_dim==2: # not n vectors but lat/long
-        lat=labels_train[..., 0]
-        long=labels_train[..., 1] 
-        labels_npy=convert_nVector(lat,long)
-    labels_npy=labels_npy[np.newaxis,:,:]
+        lat=labelsTrainArr[..., 0]
+        long=labelsTrainArr[..., 1] 
+        labelsTrainArr=convert_nVector(lat,long)
+    labelsTrainArr=labelsTrainArr[np.newaxis,:,:]
     preds=preds[:,np.newaxis,:]
-    preds=np.repeat(preds,labels_npy.shape[0], axis=1) #(100x605)x5930x3
-    L2Matrix=np.sum(np.square(preds-labels_npy), axis=2) #(100x605)x5930
+    preds=np.repeat(preds,labelsTrainArr.shape[0], axis=1) #(100x605)x5930x3
+    L2Matrix=np.sum(np.square(preds-labelsTrainArr), axis=2) #(100x605)x5930
     idx=np.argmin(L2Matrix, axis=1)#60500
-    # use these idxes to find the mapped superpop bin
-    mappedSp=list(map(lambda x:train_sample_map.loc[x,'superpop'], idx))
-    mappedSpArr=np.array(mappedSp)
+    mappedSpArr=np.array(pop_arr_train[idx,3])
     return mappedSpArr
 
 def getPairwiseDistancePops(**kwargs):

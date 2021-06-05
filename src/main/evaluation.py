@@ -198,10 +198,7 @@ def reportChangePointMetrics(name : str, cp_pred_raw: torch.Tensor, cp_target: t
     Batch_size, T = cp_target.shape[0], cp_target.shape[1]
     cp_pred = getCpPred(name, cp_pred_raw, cpThresh, Batch_size, T)
     prCounts = eval_cp_batch(cp_target, cp_pred, T, win_tol=win_tol)
-    prMetricsSum = computePrMetric(prCounts)
-    prMetrics={}
-    for k,v in prMetricsSum.items():
-        prMetrics[k] = v/Batch_size
+    prMetrics = computePrMetric(prCounts)
     return prMetrics, cp_pred
 
 @timer
@@ -319,15 +316,13 @@ def class_accuracy(y_pred, y_test):
     return acc
 
 
-def getMeanBalancedLoss(lossObj, pred, target, labels, mask=None):
+def getMeanBalancedLoss(lossObj, pred, target, classLabels):
     avgLoss = 0.0
-    uniqueLabels=np.unique(labels).astype(int)
+    uniqueLabels=np.unique(classLabels).astype(int)
     numUniqueLabels=len(uniqueLabels)
     for i in uniqueLabels:
-        idx=torch.nonzero(labels==i)
-        if mask is None:
-            mask = 1
+        idx=torch.nonzero(classLabels==i)
         numIdx = sum(mask[idx])
-        loss = lossObj((pred*mask)[idx], (target*mask)[idx])/numIdx
+        loss = lossObj(pred[idx], target[idx])/numIdx
         avgLoss += loss
     return avgLoss/numUniqueLabels
