@@ -5,17 +5,17 @@ import os.path as osp
 import logging
 from src.models import LSTM, AuxiliaryTask, Conv, Attention, Transformer, BasicBlock, Model_A, \
 Model_B, Model_C
-# Model_D, Model_E, \
-# Model_F, Seq2Seq, Model_G, Model_H, Model_I, Model_J, Model_K, Model_L, Model_M, Model_N, Model_O
 from src.utils.modelUtil import save_checkpoint, load_model, early_stopping, Params,\
      weight_int, custom_opt, CustomDataParallel, countParams
 from src.utils.dataUtil import set_logger, load_path
 from src.utils.labelUtil import repeat_pop_arr
 from src.utils.decorators import timer
 from src.main.dataset import Haplotype
-from src.main.settings_model import parse_args, MODEL_CLASS
+from src.main.modelSelection import Selections
+from src.main.settings_model import parse_args
 from src.main.visualization import Plot_per_epoch
 import matplotlib.pyplot as plt
+from src.models.Ge3Net import Ge3NetBase
 
 import optuna
 import wandb
@@ -73,69 +73,22 @@ def main(config, params, trial=None):
         test_generator = torch.utils.data.DataLoader(test_dataset, batch_size=params.batch_size, num_workers=0, pin_memory=True)
          
     #============================= Create and load the model ===============================#    
-    # Create the model
-    model_subclass, model_basics = MODEL_CLASS[params.model]
-    model_params =[]
-    middle_models=[]
-    count_params=[]
-    for i, model_basic in enumerate(model_basics):
-        params_dict={}
-        # instantiate the model class
-        m = eval(model_basic)(params)
-        # use parallel GPU's
-        if torch.cuda.device_count() > 1:
-            logging.info("Using", torch.cuda.device_count(), "GPUs")
-            m = torch.nn.DataParallel(m, dim=0)
-        m.to(params.device)
-        logging.info(f"is the model on cuda? : {next(m.parameters()).is_cuda}")
-        middle_models.append(m)
-        logging.info(f'model {model_subclass} : {model_basic}')
-        # assign the corresponding model parameters
-        params_dict['params']= m.parameters()
-        params_dict['lr'] = params.learning_rate[i]
-        params_dict['weight_decay'] = params.weight_decay[i]
-        model_params.append(params_dict)
-        m_params_count=countParams(m)
-        print(f"Parameter count for model {model_basic}:{m_params_count}")
-        count_params.append(m_params_count)
-    # Total number of parameters
-    print(f"Total parameters:{sum(count_params)}")
-    # initialize the weights and biases of models
-    for m in middle_models:
-        m.apply(weight_int)    
+    modelOption=Selections.get_selection()
+    model = modelOption['models'][params.model](params)
+    model.apply(weight_int)  
+    modelOptimParams=model.getOptimizerParams()
+
+    print(f"is the model on cuda? : {next(model.parameters()).is_cuda}")
+    if torch.cuda.device_count() > 1:
+        print("Using", torch.cuda.device_count(), "GPUs")
+        model = torch.nn.DataParallel(model, dim=0)
+
     if config['log.verbose']:
         #watch all the models
-        for m in middle_models:
-            wandb.log({"model_name":str(m)})
-            wandb.watch(m, log='all')
-    # call to the corresponding model, example - Model_L.model_L
-    model = eval(model_subclass[0])(*middle_models, params=params)
-    if config['model.pretrained']:
-        model_path = osp.join(config['model.pretrained_dir'], 'models_dir')
-        #model_main, model_aux, start_epoch, optimizer = load_model(model_path, model_aux, model_main, optimizer)
-    #============================= Create and load the model ===============================#   
-    
-    training_loop(model, model_params, middle_models, params, config, training_generator, \
-        validation_generator, plotObj=plotObj, wandb=(lambda x: wandb if x else None)(config['log.verbose']), \
-        test_generator=test_generator, trial=trial)    
-   
-def epoch_logger(wandb, phase, result, epoch, geography, cp_predict, superpop_predict):
-    wandb.log({f"{phase}_metrics":result.t_accr, "epoch":epoch})
-    if geography:
-        wandb.log({f"{phase}_metrics":result.t_balanced_gcd, "epoch":epoch})
-    if cp_predict:
-        wandb.log({f"{phase}_metrics":result.t_cp_accr, "epoch":epoch})
-    if superpop_predict:
-        wandb.log({f"{phase}_metrics":result.t_sp_accr, "epoch":epoch})
-    
-@timer
-def training_loop(model, model_params, middle_models, params, config, training_generator, validation_generator, **kwargs):
-    plotObj=kwargs.get('plotObj')
-    wandb=kwargs.get('wandb')
-    test_generator=kwargs.get('test_generator')
-    trial=kwargs.get('trial')
-     # optimizer
-    optimizer = torch.optim.Adam(model_params)
+        wandb.log({"model_name":str(model)})
+        wandb.watch(model, log='all')
+ 
+    optimizer = torch.optim.Adam(modelOptimParams)
     #custom_optimizer = custom_opt(optimizer, d_model=params.att['input_size'], \
     # warmup_steps=params.att['warmup_steps'], factor=params.att['factor'], groups=params.lr_groups)
     
@@ -146,10 +99,12 @@ def training_loop(model, model_params, middle_models, params, config, training_g
     start_epoch = 0
     patience = 0
 
+    Ge3NetTrainer=Ge3NetBase(params, model)
+    #============================= Epoch Loop ===============================# 
     for epoch in range(start_epoch, params.num_epochs):
-        train_result = model.train(optimizer, training_generator, plotObj=plotObj, wandb=wandb)
+        train_result = Ge3NetTrainer.train(optimizer, training_generator, plotObj=plotObj, wandb=wandb)
 
-        eval_result = model.valid(validation_generator, plotObj=plotObj, wandb=wandb)
+        eval_result = Ge3NetTrainer.valid(validation_generator, plotObj=plotObj, wandb=wandb)
         plt.close('all')
         
         # every step in the scheduler is per epoch
@@ -169,7 +124,6 @@ def training_loop(model, model_params, middle_models, params, config, training_g
         
         val_prev_accr = eval_result.t_accr['loss_main']
 
-        # Todo user partial here
         if wandb is not None:
             epoch_logger(wandb, "train", train_result, epoch, params.geography, params.cp_predict, params.superpop_predict)
             epoch_logger(wandb, "valid", eval_result, epoch, params.geography, params.cp_predict, params.superpop_predict)
@@ -179,7 +133,7 @@ def training_loop(model, model_params, middle_models, params, config, training_g
         print(f"Saving at epoch {epoch}")
         print(f"train accr: {train_result.t_accr['loss_main']}, val accr: {eval_result.t_accr['loss_main']}")
         checkpoint = osp.join(config['models.dir'], 'models_dir')
-        models_state_dict = [middle_models[i].state_dict() for i in range(len(middle_models))]
+        models_state_dict = model.state_dict() 
 
         save_checkpoint({
             'epoch': epoch,
@@ -207,10 +161,18 @@ def training_loop(model, model_params, middle_models, params, config, training_g
             if trial.should_prune():
                 raise optuna.exceptions.TrialPruned()
             return best_val_accr
-        
-    del train_result, eval_result, model, middle_models, model_params, \
-        training_generator, validation_generator
+    #============================= Epoch Loop ===============================#    
+    del train_result, eval_result, model, training_generator, validation_generator
     torch.cuda.empty_cache()
+
+def epoch_logger(wandb, phase, result, epoch, geography, cp_predict, superpop_predict):
+    wandb.log({f"{phase}_metrics":result.t_accr, "epoch":epoch})
+    if geography:
+        wandb.log({f"{phase}_metrics":result.t_balanced_gcd, "epoch":epoch})
+    if cp_predict:
+        wandb.log({f"{phase}_metrics":result.t_cp_accr, "epoch":epoch})
+    if superpop_predict:
+        wandb.log({f"{phase}_metrics":result.t_sp_accr, "epoch":epoch})
 
 if __name__=="__main__":
     config = parse_args()

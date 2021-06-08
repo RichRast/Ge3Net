@@ -48,14 +48,10 @@ class BiRNN(nn.Module):
         # compacted at every call, possibly greatly increasing memory usage. To compact weights again call flatten_parameters().
         # self.rnn.flatten_parameters()
         # truncated backprop - detach the state after n steps and use it for the next sequence
-        if self.tbptt:
-            out1, rnn_state = self.rnn(x, rnn_state)
-        else:
-            out1, rnn_state = self.rnn(x)
-
+        out1, rnn_state = self.rnn(x, rnn_state)
         out = self.fc1(out1)
         return out1, out, rnn_state
-    
+
 class lstm(nn.Module):
     def __init__(self, params, input_size, rnn='lstm'):
         super(lstm, self).__init__()
@@ -82,7 +78,7 @@ class lstm(nn.Module):
         
     def forward(self, x, rnn_state=None):
         
-        out1, rnn_state = self.rnn(x)
+        out1, rnn_state = self.rnn(x, rnn_state)
         out1 = self.layernorm(self.dropout(out1))
 
         out = self.fc1(out1)

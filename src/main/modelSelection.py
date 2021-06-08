@@ -1,8 +1,10 @@
 import torch
+from torch import nn
 import torch.nn.functional as F
 from src.main.evaluation import SmoothL1Loss, Weighted_Loss, GcdLoss,\
     class_accuracy, computePrMetric
-from src.utils.modelUtil import swish
+from src.utils.modelUtil import Swish
+from src.models import Model_A, Model_B
 
 class Selections():
     _losses={
@@ -29,16 +31,30 @@ class Selections():
         'BalancedAccuracy': None
     }
     _normalizationLayers={
-        'LayerNorm': lambda input_units: torch.nn.LayerNorm(input_units),
-        'BatchNorm': lambda input_units: torch.nn.BatchNorm1d(input_units),
-        'GroupNorm': lambda input_units: torch.nn.GroupNorm(input_units),
+        'LayerNorm': lambda input_units: nn.LayerNorm(input_units),
+        'BatchNorm': lambda input_units: nn.BatchNorm1d(input_units),
+        'GroupNorm': lambda input_units: nn.GroupNorm(input_units),
     }
     _activation={
-        'swish':None,
-        'relu': None,
-        'leakyRelu':None,
-        'gelu':None,
-        'no_activation':None,
+        'swish':lambda p: nn.Swish(),
+        'relu': lambda p: nn.ReLU(),
+        'leakyRelu':lambda p: nn.LeakyReLU(p),
+        'gelu':lambda p: nn.GELU(),
+        'selu': nn.SELU(),
+        'sigmoid':nn.Sigmoid(),
+        'softplus': nn.Softplus()
+    }
+    _weightInitializations={
+        'kiaming_normal': lambda weight: nn.init.kaiming_normal_(weight),
+        'lecun_normal': None 
+    }
+    _dropouts={
+        'dropout':lambda p : nn.Dropout(p),
+        'alphaDropout': lambda p: nn.AlphaDropout(p)
+    }
+    _models={
+        "Model_A": lambda params : Model_A.modelA(params),
+        "Model_B": lambda params : Model_B.modelB(params)
     }
 
     @classmethod
@@ -48,5 +64,8 @@ class Selections():
             'balancedMetrics':cls._balancedMetrics,
             'cpMetrics':cls._cpMetrics,
             'spMetrics':cls._spMetrics,
-            'normalizationLayer':cls._normalizationLayers
+            'normalizationLayer':cls._normalizationLayers,
+            'activation':cls._activation,
+            'dropouts':cls._dropouts,
+            'models':cls._models
         }

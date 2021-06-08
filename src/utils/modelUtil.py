@@ -4,6 +4,7 @@ import os
 import shutil
 import os.path as osp
 import numpy as np
+from torch import nn
 import torch.nn.functional as F
 from src.utils.decorators import timer
 import snoop
@@ -177,5 +178,9 @@ class CustomDataParallel(torch.nn.DataParallel):
 def countParams(m):
     return sum(p.numel() for p in m.parameters() if p.requires_grad)
 
-def swish(x):
-    return x * F.sigmoid(x)
+class Swish(nn.Module):
+    def __init__(self, params):
+        super(Swish, self).__init__()
+
+    def forward(x):
+        return x * F.sigmoid(x)

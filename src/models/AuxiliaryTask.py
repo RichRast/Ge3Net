@@ -77,9 +77,9 @@ class BaseNetwork(nn.Module):
         self.output = params.aux_net_out
         self.hidden_unit = params.aux_net_hidden
         self.n_win = params.n_win
+        self.option=Selections.get_selection()
         self.linears = nn.ModuleList([nn.Linear(self.input, self.hidden_unit) for _ in range(self.n_win)])
         self.dropout = nn.Dropout(p=params.aux_net_dropout)
-        self.option=Selections.get_selection()
         self.normalizationLayer1 = self.option['normalizationLayer'][params.aux_next_norm](self.hidden_unit)
         self.relu = nn.LeakyReLU(params.leaky_relu_slope)
     def forward(self, x):

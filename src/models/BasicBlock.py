@@ -40,6 +40,10 @@ class logits_Block(nn.Module):
         #logits = self.fc(x)
         return logits
 
+    def loss(self, loss_fn, logits, target):
+        out_loss = loss_fn(logits, target)
+        return out_loss
+
 class Multi_Block(nn.Module):
     def __init__(self, params):
         super(Multi_Block, self).__init__()
@@ -72,8 +76,6 @@ class Residual_Block(nn.Module):
         # self.fc2 = nn.Linear(params.Residual_Block_hidden, params.Residual_Block_hidden1)
         # self.layernorm1 = nn.LayerNorm(params.Residual_Block_hidden1)
         # self.fc3 = nn.Linear(params.Residual_Block_hidden1, params.Residual_Block_out)
-
-        
 
     def forward(self, x):
         # out_1 = self.dropout(self.relu(self.layernorm(self.fc1(x))))
