@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd 
+import scipy
 import torch 
 from torch.utils.data import Dataset
 import logging
@@ -54,7 +55,7 @@ class Haplotype(Dataset):
         chmlen, n_win = getWinInfo(self.snps.shape[1], self.params.win_size)
         params.n_win = n_win
         params.chmlen = chmlen
-        self.data['X'] = torch.tensor(self.snps[:,:chmlen]).float()
+        self.data['X'] = self.snps[:,:chmlen]
 
         if labels_path is not None:
             pop_sample_map = pd.read_csv(osp.join(labels_path, self.params.pop_sample_map), sep='\t')
@@ -65,11 +66,11 @@ class Haplotype(Dataset):
     def __len__(self):
         return len(self.data['X']) 
     
-    def mapping_func(self, arr, b, dim):
+    def mapping_func(self, arr, labels_dict, dim):
         """
         Inputs:
         arr: 2(d)D array
-        b : dict with 3(d) dim array as values
+        labels_dict: dict with 3(d) dim array as values
         d: dimension of the output, could be 3 or more
         return:
         result: 3(d)D array
@@ -79,13 +80,14 @@ class Haplotype(Dataset):
         result = np.zeros((arr.shape[0], arr.shape[1], dim)).astype(float)
         
         for k in np.unique(arr):
-            idx = np.nonzero(arr==k)
+            maskIdx = arr==k
             for d in np.arange(dim):
-                result[idx[0], idx[1], d]=b[k][d]
+                labels_dict + '_' + str(d) ={k:labels_dict[k][d] for k in labels_dict.keys()}
+                result[..., d] = np.vectorize(labels_dict + '_' + str(d))(arr[maskIdx])
             
         if self.params.geography:
             result=self._geoConvertLatLong2nVec(result)
-        result = torch.tensor(result).float()
+        
         return result
 
     def _geoConvertLatLong2nVec(self, coord):
@@ -109,7 +111,7 @@ class Haplotype(Dataset):
             idx = np.nonzero(y_vcf==k)
             pop_arr_idx = np.nonzero(pop_arr[:,1]==k)[0]
             result[idx[0], idx[1]]=pop_arr[pop_arr_idx, col_num]
-        result = torch.tensor(result).float()
+        
         return result
 
     @timer
@@ -117,9 +119,9 @@ class Haplotype(Dataset):
         # take the mode according to windows for labels
         # map to coordinates according to ref_idx
         logging.info("Transforming the data")
-        y_tmp = torch.tensor(self.vcf_idx[:,:chmlen])
+        y_tmp = self.vcf_idx[:,:chmlen]
         y_tmp = y_tmp.reshape(-1, n_win, self.params.win_size)
-        self.data['y_vcf_idx'] = (torch.mode(y_tmp, dim=2)[0]).detach().cpu().numpy()
+        self.data['y_vcf_idx'] = scipy.stats.mode(y_tmp, axis=2)[0].squeeze(2)
         
         self.data['y'] = self.mapping_func(self.data['y_vcf_idx'], self.coordinates, self.params.dataset_dim)
         self.data['superpop'] = self.pop_mapping(self.data['y_vcf_idx'], self.pop_arr, type='superpop')
@@ -131,20 +133,20 @@ class Haplotype(Dataset):
             cps = self.data['granular_pop'][:,:-1]-self.data['granular_pop'][:,1:] #window dim is 1 less
             assert cps.sum()!=0, "No changepoints found. Check the input file"
             # find window indices where diff for any dim !=0
-            cps_copy = torch.zeros_like(self.data['granular_pop'], dtype=torch.uint8)
-            cps_idx = torch.nonzero(cps)
-            cps_copy[cps_idx[:,0], cps_idx[:,1]] = 1
+            cps_copy = np.zeros_like(self.data['granular_pop'], dtype='int8')
+            cps_idx = np.nonzero(cps)
+            cps_copy[cps_idx] = 1
             for i in range(1,self.params.cp_tol+1):
                 tolVal=math.ceil(i/2)
                 if i%2==1:
-                    cpsWin = list(map(lambda x: min(x+tolVal, cps.shape[1]), cps_idx[:,1]))
+                    cpsWin = list(map(lambda x: min(x+tolVal, cps.shape[1]), cps_idx[1]))
                 else:
-                    cpsWin = list(map(lambda x: max(x-tolVal, 0), cps_idx[:,1]))
-                cps_copy[cps_idx[:,0], cpsWin] = 1
+                    cpsWin = list(map(lambda x: max(x-tolVal, 0), cps_idx[1]))
+                cps_copy[cps_idx[0], cpsWin] = 1
             self.data['cps'] = cps_copy
             del cps, cps_copy
         else:
-            self.data['cps'] = torch.zeros_like(self.data['granular_pop'], dtype=torch.uint8)
+            self.data['cps'] = np.zeros_like(self.data['granular_pop'], dtype='int8')
         
         torch.cuda.empty_cache()
     

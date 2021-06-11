@@ -8,37 +8,11 @@ from src.utils.dataUtil import square_normalize, get_gradient
 from src.main.evaluation import GcdLoss, eval_cp_batch, gradient_reg, balancedMetrics, t_results, \
 Running_Average, modelOuts, branchLoss, PrCounts, computePrMetric, cpMethod, getCpPred
 from src.main.modelSelection import Selections
+from src.models.MCDropout import MC_Dropout
 from dataclasses import fields
 from copy import deepcopy
 import pdb
 import snoop
-
-class MC_Dropout(object):
-    def __init__(self, mc_samples, variance):
-        self.mc_samples = mc_samples
-        self.variance = variance
-
-    def _getFromMcSamples(self, outs_list):
-        cat_outs = torch.cat(outs_list, 0).contiguous()
-        mean_outs = cat_outs.view(self.mc_samples, -1, self.params.n_win, cat_outs.shape[-1]).mean(0)
-        var_outs=None
-        if self.variance:
-            var_outs = cat_outs.view(self.mc_samples, -1, self.params.n_win, cat_outs.shape[-1]).var(0)
-        return mean_outs, var_outs
-
-    def __call__(self, forward_fn, x):
-        main_list, x_nxt_list, aux_list=[],[],[]
-        for _ in range(self.mc_samples):
-            outs, x_nxt = forward_fn(x)
-            # only collect and mc dropout for the main network
-            main_list.append(outs.coord_main)
-            aux_list.append(outs.coord_aux)
-            x_nxt_list.append(x_nxt)
-
-        outs_main, y_var = self._getFromMcSamples(main_list, getVariance=True)
-        outs_aux, _ = self._getFromMcSamples(aux_list)
-        x_nxt, _ = self._getFromMcSamples(x_nxt_list)
-        return modelOuts(coord_main=outs_main, coord_aux=outs_aux, y_var=y_var), x_nxt, main_list
 
 class Ge3NetBase():
     def __init__(self, params, model):
@@ -64,7 +38,7 @@ class Ge3NetBase():
         return runAvgObj, cpRunAvgObj
 
     @timer
-    def train(self, optimizer, training_generator, **kwargs):
+    def batch_train(self, optimizer, training_generator, **kwargs):
         wandb = kwargs.get('wandb')
         plotObj = kwargs.get('plotObj')
         debugMode = kwargs.get('debugMode')
@@ -88,8 +62,7 @@ class Ge3NetBase():
 
             if debugMode: self.model._checkModelParamGrads()
 
-            train_outs, loss_inner, lossBack = self.model._batch_train(train_x=train_x, \
-                train_labels=train_labels, mask=cp_mask)
+            train_outs, loss_inner, lossBack = self.model._batch_train_1_step(train_x, train_labels, cp_mask, self.criterion)
             lossBack.backward()
 
             #check that the model param grads are not None
@@ -117,7 +90,7 @@ class Ge3NetBase():
 
     @timer
     @torch.no_grad()
-    def valid(self, validation_generator, **kwargs):
+    def batch_valid(self, validation_generator, **kwargs):
         wandb = kwargs.get('wandb')
         plotObj = kwargs.get('plotObj')
         valRunAvgObj, valCpRunAvgObj = self.getRunningAvgObj()
@@ -135,8 +108,7 @@ class Ge3NetBase():
             cp_mask=(cps==0)
             val_labels = modelOuts(coord_main=val_y, cp_logits=cps.float()) #BCE needs float as target and not byte 
 
-            val_outs, val_outs_list, loss_inner = self.model._batch_validate(mc_dropout=mc_dropout, \
-                val_x=val_x, val_labels=val_labels, mask=cp_mask)
+            val_outs, val_outs_list, loss_inner = self.model._batch_validate_1_step(val_x, val_labels, cp_mask, mc_dropout=mc_dropout)
 
             if self.params.rtnOuts:   
                 valPredLs.append(torch.stack(val_outs_list, dim=0).contiguous().detach().cpu().numpy())
@@ -223,7 +195,6 @@ class Ge3NetBase():
         torch.cuda.empty_cache()
         return batchAvg, batchCpAvg
 
-    # Need to think this one.. 
     def getBalancedClassGcd(self, superpop, granularpop, gcdObj):
         balancedGcdMetrics={}
         gcdObj.balancedMetric(superpop, granularpop)

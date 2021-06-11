@@ -68,30 +68,23 @@ class model_B(nn.Module):
             return outs, coord_main_list
         return outs
 
-    def _batch_train(self, **kwargs):
-        train_x = kwargs.get('train_x')
-        train_labels = kwargs.get('train_labels')
-        mask = kwargs.get('mask')
+    def _batch_train_1_step(self, train_x, train_labels, mask, criterion):
         if self.params.tbptt:
             train_outs, loss_inner, lossBack = self._trainLoss_tbtt(train_x, train_labels, mask=mask)
         else:
             train_outs= self(train_x, mask=mask)
-            loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask = mask, phase = "train")
+            loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask, criterion, phase = "train")
         return train_outs, loss_inner, lossBack
 
-    def _batch_validate(self, **kwargs):
+    def _batch_validate_1_step(self, val_x, val_labels, mask, criterion, **kwargs):
         mc_dropout = kwargs.get('mc_dropout')
-        val_x = kwargs.get('val_x')
-        val_labels = kwargs.get('val_labels')
-        mask = kwargs.get('mask')
-
         if mc_dropout is not None: 
                 activate_mc_dropout(*list(self.aux, self.cp))
         val_outs, val_outs_list = self.forward(val_x, mc_dropout=mc_dropout)            
-        loss_inner, _ = self._getLoss(val_outs, val_labels, mask=mask)
+        loss_inner, _ = self._getLoss(val_outs, val_labels, criterion, mask=mask)
         return val_outs, val_outs_list, loss_inner
 
-    def _tbtt(self, x, target):
+    def _tbtt(self, x, target, criterion):
         rnn_state = None
         bptt_batch_chunks = split_batch(x.clone(), self.params.tbptt_steps)
         batch_cps_chunks = split_batch(target.cp_logits, self.params.tbptt_steps)
@@ -110,7 +103,7 @@ class model_B(nn.Module):
             
             # Calculate Loss
             cp_mask_chunk = (cps_chunk==0).float()
-            loss_main_chunk=self.criterion(out_rnn_chunk*cp_mask_chunk, batch_label_chunk*cp_mask_chunk)
+            loss_main_chunk=criterion(out_rnn_chunk*cp_mask_chunk, batch_label_chunk*cp_mask_chunk)
             loss_main_list.append(loss_main_chunk.item())
             sample_size=cp_mask_chunk.sum()
             loss_main_chunk /=sample_size
@@ -135,14 +128,13 @@ class model_B(nn.Module):
         loss_inner = branchLoss(loss_main=loss_main, loss_cp=loss_cp)
         return vec_64, outs, loss_inner
         
-    def _getLoss(self, outs, target, **kwargs):
+    def _getLoss(self, outs, target, criterion, **kwargs):
         mask = kwargs.get('mask')
         phase = kwargs.get('phase')
         if mask is None: mask = 1.0
-        loss_aux = super()._getLoss(outs.coord_aux*mask, target.coord_main*mask)
-        loss_main = super()._getLoss(outs.coord_main*mask, target.coord_main*mask)
-        # auxLoss=self.criterion(outs.coord_aux*mask, target.coord_main*mask)
-        # mainLoss=self.criterion(outs.coord_main*mask, target.coord_main*mask)
+        loss_aux=criterion(outs.coord_aux*mask, target.coord_main*mask)
+        loss_main=criterion(outs.coord_main*mask, target.coord_main*mask)
+
         loss_cp=None
         if self.cp is not None: 
             loss_cp = self.cp.loss(self.option['cpMetrics']['loss_cp'], \
@@ -157,7 +149,7 @@ class model_B(nn.Module):
 
         return branchLoss(loss_main=loss_main, loss_aux=loss_aux, loss_cp = loss_cp), lossBack
 
-    def _trainLoss_tbtt(self, x, target, **kwargs):
+    def _trainLoss_tbtt(self, x, target, criterion, **kwargs):
         mask = kwargs.get('mask')
         if mask is None: mask = 1.0
 
@@ -169,11 +161,11 @@ class model_B(nn.Module):
         out_aux = square_normalize(out4) if self.params.geography else out4
 
         # Tbtt
-        out_nxt, outs, loss_inner = self._tbtt(out_nxt_aux, target)
+        out_nxt, outs, loss_inner = self._tbtt(out_nxt_aux, target, criterion)
         outs.coord_main = outs.coord_main*mask
         outs.coord_aux = out_aux*mask
 
-        loss_aux = super()._getLoss(outs.coord_aux, target.coord_main*mask)
+        loss_aux = self._getLoss(outs.coord_aux, target.coord_main*mask, criterion)
         sample_size=mask.sum()
         lossBack = loss_aux/sample_size
         loss_inner.loss_aux = loss_aux.item()

@@ -66,32 +66,24 @@ class model_A(nn.Module):
             return outs, coord_main_list
         return outs
 
-    def _batch_train(self, **kwargs):
-        train_x = kwargs.get('train_x')
-        train_labels = kwargs.get('train_labels')
-        mask = kwargs.get('mask')
+    def _batch_train_1_step(self, train_x, train_labels, mask, criterion, **kwargs):
         train_outs= self(train_x, mask=mask)
-        loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask = mask, phase = "train")
+        loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask, criterion, phase = "train")
         return train_outs, loss_inner, lossBack
 
-    def _batch_validate(self, **kwargs):
+    def _batch_validate_1_step(self, val_x, val_labels, mask, criterion, **kwargs):
         mc_dropout = kwargs.get('mc_dropout')
-        val_x = kwargs.get('val_x')
-        val_labels = kwargs.get('val_labels')
-        mask = kwargs.get('mask')
-
         if mc_dropout is not None: 
             activate_mc_dropout(*list(self.aux, self.cp))
         val_outs, val_outs_list = self(val_x, mc_dropout=mc_dropout)            
-        loss_inner, _ = self._getLoss(val_outs, val_labels, mask=mask)
+        loss_inner, _ = self._getLoss(val_outs, val_labels, criterion, mask=mask)
         return val_outs, val_outs_list, loss_inner
 
-    def _getLoss(self, outs, target, **kwargs):
+    def _getLoss(self, outs, target, criterion, **kwargs):
         mask = kwargs.get('mask')
         phase = kwargs.get('phase')
         if mask is None: mask = 1.0
-        loss_aux = super()._getLoss(outs.coord_aux*mask, target.coord_main*mask)
-        # loss_aux=self.criterion(outs.coord_aux*mask, target.coord_main*mask)
+        loss_aux=criterion(outs.coord_aux*mask, target.coord_main*mask)
         loss_main=loss_aux
         loss_cp=None
         if self.cp is not None: 
