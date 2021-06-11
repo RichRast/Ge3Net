@@ -256,7 +256,10 @@ class GcdLoss():
         self.gcdThresh=1000.0
 
     def rawGcd(self, input_y, target):
-        return torch.acos(torch.sum(input_y * target, dim=2).clamp(-1.0 + self.eps, 1.0 - self.eps)) * self.earth_radius
+        if torch.is_tensor(input_y):
+            return torch.acos(torch.sum(input_y * target, dim=-1).clamp(-1.0 + self.eps, 1.0 - self.eps)) * self.earth_radius
+        elif isinstance(input_y, np.ndarray):
+            return np.arccos(np.clip(np.sum(input_y * target, axis=-1), a_min=-1.0 + self.eps, a_max=1.0 - self.eps)) * self.earth_radius
 
     def __call__(self, input_y, target):
         """

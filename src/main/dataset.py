@@ -65,6 +65,7 @@ class Haplotype(Dataset):
     def __len__(self):
         return len(self.data['X']) 
     
+    @timer
     def mapping_func(self, arr, b, dim):
         """
         Inputs:
@@ -88,6 +89,7 @@ class Haplotype(Dataset):
         result = torch.tensor(result).float()
         return result
 
+    @timer
     def _geoConvertLatLong2nVec(self, coord):
         """
         Converts the result from 2 dim Lat/Long to 3 dim n vector
@@ -98,9 +100,10 @@ class Haplotype(Dataset):
         nVec=convert_nVector(lat,long)
         return nVec
 
+    @timer
     def pop_mapping(self, y_vcf, pop_arr, type='superpop'):
         
-        result = np.zeros((y_vcf.shape[0], y_vcf.shape[1])).astype(float)
+        result = np.zeros((y_vcf.shape[0], y_vcf.shape[1]), dtype=int)
         if type=='superpop':
             col_num=3
         elif type=='granular_pop':

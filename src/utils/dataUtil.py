@@ -203,11 +203,14 @@ def form_mask(input_tensor, device):
 
     return mask
         
-def getValueBySelection(arr, col1, val1, col2):
+def getValueBySelection(val1, **kwargs):
     """
     This function returns the value of col2 for the row
     where col1 value matches val1 for a given 2d array arr
     """
+    arr=kwargs.get("arr")
+    col1=kwargs.get("col1")
+    col2=kwargs.get("col2")
     return arr[np.where(arr[:,col1]==val1)[0],col2]
     
 def getWinInfo(chmLen: int, winSize:int)->Tuple[int, int]:
