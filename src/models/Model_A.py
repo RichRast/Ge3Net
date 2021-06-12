@@ -10,11 +10,13 @@ import pdb
 import snoop
 
 class model_A(nn.Module):
-    def __init__(self, params):
+    def __init__(self, params, criterion, cp_criterion):
         super(model_A, self).__init__()
         self.params=params
         self.aux = AuxNetwork(params)
         self.cp = logits_Block(params) if self.params.cp_predict else None
+        self.criterion=criterion
+        self.cp_criterion = cp_criterion if self.params.cp_predict else None
         self._setOptimizerParams()
 
         for m in [self.aux, self.cp]:
@@ -56,47 +58,43 @@ class model_A(nn.Module):
         if mc_dropout is None:
             outs, out_nxt = _forwardNet(x)
         else:
-            outs, out_nxt, coord_main_list = mc_dropout._run(_forwardNet, x)
+            outs, out_nxt, coord_mainLs = mc_dropout._run(_forwardNet, x)
+            outs.coord_mainLs=coord_mainLs
 
         # Run CP Network
         cp_logits = self.cp(out_nxt) if self.cp is not None else None
         outs.cp_logits = cp_logits
         
-        if mc_dropout is not None:
-            return outs, coord_main_list
         return outs
 
-    def _batch_train_1_step(self, train_x, train_labels, mask, criterion, **kwargs):
+    def _batch_train_1_step(self, train_x, train_labels, mask, **kwargs):
         train_outs= self(train_x, mask=mask)
-        loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask, criterion, phase = "train")
-        return train_outs, loss_inner, lossBack
+        loss_inner = self._getLoss(train_outs, train_labels, mask, phase = "train")
+        return train_outs, loss_inner
 
-    def _batch_validate_1_step(self, val_x, val_labels, mask, criterion, **kwargs):
+    def _batch_validate_1_step(self, val_x, val_labels, mask, **kwargs):
         mc_dropout = kwargs.get('mc_dropout')
         if mc_dropout is not None: 
-            activate_mc_dropout(*list(self.aux, self.cp))
-        val_outs, val_outs_list = self(val_x, mc_dropout=mc_dropout)            
-        loss_inner, _ = self._getLoss(val_outs, val_labels, criterion, mask=mask)
-        return val_outs, val_outs_list, loss_inner
+            activate_mc_dropout(*[self.aux, self.cp])
+        val_outs = self(val_x, mc_dropout=mc_dropout)            
+        loss_inner = self._getLoss(val_outs, val_labels, mask=mask)
+        return val_outs, loss_inner
 
-    def _getLoss(self, outs, target, criterion, **kwargs):
+    def _getLoss(self, outs, target, **kwargs):
         mask = kwargs.get('mask')
-        phase = kwargs.get('phase')
         if mask is None: mask = 1.0
-        loss_aux=criterion(outs.coord_aux*mask, target.coord_main*mask)
+        loss_aux=self.criterion(outs.coord_aux*mask, target.coord_main*mask)
         loss_main=loss_aux
         loss_cp=None
         if self.cp is not None: 
-            loss_cp = self.cp.loss(self.option['cpMetrics']['loss_cp'], \
-                logits=outs.cp_logits, target=target.cp_logits)
+            loss_cp = self.cp_criterion(logits=outs.cp_logits, target=target.cp_logits)
         
-        lossBack = None
-        if phase == "train":
+        rtnLoss = branchLoss(loss_main=loss_main, loss_aux=loss_aux, loss_cp = loss_cp)
+
+        if self.training:
             sample_size=mask.sum()
             lossBack = loss_aux/sample_size
-            if loss_cp is not None:
-                lossBack += loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
+            if loss_cp is not None: lossBack += loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
+            rtnLoss.lossBack = lossBack
 
-        return branchLoss(loss_main=loss_aux, loss_aux=loss_main, loss_cp = loss_cp), lossBack
-
-
+        return rtnLoss

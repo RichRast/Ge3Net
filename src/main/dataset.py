@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd 
 import scipy
-import torch 
 from torch.utils.data import Dataset
 import logging
 import math
@@ -66,6 +65,7 @@ class Haplotype(Dataset):
     def __len__(self):
         return len(self.data['X']) 
     
+    @timer
     def mapping_func(self, arr, labels_dict, dim):
         """
         Inputs:
@@ -75,21 +75,18 @@ class Haplotype(Dataset):
         return:
         result: 3(d)D array
         """
-        if self.params.geography:
-            dim=2
-        result = np.zeros((arr.shape[0], arr.shape[1], dim)).astype(float)
-        
-        for k in np.unique(arr):
-            maskIdx = arr==k
-            for d in np.arange(dim):
-                labels_dict + '_' + str(d) ={k:labels_dict[k][d] for k in labels_dict.keys()}
-                result[..., d] = np.vectorize(labels_dict + '_' + str(d))(arr[maskIdx])
-            
-        if self.params.geography:
-            result=self._geoConvertLatLong2nVec(result)
+        if self.params.geography: dim=2
+        result = np.zeros((arr.shape[0], arr.shape[1], dim), dtype=np.float_)
+
+        for d in np.arange(dim):
+            labels_dict_dim={k:labels_dict[k][d] for k in labels_dict.keys()}
+            result[..., d] = np.vectorize(labels_dict_dim.get)(arr)
+
+        if self.params.geography: result=self._geoConvertLatLong2nVec(result)
         
         return result
 
+    @timer
     def _geoConvertLatLong2nVec(self, coord):
         """
         Converts the result from 2 dim Lat/Long to 3 dim n vector
@@ -100,18 +97,16 @@ class Haplotype(Dataset):
         nVec=convert_nVector(lat,long)
         return nVec
 
+    @timer
     def pop_mapping(self, y_vcf, pop_arr, type='superpop'):
         
-        result = np.zeros((y_vcf.shape[0], y_vcf.shape[1])).astype(float)
-        if type=='superpop':
-            col_num=3
-        elif type=='granular_pop':
-            col_num=2
-        for k in np.unique(y_vcf):
-            idx = np.nonzero(y_vcf==k)
-            pop_arr_idx = np.nonzero(pop_arr[:,1]==k)[0]
-            result[idx[0], idx[1]]=pop_arr[pop_arr_idx, col_num]
-        
+        result = np.zeros((y_vcf.shape[0], y_vcf.shape[1]), dtype=np.int64)
+        if type=='superpop': col_num=3
+        elif type=='granular_pop': col_num=2
+
+        idx2label_dict={k:v for k,v in zip(pop_arr[:,1], pop_arr[:,col_num])}
+        result=np.vectorize(idx2label_dict.get)(y_vcf)
+
         return result
 
     @timer
@@ -133,7 +128,7 @@ class Haplotype(Dataset):
             cps = self.data['granular_pop'][:,:-1]-self.data['granular_pop'][:,1:] #window dim is 1 less
             assert cps.sum()!=0, "No changepoints found. Check the input file"
             # find window indices where diff for any dim !=0
-            cps_copy = np.zeros_like(self.data['granular_pop'], dtype='int8')
+            cps_copy = np.zeros_like(self.data['granular_pop'], dtype=np.int8)
             cps_idx = np.nonzero(cps)
             cps_copy[cps_idx] = 1
             for i in range(1,self.params.cp_tol+1):
@@ -146,10 +141,8 @@ class Haplotype(Dataset):
             self.data['cps'] = cps_copy
             del cps, cps_copy
         else:
-            self.data['cps'] = np.zeros_like(self.data['granular_pop'], dtype='int8')
-        
-        torch.cuda.empty_cache()
-    
+            self.data['cps'] = np.zeros_like(self.data['granular_pop'], dtype=np.int8)
+            
     def __getitem__(self, idx):
         ls =[]
         for k, v in self.data.items():

@@ -1,14 +1,11 @@
 import torch
 from torch import nn
 from torch.autograd import Variable as V
-from torch.nn.modules import loss
 from src.models.Model_A import model_A
 from src.utils.decorators import timer
-from src.utils.modelUtil import split_batch
+from src.utils.modelUtil import split_batch, countParams, activate_mc_dropout
 from src.utils.dataUtil import square_normalize, get_gradient
-from src.utils.modelUtil import activate_mc_dropout
 from src.main.evaluation import branchLoss, modelOuts, RnnResults
-from src.models.Ge2NetBase import G2Net_base, MC_Dropout
 from src.models.AuxiliaryTask import AuxNetwork
 from src.models.LSTM import BiRNN
 from src.models.BasicBlock import logits_Block
@@ -16,16 +13,26 @@ import snoop
 import pdb
 
 class model_B(nn.Module):
-    def __init__(self, params):
-        super(model_B, self).__init__(params)
-        self.aux = AuxNetwork(params)
-        self.lstm = BiRNN(params)
-        self.cp = logits_Block(params) if self.params.cp_predict else None
+    def __init__(self, params, criterion, cp_criterion):
+        super(model_B, self).__init__()
+        self.params=params
+        self.aux = AuxNetwork(self.params)
+        self.lstm = BiRNN(self.params)
+        self.cp = logits_Block(self.params) if self.params.cp_predict else None
+        self.criterion=criterion
+        self.cp_criterion = cp_criterion if self.params.cp_predict else None
         self._setOptimizerParams()
+
+        for m in [self.aux, self.lstm, self.cp]:
+            count_params=[]
+            params_count=countParams(m)
+            print(f"Parameter count for model {m.__class__.__name__}:{params_count}")
+            count_params.append(params_count)
+        print(f"Total parameters:{sum(count_params)}")
 
     def _setOptimizerParams(self):
         self.Optimizerparams=[]
-        for i, m in enumerate([self.aux, self.cp]):
+        for i, m in enumerate([self.aux, self.lstm, self.cp]):
             params_dict={}
             params_dict['params']= m.parameters()
             params_dict['lr'] = self.params.learning_rate[i]
@@ -58,33 +65,32 @@ class model_B(nn.Module):
         if mc_dropout is None:
             outs, out_nxt = _forwardNet(x)
         else:
-            outs, out_nxt, coord_main_list = mc_dropout(_forwardNet, x)
+            outs, out_nxt, coord_mainLs = mc_dropout(_forwardNet, x)
+            outs.coord_mainLs=coord_mainLs
 
         # Run CP Network
         cp_logits = self.cp(out_nxt) if self.cp is not None else None
         outs.cp_logits = cp_logits
         
-        if mc_dropout is not None:
-            return outs, coord_main_list
         return outs
 
-    def _batch_train_1_step(self, train_x, train_labels, mask, criterion):
+    def _batch_train_1_step(self, train_x, train_labels, mask):
+        
         if self.params.tbptt:
-            train_outs, loss_inner, lossBack = self._trainLoss_tbtt(train_x, train_labels, mask=mask)
+            train_outs, loss_inner = self._trainLoss_tbtt(train_x, train_labels, mask=mask)
         else:
             train_outs= self(train_x, mask=mask)
-            loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask, criterion, phase = "train")
-        return train_outs, loss_inner, lossBack
+            loss_inner = self._getLoss(train_outs, train_labels, mask)
+        return train_outs, loss_inner
 
-    def _batch_validate_1_step(self, val_x, val_labels, mask, criterion, **kwargs):
+    def _batch_validate_1_step(self, val_x, val_labels, mask, **kwargs):
         mc_dropout = kwargs.get('mc_dropout')
-        if mc_dropout is not None: 
-                activate_mc_dropout(*list(self.aux, self.cp))
-        val_outs, val_outs_list = self.forward(val_x, mc_dropout=mc_dropout)            
-        loss_inner, _ = self._getLoss(val_outs, val_labels, criterion, mask=mask)
-        return val_outs, val_outs_list, loss_inner
+        if mc_dropout is not None: activate_mc_dropout(*list(self.aux, self.cp))
+        val_outs = self(val_x, mc_dropout=mc_dropout)            
+        loss_inner = self._getLoss(val_outs, val_labels, mask=mask)
+        return val_outs, loss_inner
 
-    def _tbtt(self, x, target, criterion):
+    def _tbtt(self, x, target):
         rnn_state = None
         bptt_batch_chunks = split_batch(x.clone(), self.params.tbptt_steps)
         batch_cps_chunks = split_batch(target.cp_logits, self.params.tbptt_steps)
@@ -103,14 +109,13 @@ class model_B(nn.Module):
             
             # Calculate Loss
             cp_mask_chunk = (cps_chunk==0).float()
-            loss_main_chunk=criterion(out_rnn_chunk*cp_mask_chunk, batch_label_chunk*cp_mask_chunk)
+            loss_main_chunk=self.criterion(out_rnn_chunk*cp_mask_chunk, batch_label_chunk*cp_mask_chunk)
             loss_main_list.append(loss_main_chunk.item())
             sample_size=cp_mask_chunk.sum()
             loss_main_chunk /=sample_size
             loss_cp=None
             if self.cp is not None: 
-                loss_cp = self.cp.loss(self.option['cpMetrics']['loss_cp'], \
-                    logits=cp_logits, target=cps_chunk)
+                loss_cp = self.cp_criterion(cp_logits, cps_chunk, reduction='sum')
                 loss_main_chunk +=loss_cp/(cps_chunk.shape[0]*cps_chunk.shape[1])
                 loss_cp_list.append(loss_cp.item())
            
@@ -123,33 +128,31 @@ class model_B(nn.Module):
         loss_cp = sum(loss_cp_list)
         out_rnn = torch.cat(out_rnn_list, 1).detach()
         vec_64 = torch.cat(vec64_list, 1).detach()
-        cp_logits = torch.cat(loss_cp_list, 1).detach()
+        cp_logits = torch.cat(cp_logits_list, 1).detach()
         outs = modelOuts(coord_main = out_rnn, cp_logits=cp_logits)
         loss_inner = branchLoss(loss_main=loss_main, loss_cp=loss_cp)
         return vec_64, outs, loss_inner
-        
-    def _getLoss(self, outs, target, criterion, **kwargs):
+   
+    def _getLoss(self, outs, target, **kwargs):
         mask = kwargs.get('mask')
-        phase = kwargs.get('phase')
         if mask is None: mask = 1.0
-        loss_aux=criterion(outs.coord_aux*mask, target.coord_main*mask)
-        loss_main=criterion(outs.coord_main*mask, target.coord_main*mask)
+        loss_aux=self.criterion(outs.coord_aux*mask, target.coord_main*mask)
+        loss_main=self.criterion(outs.coord_main*mask, target.coord_main*mask)
 
         loss_cp=None
         if self.cp is not None: 
-            loss_cp = self.cp.loss(self.option['cpMetrics']['loss_cp'], \
-                logits=outs.cp_logits, target=target.cp_logits)
+            loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum')
         
-        lossBack = None
-        if phase == "train":
+        rtnLoss = branchLoss(loss_main=loss_main, loss_aux=loss_aux, loss_cp = loss_cp)
+
+        if self.training:
             sample_size=mask.sum()
             lossBack = loss_aux/sample_size
-            if loss_cp is not None:
-                lossBack += loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
+            if loss_cp is not None: lossBack += loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
+            rtnLoss.lossBack=lossBack
+        return rtnLoss
 
-        return branchLoss(loss_main=loss_main, loss_aux=loss_aux, loss_cp = loss_cp), lossBack
-
-    def _trainLoss_tbtt(self, x, target, criterion, **kwargs):
+    def _trainLoss_tbtt(self, x, target, **kwargs):
         mask = kwargs.get('mask')
         if mask is None: mask = 1.0
 
@@ -161,14 +164,17 @@ class model_B(nn.Module):
         out_aux = square_normalize(out4) if self.params.geography else out4
 
         # Tbtt
-        out_nxt, outs, loss_inner = self._tbtt(out_nxt_aux, target, criterion)
+        out_nxt, outs, loss_inner = self._tbtt(out_nxt_aux, target)
         outs.coord_main = outs.coord_main*mask
         outs.coord_aux = out_aux*mask
 
-        loss_aux = self._getLoss(outs.coord_aux, target.coord_main*mask, criterion)
+        loss_aux = self.criterion(outs.coord_aux, target.coord_main*mask)
         sample_size=mask.sum()
         lossBack = loss_aux/sample_size
         loss_inner.loss_aux = loss_aux.item()
-        return outs, loss_inner, lossBack
+        loss_inner.lossBack = lossBack 
+        # backward loss needs to be calculated only for loss_aux because loss_main and 
+        # loss_cp were already backwarded during tbtt
+        return outs, loss_inner
 
     

@@ -2,9 +2,8 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from src.main.evaluation import SmoothL1Loss, Weighted_Loss, GcdLoss,\
-    class_accuracy, computePrMetric
+class_accuracy, computePrMetric
 from src.utils.modelUtil import Swish
-from src.models import Model_A, Model_B
 
 class Selections():
     _losses={
@@ -52,11 +51,7 @@ class Selections():
         'dropout':lambda p : nn.Dropout(p),
         'alphaDropout': lambda p: nn.AlphaDropout(p)
     }
-    _models={
-        "Model_A": lambda params : Model_A.modelA(params),
-        "Model_B": lambda params : Model_B.modelB(params)
-    }
-
+   
     @classmethod
     def get_selection(cls):
         return {
@@ -66,6 +61,5 @@ class Selections():
             'spMetrics':cls._spMetrics,
             'normalizationLayer':cls._normalizationLayers,
             'activation':cls._activation,
-            'dropouts':cls._dropouts,
-            'models':cls._models
+            'dropouts':cls._dropouts
         }

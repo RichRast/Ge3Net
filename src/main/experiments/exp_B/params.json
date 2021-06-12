@@ -22,8 +22,8 @@
     "n_comp_subclass":0,
     "superpop_predict":false,
     "residual":false,
-    "geography":false,
-    "criteria":"l1_loss",
+    "geography":true,
+    "criteria":"gcd",
     "criteria_alpha":1.0,
     "hyper_search_type":"None",
     
