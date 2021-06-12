@@ -77,11 +77,11 @@ class model_B(nn.Module):
     def _batch_train_1_step(self, train_x, train_labels, mask):
         
         if self.params.tbptt:
-            train_outs, loss_inner = self._trainLoss_tbtt(train_x, train_labels, mask=mask)
+            train_outs, loss_inner, lossBack = self._trainTbtt(train_x, train_labels, mask=mask)
         else:
             train_outs= self(train_x, mask=mask)
-            loss_inner = self._getLoss(train_outs, train_labels, mask)
-        return train_outs, loss_inner
+            loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask)
+        return train_outs, loss_inner, lossBack
 
     def _batch_validate_1_step(self, val_x, val_labels, mask, **kwargs):
         mc_dropout = kwargs.get('mc_dropout')
@@ -149,10 +149,10 @@ class model_B(nn.Module):
             sample_size=mask.sum()
             lossBack = loss_aux/sample_size
             if loss_cp is not None: lossBack += loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
-            rtnLoss.lossBack=lossBack
+            return rtnLoss, lossBack
         return rtnLoss
 
-    def _trainLoss_tbtt(self, x, target, **kwargs):
+    def _trainTbtt(self, x, target, **kwargs):
         mask = kwargs.get('mask')
         if mask is None: mask = 1.0
 
@@ -172,9 +172,9 @@ class model_B(nn.Module):
         sample_size=mask.sum()
         lossBack = loss_aux/sample_size
         loss_inner.loss_aux = loss_aux.item()
-        loss_inner.lossBack = lossBack 
+        
         # backward loss needs to be calculated only for loss_aux because loss_main and 
         # loss_cp were already backwarded during tbtt
-        return outs, loss_inner
+        return outs, loss_inner, lossBack
 
     

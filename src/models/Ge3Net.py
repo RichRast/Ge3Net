@@ -58,8 +58,8 @@ class Ge3NetBase():
 
             if debugMode: self.model._checkModelParamGrads()
 
-            train_outs, loss_inner = self.model._batch_train_1_step(train_x, train_labels, cp_mask)
-            loss_inner.lossBack.backward()
+            train_outs, loss_inner, lossBack = self.model._batch_train_1_step(train_x, train_labels, cp_mask)
+            lossBack.backward()
 
             #check that the model param grads are not None
             if debugMode: self.model._checkModelParamGrads()
@@ -86,7 +86,7 @@ class Ge3NetBase():
 
     @timer
     @torch.no_grad()
-    def batchLoopValid(self, validation_generator, **kwargs):
+    def batchLoopValid(self, validation_generator):
         valRunAvgObj, valCpRunAvgObj = self.getRunningAvgObj()
         valGcdBalancedMetricsObj=balancedMetrics() if self.params.geography else None
         valPredLs, valVarLs, valCpLs=[],[],[]
@@ -134,6 +134,7 @@ class Ge3NetBase():
         torch.cuda.empty_cache()
         return t_results(t_accr=valBatchAvg, t_cp_accr=valCpBatchAvg, t_out=val_outs, t_balanced_gcd=valBalancedGcd)
 
+    @timer
     def _evaluate(self, outs, labels, sample_size, mask, superpop, granularpop, \
         runAvgObj, cpRunAvgObj, gcdBalancedMetricsObj, loss_inner):
         BatchAvg, CpBatchAvg = self._evaluateAccuracy(outs, labels, \
@@ -148,6 +149,7 @@ class Ge3NetBase():
 
         return BatchAvg, CpBatchAvg, BalancedGcd
 
+    @timer
     # Need to think this one
     def _evaluateAccuracy(self, y, target, **kwargs):
         runAvgObj=kwargs.get('runAvgObj')
@@ -189,6 +191,7 @@ class Ge3NetBase():
         torch.cuda.empty_cache()
         return batchAvg, batchCpAvg
 
+    @timer
     def getBalancedClassGcd(self, superpop, granularpop, gcdObj):
         balancedGcdMetrics={}
         gcdObj.balancedMetric(superpop, granularpop)
@@ -199,6 +202,7 @@ class Ge3NetBase():
         balancedGcdMetrics['median']=self.option['balancedMetrics']['median'](gcdObj)()
         return  balancedGcdMetrics
 
+    @timer
     def getExtraGcdMetrics(self, gcdMetricsObj, gcdMatrix, superpop, granularpop):        
         gcdMetricsObj.fillData(gcdMatrix.clone())
         trainBalancedGcd = self.getBalancedClassGcd(superpop, granularpop, gcdMetricsObj)

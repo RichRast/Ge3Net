@@ -256,7 +256,10 @@ class GcdLoss():
         self.gcdThresh=1000.0
 
     def rawGcd(self, input_y, target):
-        return torch.acos(torch.sum(input_y * target, dim=2).clamp(-1.0 + self.eps, 1.0 - self.eps)) * self.earth_radius
+        if torch.is_tensor(input_y):
+            return torch.acos(torch.sum(input_y * target, dim=-1).clamp(-1.0 + self.eps, 1.0 - self.eps)) * self.earth_radius
+        elif isinstance(input_y, np.ndarray):
+            return np.arccos(np.clip(np.sum(input_y * target, axis=-1), a_min=-1.0 + self.eps, a_max=1.0 - self.eps)) * self.earth_radius
 
     def __call__(self, input_y, target):
         """
@@ -314,15 +317,3 @@ def class_accuracy(y_pred, y_test):
     acc = correct_pred.sum() / (n * w)
     acc = acc * 100
     return acc
-
-
-def getMeanBalancedLoss(lossObj, pred, target, classLabels):
-    avgLoss = 0.0
-    uniqueLabels=np.unique(classLabels).astype(int)
-    numUniqueLabels=len(uniqueLabels)
-    for i in uniqueLabels:
-        idx=torch.nonzero(classLabels==i)
-        numIdx = sum(mask[idx])
-        loss = lossObj(pred[idx], target[idx])/numIdx
-        avgLoss += loss
-    return avgLoss/numUniqueLabels
