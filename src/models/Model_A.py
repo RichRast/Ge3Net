@@ -19,10 +19,10 @@ class model_A(nn.Module):
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
         self._setOptimizerParams()
 
+        count_params=[]
         for m in [self.aux, self.cp]:
-            count_params=[]
             params_count=countParams(m)
-            print(f"Parameter count for model {self.aux.__class__.__name__}:{params_count}")
+            print(f"Parameter count for model {m.__class__.__name__}:{params_count}")
             count_params.append(params_count)
         print(f"Total parameters:{sum(count_params)}")
 

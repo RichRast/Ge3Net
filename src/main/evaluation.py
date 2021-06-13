@@ -101,7 +101,6 @@ def eval_cp_matrix(true_cps, pred_cps, seq_len, win_tol=2):
         TP_count = n-FN_count
 
     TN_count = total_count - (TP_count + FP_count + FN_count)
-    # pdb.set_trace()
     return TP_count, FP_count, FN_count, TN_count, distance_matrix
 
 def eval_cp_batch(cp_target, cp_pred, seq_len, win_tol=2):
@@ -272,9 +271,11 @@ class GcdLoss():
 
 @dataclass
 class balancedMetrics():
-    batchMetricLs=[]
-    classSuperpop, classGranularpop={}, {}
-
+    def __init__(self):
+        self.batchMetricLs=[]
+        self.classSuperpop= {}
+        self.classGranularpop={}
+    
     def fillData(self, dataTensor):
         self.batchMetricLs.append(dataTensor)
 
@@ -293,12 +294,12 @@ class balancedMetrics():
         for i in superpop_num:
             if self.classSuperpop.get(i) is None: self.classSuperpop[i]=Running_Average()
             idx=torch.nonzero(superpop==i)
-            self.classSuperpop[i].update(gcdTensor[idx[:,0], idx[:,1]].sum(), len(idx))
+            self.classSuperpop[i].update(torch.sum(gcdTensor[idx[:,0], idx[:,1]]), len(idx))
             
         for i in granularpop_num:
             if self.classGranularpop.get(i) is None: self.classGranularpop[i]=Running_Average()
             idx=torch.nonzero(granular_pop==i)
-            self.classGranularpop[i].update(gcdTensor[idx[:,0], idx[:,1]].sum(), len(idx))             
+            self.classGranularpop[i].update(torch.sum(gcdTensor[idx[:,0], idx[:,1]]), len(idx))             
                 
     def meanBalanced(self):
         meanBalancedSuperpop=torch.mean(torch.tensor([self.classSuperpop[k]() for k in self.classSuperpop.keys()]))

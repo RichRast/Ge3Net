@@ -59,7 +59,16 @@ def main(config, params):
     if labels_path is not None:
         test_result = Ge3NetTrainer.batchLoopValid(test_generator)
     else:
-         test_result = Ge3NetTrainer.pred(test_generator)
+        PredLs, VarLs, CpLs=[],[],[]
+        for i, data_x in enumerate(test_generator):
+            test_result = model._batch_validate_1_step(data_x)
+            PredLs.append(torch.stack(test_result.coord_mainLs, dim=0).contiguous().detach().cpu().numpy())
+            if params.cp_predict:CpLs.append(test_result.cp_logits.detach().cpu().numpy()) 
+            if params.mc_dropout:VarLs.append(test_result.y_var.detach().cpu().numpy())
+        test_result.coord_main=np.concatenate((PredLs), axis=1)
+        if params.cp_predict:test_result.cp_logits=np.concatenate((CpLs), axis=0)
+        if params.mc_dropout: test_result.y_var=np.concatenate((VarLs), axis=0)
+        
     
     return test_result, test_dataset, model
     

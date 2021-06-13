@@ -23,8 +23,8 @@ class model_B(nn.Module):
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
         self._setOptimizerParams()
 
+        count_params=[]
         for m in [self.aux, self.lstm, self.cp]:
-            count_params=[]
             params_count=countParams(m)
             print(f"Parameter count for model {m.__class__.__name__}:{params_count}")
             count_params.append(params_count)
@@ -75,6 +75,7 @@ class model_B(nn.Module):
         
         return outs
 
+    @timer
     def _batch_train_1_step(self, train_x, train_labels, mask):
         
         if self.params.tbptt:
@@ -84,10 +85,15 @@ class model_B(nn.Module):
             loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask)
         return train_outs, loss_inner, lossBack
 
-    def _batch_validate_1_step(self, val_x, val_labels, mask, **kwargs):
+    @timer
+    def _batch_validate_1_step(self, val_x, **kwargs):
+        val_labels=kwargs.get('val_labels')
+        mask=kwargs.get('mask')
         mc_dropout = kwargs.get('mc_dropout')
         if mc_dropout is not None: activate_mc_dropout(*[self.aux, self.lstm, self.cp])
-        val_outs = self(val_x, mc_dropout=mc_dropout)            
+        val_outs = self(val_x, mc_dropout=mc_dropout) 
+        if val_labels is None:
+            return val_outs           
         loss_inner = self._getLoss(val_outs, val_labels, mask=mask)
         return val_outs, loss_inner
 
@@ -144,7 +150,7 @@ class model_B(nn.Module):
         if self.cp is not None: 
             loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum')
         
-        rtnLoss = branchLoss(loss_main=loss_main, loss_aux=loss_aux, loss_cp = loss_cp)
+        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp.item())
 
         if self.training:
             sample_size=mask.sum()

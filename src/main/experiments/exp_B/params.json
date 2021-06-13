@@ -17,7 +17,7 @@
     "superpop_mask":false,
     "pop_sample_map":"pop_sample_map.tsv",
     "pop_num":[],
-    "plotting":true,
+    "plotting":false,
     "n_comp_overall": 3,
     "n_comp_subclass":0,
     "superpop_predict":false,
@@ -79,7 +79,7 @@
     "Residual_Block_dropout":0.3,
             
     "thresh": 0.0001,
-    "num_epochs":500,
+    "num_epochs":200,
     "SmoothLoss_beta":1.0,
     "weightLoss_alpha":1.0,
     "learning_rate":[1e-4,1e-2,1e-4,1e-4, 1e-4],
