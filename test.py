@@ -58,7 +58,7 @@ def main(config, params):
     if labels_path is not None:
         test_result = model.valid(test_generator)
     else:
-         test_result = model.pred(test_generator)
+        test_result = model.pred(test_generator)
     
     return test_result, test_dataset
     
