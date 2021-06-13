@@ -5,3 +5,4 @@ Notebooks/Other_Notebooks
 slurm*
 wandb/
 .vscode/
+.nfs*

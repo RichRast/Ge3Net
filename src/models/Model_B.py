@@ -64,6 +64,7 @@ class model_B(nn.Module):
 
         if mc_dropout is None:
             outs, out_nxt = _forwardNet(x)
+            outs.coord_mainLs=[outs.coord_main]
         else:
             outs, out_nxt, coord_mainLs = mc_dropout(_forwardNet, x)
             outs.coord_mainLs=coord_mainLs
@@ -85,7 +86,7 @@ class model_B(nn.Module):
 
     def _batch_validate_1_step(self, val_x, val_labels, mask, **kwargs):
         mc_dropout = kwargs.get('mc_dropout')
-        if mc_dropout is not None: activate_mc_dropout(*list(self.aux, self.cp))
+        if mc_dropout is not None: activate_mc_dropout(*[self.aux, self.lstm, self.cp])
         val_outs = self(val_x, mc_dropout=mc_dropout)            
         loss_inner = self._getLoss(val_outs, val_labels, mask=mask)
         return val_outs, loss_inner

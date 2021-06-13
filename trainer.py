@@ -75,7 +75,7 @@ def main(config, params, trial=None):
     criterion = option['loss'][params.criteria](reduction='sum', alpha=params.criteria_alpha, geography=params.geography)
     cp_criterion=option['cpMetrics']['loss_cp']
     model = modelOption['models'][params.model](params, criterion, cp_criterion)
-    model=model.to(params.device)
+    model.to(params.device)
     model.apply(weight_int)
 
     print(f"is the model on cuda? : {next(model.parameters()).is_cuda}")

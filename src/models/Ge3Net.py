@@ -22,6 +22,8 @@ class Ge3NetBase():
             alpha=self.params.criteria_alpha, geography=self.params.geography) \
                 for metric in self.option['loss'] if metric!=self.params.criteria}
         self.model=model
+        self.wandb=None
+        self.plotObj=None
 
     def getRunningAvgObj(self):
         lossesLs = list(self.losses.keys())
@@ -92,7 +94,7 @@ class Ge3NetBase():
         valPredLs, valVarLs, valCpLs=[],[],[]
 
         self.model.eval()
-        mc_dropout = MC_Dropout(self.params.mc_samples, variance=True) if self.params.mc_dropout else None
+        mc_dropout = MC_Dropout(self.params.mc_samples, self.params.n_win, variance=True) if self.params.mc_dropout else None
 
         for i, val_gen in enumerate(validation_generator):
             val_x, val_y, vcf_idx, cps, superpop, granularpop = val_gen
