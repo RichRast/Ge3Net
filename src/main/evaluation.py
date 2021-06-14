@@ -266,8 +266,12 @@ class GcdLoss():
         and target label target of shape (n_sampled x n_windows)
         """
         rawGcd = self.rawGcd(input_y, target)
-        sum_gcd = torch.sum(rawGcd)
-        return sum_gcd
+        if torch.is_tensor(input_y): 
+            sum_gcd = torch.sum(rawGcd)
+            return sum_gcd
+        elif isinstance(input_y, np.ndarray):
+            sum_gcd = np.sum(rawGcd)
+            return sum_gcd
 
 @dataclass
 class balancedMetrics():

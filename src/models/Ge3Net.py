@@ -26,12 +26,12 @@ class Ge3NetBase():
 
     def getRunningAvgObj(self):
         lossesLs = list(self.losses.keys())
-        branchLosses = [field.name for field in fields(branchLoss)]
-        if self.params.evalExtraMainLosses: lossesLs +=branchLosses[0:2]
-        runAvgObj={metric:Running_Average() for metric in lossesLs}
+        branchLosses = [field.name for field in fields(branchLoss)][0:2]
+        if self.params.evalExtraMainLosses: branchLosses +=lossesLs
+        runAvgObj={metric:Running_Average() for metric in branchLosses}
         cpRunAvgObj=None
         if self.params.cp_predict:
-            cpMetricLs=[branchLosses[-1]]
+            cpMetricLs=["loss_cp"]
             cpRunAvgObj={metric:Running_Average() for metric in cpMetricLs}
             if self.params.evalCp:cpRunAvgObj["prCounts"]=PrCounts()
         return runAvgObj, cpRunAvgObj
@@ -78,7 +78,7 @@ class Ge3NetBase():
                     out=train_outs.coord_main, label=train_labels.coord_main)
             del train_x, train_y, cps
 
-        trainCpBatchAvg['prMetrics']=computePrMetric(trainCpRunAvgObj['prCounts'])
+        if self.params.evalCp: trainCpBatchAvg['prMetrics']=computePrMetric(trainCpRunAvgObj['prCounts'])
         # delete tensors for memory optimization
         del trainRunAvgObj, trainCpRunAvgObj, trainGcdBalancedMetricsObj
         torch.cuda.empty_cache()
@@ -100,7 +100,7 @@ class Ge3NetBase():
             cp_mask=(cps==0)
             val_labels = modelOuts(coord_main=val_y, cp_logits=cps.float()) #BCE needs float as target and not byte 
 
-            val_outs, loss_inner = self.model._batch_validate_1_step(val_x, val_labels=val_labels, mask=cp_mask, mc_dropout=mc_dropout)
+            val_outs, loss_inner = self.model._batch_validate_1_step(val_x, val_labels=val_labels, mc_dropout=mc_dropout)
 
             if self.params.rtnOuts:   
                 valPredLs.append(torch.stack(val_outs.coord_mainLs, dim=0).contiguous().detach().cpu().numpy())
@@ -124,13 +124,13 @@ class Ge3NetBase():
             if self.params.cp_predict:val_outs.cp_logits=np.concatenate((valCpLs), axis=0)
             if self.params.mc_dropout: val_outs.y_var=np.concatenate((valVarLs), axis=0)
         
-        valCpBatchAvg['prMetrics']=computePrMetric(valCpRunAvgObj['prCounts'])
+        if self.params.evalCp: valCpBatchAvg['prMetrics']=computePrMetric(valCpRunAvgObj['prCounts'])
         # delete tensors for memory optimization
         del valRunAvgObj, valCpRunAvgObj, valGcdBalancedMetricsObj
         torch.cuda.empty_cache()
         return t_results(t_accr=valBatchAvg, t_cp_accr=valCpBatchAvg, t_out=val_outs, t_balanced_gcd=valBalancedGcd)
 
-    @timer
+    
     def _evaluate(self, outs, labels, mask, superpop, granularpop, \
         runAvgObj, cpRunAvgObj, gcdBalancedMetricsObj, loss_inner):
         
@@ -141,7 +141,7 @@ class Ge3NetBase():
 
         BalancedGcd=None
         if self.params.geography and self.params.evalBalancedGcd:
-            gcdMatrix=GcdLoss().rawGcd(outs.coord_main*mask, labels.coord_main*mask).detach()
+            gcdMatrix=GcdLoss().rawGcd(outs.coord_main, labels.coord_main).detach()
             BalancedGcd=self.getExtraGcdMetrics(gcdBalancedMetricsObj, gcdMatrix, superpop, granularpop)
 
         return BatchAvg, CpBatchAvg, BalancedGcd
@@ -156,6 +156,7 @@ class Ge3NetBase():
         sample_size=kwargs.get('sample_size')
         cpThresh=kwargs.get('cpThresh')
         mask = kwargs.get('mask')
+        
         if mask is None: 
             mask = 1.0
             sample_size = target.coord_main.shape[0] * target.coord_main.shape[1]
@@ -257,6 +258,7 @@ class Ge3NetBase():
             self._plotSample(idxSample=idxSample, idxLabel=idxLabel \
                 , idx=idx, idxVcf_idx=idxVcf_idx)
 
+    @timer
     def launchTraining(self, modelSavePath, training_generator, validation_generator, **kwargs):
         test_generator = kwargs.get("test_generator")
         self.plotObj=kwargs.get("plotObj")

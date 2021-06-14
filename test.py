@@ -47,9 +47,9 @@ def main(config, params):
     cp_criterion=option['cpMetrics']['loss_cp']
     model_init = modelOption['models'][params.model](params, criterion, cp_criterion)
     if config['model.loadBest']:
-        model = load_model(''.join([str(model_path),'/best.pt']), model_init)
+        model, model_stats = load_model(''.join([str(model_path),'/best.pt']), model_init)
     else:
-        model= load_model(''.join([str(model_path),'/last.pt']), model_init)
+        model, model_stats = load_model(''.join([str(model_path),'/last.pt']), model_init)
     model.to(params.device)
     model.eval()
     print(f"is the model on cuda? : {next(model.parameters()).is_cuda}")
@@ -59,6 +59,7 @@ def main(config, params):
     if labels_path is not None:
         test_result = Ge3NetTrainer.batchLoopValid(test_generator)
     else:
+        print("Np labels found")
         PredLs, VarLs, CpLs=[],[],[]
         for i, data_x in enumerate(test_generator):
             test_result = model._batch_validate_1_step(data_x)
@@ -70,7 +71,7 @@ def main(config, params):
         if params.mc_dropout: test_result.y_var=np.concatenate((VarLs), axis=0)
         
     
-    return test_result, test_dataset, model
+    return test_result, test_dataset, model , model_stats
     
 if __name__=="__main__":
     config = parse_args()

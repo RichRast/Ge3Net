@@ -1,7 +1,7 @@
 #!/bin/bash
 source ini.sh
 
-# sample command ./Batch_scripts/build_labels.sh -gt=dogs -e=1 -sim -bl -n_o=3 -sm=expt1 -s=1234 -um=umap 
+# sample command ./Batch_scripts/build_labels.sh -gt=dogs -e=1 -sim -bl -n_o=3 -sm=expt1 -s=1234 -um=umap -st_chm=22 -ed_chm=22
 #./Batch_scripts/build_labels.sh -gt=humans -e=1 -sim -bl -n_o=3 -um=pca -vt=ukb -st_chm=22 -ed_chm=22
 # sample_map for dogs can be expt1, a, b, c
 
@@ -59,7 +59,7 @@ echo "Checking the validity of the arguments"
 
 if [[ -z ${geno_type} ]]; then echo "Specify the geno_type with flag -gt|--geno_type"; exit 1; fi
 if [[ -z ${exp_id} ]]; then echo "Specify the experiment id with flag -e|--exp_id"; exit 1; fi
-if [[ -z ${ext_pca} ]]; then 
+if [[ -z ${ext_pca} && (${unsupMethod} = "pca") ]]; then 
 echo "Setting extended_pca to False"
 ext_pca="False"
 n_comp_subclass=0
@@ -67,7 +67,7 @@ fi
 if [[ -z ${pop_order} ]]; then echo "Setting pop order to default from the superpop dict"; fi
 if [[ -z $simulate ]]; then echo "No admixture simulation will be performed"; simulate="False"; fi
 if [[ -z ${create_lbls} ]]; then echo " no labels will be created"; create_lbls="False"; fi
-if [[ -z ${n_comp_overall} ]]; then echo " overall pca components set to default of 3"; n_comp_overall=3; fi
+if [[ -z ${n_comp_overall} ]]; then echo " overall number of components set to default of 3"; n_comp_overall=3; fi
 if [[ (${ext_pca} = "True") && (-z ${n_comp_subclass})]]; then echo "subclass components set to default of 2"; n_comp_subclass=2; fi
 if [[  (${ext_pca} = "False") && (${n_comp_subclass} >=0) && (${create_labels = "True"}) ]]; then echo "Invalid combination of extended pca and pca subclass components set"; exit 1; fi
 if [[ ($simulate = "False") && (${create_lbls} = "False") ]]; then echo "Invalid combination of simulate and create labels set"; exit 1; fi
@@ -76,6 +76,7 @@ if [[ (-z ${unsupMethod}) && (${create_lbls} = "True") ]]; then echo "No unsup m
 if [[ (-z ${sample_map}) && (${geno_type} = "dogs") ]]; then echo "No sample map specified"; exit 1; fi
 if [[ (-z ${sample_map}) && (${geno_type} = "humans") ]]; then sample_map="None"; fi
 if [[ -z $vcf_type ]] ; then echo "no specific vcf type specified"; fi
+if [[ -z ${n_comp_subclass} ]]; then echo "setting n_comp_subclass to 0"; n_comp_subclass=0; fi
 
 # set the vcf, genetic map and ref map according to genotype
 echo "Setting variables for ${geno_type}"

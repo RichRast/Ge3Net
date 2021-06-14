@@ -75,7 +75,7 @@ class model_B(nn.Module):
         
         return outs
 
-    @timer
+    
     def _batch_train_1_step(self, train_x, train_labels, mask):
         
         if self.params.tbptt:
@@ -85,13 +85,14 @@ class model_B(nn.Module):
             loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask)
         return train_outs, loss_inner, lossBack
 
-    @timer
+    
     def _batch_validate_1_step(self, val_x, **kwargs):
         val_labels=kwargs.get('val_labels')
         mask=kwargs.get('mask')
+        if mask is None: mask = 1.0
         mc_dropout = kwargs.get('mc_dropout')
         if mc_dropout is not None: activate_mc_dropout(*[self.aux, self.lstm, self.cp])
-        val_outs = self(val_x, mc_dropout=mc_dropout) 
+        val_outs = self(val_x, mc_dropout=mc_dropout) #call forward
         if val_labels is None:
             return val_outs           
         loss_inner = self._getLoss(val_outs, val_labels, mask=mask)
