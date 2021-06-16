@@ -19,7 +19,7 @@ class Selections():
         'medianBalanced': lambda metricsObj:metricsObj.medianBalanced
     }
     _cpMetrics={
-        'loss_cp':F.binary_cross_entropy_with_logits, 
+        'loss_cp': F.binary_cross_entropy_with_logits, 
         'prMetric':computePrMetric
     }
     _spMetrics={

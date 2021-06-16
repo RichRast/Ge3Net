@@ -38,7 +38,22 @@ if [[ -z $model_type ]] ; then echo "Missing model type" ; exit 1; fi
 if [[ -z $geno_type ]] ; then echo "Setting default genotype to humans" ; geno_type='humans' ; exit ; fi
 
 echo "Starting experiment $expt_id with Model $model_type and data from experiment # $data_id for geno_type $geno_type"
-mkdir -p $OUT_PATH/${geno_type}/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}
+
+
+if [[ -d $OUT_PATH/${geno_type}/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id} ]];
+then
+    echo " $OUT_PATH/${geno_type}/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id} already exists. Are you sure you want to overwrite ?";
+    select yn in "Yes" "No"; do
+        case $yn in
+            Yes ) echo "okay going to overwrite and continue to start training"; break;;
+            No ) echo "okay, exiting"; exit;;
+        esac
+    done
+else
+    echo "$OUT_PATH/${geno_type}/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id} doesn't exist, creating it";
+    mkdir -p $OUT_PATH/${geno_type}/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}
+    echo "dir created"
+fi
 
 sbatch << EOT
 #!/bin/bash
@@ -64,6 +79,9 @@ python3 trainer.py  --data.params '$USER_PATH/src/main/experiments/exp_$model_ty
 --data.dir '$OUT_PATH/$geno_type/labels/data_id_${data_id}' \
 --models.dir '$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/' \
 --model.summary $model_summary
+
+node_name=hostname|sed 's/.int.*//'
+node_feat -n $node_name >> $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
 EOT
 
 sleep .5

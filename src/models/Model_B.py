@@ -119,7 +119,7 @@ class model_B(nn.Module):
             loss_main_chunk /=sample_size
             loss_cp=None
             if self.cp is not None: 
-                loss_cp = self.cp_criterion(cp_logits, cps_chunk, reduction='sum')
+                loss_cp = self.cp_criterion(cp_logits, cps_chunk, reduction='sum', pos_weight=0.1*(cps_chunk==0.).sum()/cps_chunk.shape[1])
                 loss_main_chunk +=loss_cp/(cps_chunk.shape[0]*cps_chunk.shape[1])
                 loss_cp_list.append(loss_cp.item())
            
@@ -145,7 +145,7 @@ class model_B(nn.Module):
 
         loss_cp=None
         if self.cp is not None: 
-            loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum')
+            loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum', pos_weight=0.1*(target.cp_logits==0.).sum()/target.cp_logits.shape[1])
         
         rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp.item())
 
