@@ -255,22 +255,24 @@ class GcdLoss():
         self.gcdThresh=1000.0
 
     def rawGcd(self, input_y, target):
+        
         if torch.is_tensor(input_y):
-            return torch.acos(torch.sum(input_y * target, dim=-1).clamp(-1.0 + self.eps, 1.0 - self.eps)) * self.earth_radius
+            return torch.acos(torch.sum(input_y * target, dim=-1).clamp(-1.0 + self.eps, 1.0 - self.eps)) * self.earth_radius 
         elif isinstance(input_y, np.ndarray):
-            return np.arccos(np.clip(np.sum(input_y * target, axis=-1), a_min=-1.0 + self.eps, a_max=1.0 - self.eps)) * self.earth_radius
+            return np.arccos(np.clip(np.sum(input_y * target, axis=-1), a_min=-1.0 + self.eps, a_max=1.0 - self.eps)) * self.earth_radius 
 
-    def __call__(self, input_y, target):
+    def __call__(self, input_y, target, mask):
         """
         returns sum of gcd given prediction label input_y of shape (n_samples x n_windows)
         and target label target of shape (n_sampled x n_windows)
         """
+        mask=mask.squeeze(-1)
         rawGcd = self.rawGcd(input_y, target)
         if torch.is_tensor(input_y): 
-            sum_gcd = torch.sum(rawGcd)
+            sum_gcd = torch.sum(rawGcd * mask)
             return sum_gcd
         elif isinstance(input_y, np.ndarray):
-            sum_gcd = np.sum(rawGcd)
+            sum_gcd = np.sum(rawGcd * mask)
             return sum_gcd
 
 @dataclass

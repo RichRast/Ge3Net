@@ -97,10 +97,10 @@ class Ge3NetBase():
             val_x = val_x.to(self.params.device).float()
             val_y = val_y.to(self.params.device).float()
             cps = cps.to(self.params.device).unsqueeze(2)
-            cp_mask=(cps==0)
+            cp_mask=(cps==0) if self.params.validCpMask else torch.ones_like(cps, device=self.params.device)
             val_labels = modelOuts(coord_main=val_y, cp_logits=cps.float()) #BCE needs float as target and not byte 
 
-            val_outs, loss_inner = self.model._batch_validate_1_step(val_x, val_labels=val_labels, mc_dropout=mc_dropout)
+            val_outs, loss_inner = self.model._batch_validate_1_step(val_x, val_labels=val_labels, mc_dropout=mc_dropout, cp_mask=cp_mask)
 
             if self.params.rtnOuts:   
                 valPredLs.append(torch.stack(val_outs.coord_mainLs, dim=0).contiguous().detach().cpu().numpy())
@@ -134,7 +134,7 @@ class Ge3NetBase():
     def _evaluate(self, outs, labels, mask, superpop, granularpop, \
         runAvgObj, cpRunAvgObj, gcdBalancedMetricsObj, loss_inner):
         
-        BatchAvg, CpBatchAvg = self._evaluateAccuracy(outs, labels, \
+        BatchAvg, CpBatchAvg = self._evaluateAccuracy(outs, labels, mask, \
         batchLoss={'loss_main':loss_inner.loss_main, \
         'loss_aux':loss_inner.loss_aux}, batchCpLoss={'loss_cp':loss_inner.loss_cp}, \
         runAvgObj=runAvgObj, cpRunAvgObj=cpRunAvgObj)
@@ -142,26 +142,19 @@ class Ge3NetBase():
         BalancedGcd=None
         if self.params.geography and self.params.evalBalancedGcd:
             gcdMatrix=GcdLoss().rawGcd(outs.coord_main, labels.coord_main).detach()
-            BalancedGcd=self.getExtraGcdMetrics(gcdBalancedMetricsObj, gcdMatrix, superpop, granularpop)
-
+            BalancedGcd=self.getExtraGcdMetrics(gcdBalancedMetricsObj, gcdMatrix, superpop, granularpop, mask)
         return BatchAvg, CpBatchAvg, BalancedGcd
 
-   
     # Need to think this one
-    def _evaluateAccuracy(self, y, target, **kwargs):
+    def _evaluateAccuracy(self, y, target, mask,**kwargs):
         runAvgObj=kwargs.get('runAvgObj')
         cpRunAvgObj=kwargs.get('cpRunAvgObj')
         batchLoss=kwargs.get('batchLoss')
         batchCpLoss=kwargs.get('batchCpLoss')
         sample_size=kwargs.get('sample_size')
         cpThresh=kwargs.get('cpThresh')
-        mask = kwargs.get('mask')
         
-        if mask is None: 
-            mask = 1.0
-            sample_size = target.coord_main.shape[0] * target.coord_main.shape[1]
-        else:
-            sample_size = mask.sum()
+        sample_size = mask.sum()
         if self.params.evalExtraMainLosses:
             batchLoss={**batchLoss, **{metric:self.losses[metric](y.coord_main*mask, target.coord_main*mask).item() for metric in self.losses if self.losses[metric] is not None}}
             
@@ -193,7 +186,6 @@ class Ge3NetBase():
         torch.cuda.empty_cache()
         return batchAvg, batchCpAvg
 
-    
     def getBalancedClassGcd(self, gcdObj):
         balancedGcdMetrics={}
         meanBalancedGcd=self.option['balancedMetrics']['meanBalanced'](gcdObj)()
@@ -203,9 +195,8 @@ class Ge3NetBase():
         balancedGcdMetrics['median']=self.option['balancedMetrics']['median'](gcdObj)()
         return  balancedGcdMetrics
 
-    
-    def getExtraGcdMetrics(self, gcdMetricsObj, gcdMatrix, superpop, granularpop):        
-        gcdMetricsObj.fillData(gcdMatrix)
+    def getExtraGcdMetrics(self, gcdMetricsObj, gcdMatrix, superpop, granularpop, mask):       
+        gcdMetricsObj.fillData(gcdMatrix*mask.squeeze(-1))
         gcdMetricsObj.balancedMetric(superpop, granularpop)
         trainBalancedGcd = self.getBalancedClassGcd(gcdMetricsObj)
         accAtGcd=gcdMetricsObj.accAtThresh()
