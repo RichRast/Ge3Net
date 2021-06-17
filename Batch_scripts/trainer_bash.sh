@@ -80,8 +80,7 @@ python3 trainer.py  --data.params '$USER_PATH/src/main/experiments/exp_$model_ty
 --models.dir '$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/' \
 --model.summary $model_summary
 
-node_name=hostname|sed 's/.int.*//'
-node_feat -n $node_name >> $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
+node_feat -n $(hostname|sed 's/.int.*//') >> $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
 EOT
 
 sleep .5
