@@ -38,6 +38,17 @@ if [[ -z $maf ]] ; then echo "Missing maf parameter" ; exit 1; fi
 if [[ -z $ld_prune ]] ; then echo "Missing ld prune parameter" ; exit 1; fi
 if [[ -z $geno_type ]] ; then echo "Missing geno type" ; exit 1; fi
 
+if [[ -d $OUT_PATH/dogs/preprocess_vcf_sm_${sample_map}_${start_chm}_${end_chm}_combine_${combine}_ld_prune_${ld_prune}.out ]];
+then
+    echo " $OUT_PATH/dogs/preprocess_vcf_sm_${sample_map}_${start_chm}_${end_chm}_combine_${combine}_ld_prune_${ld_prune}.out already exists. Are you sure you want to overwrite ?";
+    select yn in "Yes" "No"; do
+        case $yn in
+            Yes ) echo "okay going to overwrite and continue to start training"; break;;
+            No ) echo "okay, exiting"; exit;;
+        esac
+    done
+fi
+
 sbatch<<EOT
 #!/bin/bash
 #SBATCH -p bigmem
@@ -64,5 +75,4 @@ if [[ ($combine = "True") ]] ; then
     else echo "Fail combine script"; fi 
 else echo "Finished without combining";
 fi
-
 EOT

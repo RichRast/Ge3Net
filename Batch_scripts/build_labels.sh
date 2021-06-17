@@ -100,13 +100,13 @@ vcf_dir=${vcf_filename[*]}
 echo " vcf dir variable passed: ${vcf_dir}"
 ref_map=$IN_PATH/${geno_type}/reference_files/reference_panel_metadata.tsv;
 gen_map=$IN_PATH/${geno_type}/reference_files/allchrs.b38.gmap;
-all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_False/vcf_type_${vcf_type}/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy
+all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_0.5/vcf_type_${vcf_type}/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy
 n_comp=44; # smallest number of samples in a class is 44, only used for extended/residual pca
 elif [[  ${geno_type} = 'dogs' ]]; then
 vcf_dir=$OUT_PATH/dogs/sm_${sample_map}/chr22/chr22_filtered.vcf;
 ref_map=$OUT_PATH/dogs/ref_map_${sample_map}.tsv;
 gen_map=$IN_PATH/dogs/chr22/chr22_average_canFam3.1.txt;
-all_chm_snps=$OUT_PATH/dogs/sm_${sample_map}/ld_False/vcf_type_filtered/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy;
+all_chm_snps=$OUT_PATH/dogs/sm_${sample_map}/ld_False/vcf_type_/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy;
 # all_chm_snps='$OUT_PATH/dogs/expt2_biallelic/all_chm_combined_snps_variance_filter_0.0_sample_win_100.npy';
 n_comp=23; # smallest number of samples in a class is 23, only used for extended/residual pca
 else
@@ -114,7 +114,22 @@ echo "${geno_type} not supported"; exit 1 ;
 fi
 
 echo "Starting build_labels for geno type ${geno_type} experiment ${exp_id} for $unsupMethod and vcf_type ${vcf_type}"
-mkdir -p $OUT_PATH/${geno_type}/labels/data_id_${exp_id}_$unsupMethod
+
+if [[ -d $OUT_PATH/${geno_type}/labels/data_id_${exp_id}_$unsupMethod ]];
+then
+    echo " $OUT_PATH/${geno_type}/labels/data_id_${exp_id}_$unsupMethod already exists. Are you sure you want to overwrite ?";
+    select yn in "Yes" "No"; do
+        case $yn in
+            Yes ) echo "okay going to overwrite and continue to start training"; break;;
+            No ) echo "okay, exiting"; exit;;
+        esac
+    done
+else
+    echo "$OUT_PATH/${geno_type}/labels/data_id_${exp_id}_$unsupMethod doesn't exist, creating it";
+    mkdir -p $OUT_PATH/${geno_type}/labels/data_id_${exp_id}_$unsupMethod
+    echo "dir created"
+fi
+
 
 sbatch<<EOT
 #!/bin/sh
