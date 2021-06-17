@@ -101,7 +101,6 @@ def eval_cp_matrix(true_cps, pred_cps, seq_len, win_tol=2):
         TP_count = n-FN_count
 
     TN_count = total_count - (TP_count + FP_count + FN_count)
-    # pdb.set_trace()
     return TP_count, FP_count, FN_count, TN_count, distance_matrix
 
 def eval_cp_batch(cp_target, cp_pred, seq_len, win_tol=2):
@@ -256,25 +255,33 @@ class GcdLoss():
         self.gcdThresh=1000.0
 
     def rawGcd(self, input_y, target):
+        
         if torch.is_tensor(input_y):
-            return torch.acos(torch.sum(input_y * target, dim=-1).clamp(-1.0 + self.eps, 1.0 - self.eps)) * self.earth_radius
+            return torch.acos(torch.sum(input_y * target, dim=-1).clamp(-1.0 + self.eps, 1.0 - self.eps)) * self.earth_radius 
         elif isinstance(input_y, np.ndarray):
-            return np.arccos(np.clip(np.sum(input_y * target, axis=-1), a_min=-1.0 + self.eps, a_max=1.0 - self.eps)) * self.earth_radius
+            return np.arccos(np.clip(np.sum(input_y * target, axis=-1), a_min=-1.0 + self.eps, a_max=1.0 - self.eps)) * self.earth_radius 
 
-    def __call__(self, input_y, target):
+    def __call__(self, input_y, target, mask):
         """
         returns sum of gcd given prediction label input_y of shape (n_samples x n_windows)
         and target label target of shape (n_sampled x n_windows)
         """
+        mask=mask.squeeze(-1)
         rawGcd = self.rawGcd(input_y, target)
-        sum_gcd = torch.sum(rawGcd)
-        return sum_gcd
+        if torch.is_tensor(input_y): 
+            sum_gcd = torch.sum(rawGcd * mask)
+            return sum_gcd
+        elif isinstance(input_y, np.ndarray):
+            sum_gcd = np.sum(rawGcd * mask)
+            return sum_gcd
 
 @dataclass
 class balancedMetrics():
-    batchMetricLs=[]
-    classSuperpop, classGranularpop={}, {}
-
+    def __init__(self):
+        self.batchMetricLs=[]
+        self.classSuperpop= {}
+        self.classGranularpop={}
+    
     def fillData(self, dataTensor):
         self.batchMetricLs.append(dataTensor)
 
@@ -293,12 +300,12 @@ class balancedMetrics():
         for i in superpop_num:
             if self.classSuperpop.get(i) is None: self.classSuperpop[i]=Running_Average()
             idx=torch.nonzero(superpop==i)
-            self.classSuperpop[i].update(gcdTensor[idx[:,0], idx[:,1]].sum(), len(idx))
+            self.classSuperpop[i].update(torch.sum(gcdTensor[idx[:,0], idx[:,1]]), len(idx))
             
         for i in granularpop_num:
             if self.classGranularpop.get(i) is None: self.classGranularpop[i]=Running_Average()
             idx=torch.nonzero(granular_pop==i)
-            self.classGranularpop[i].update(gcdTensor[idx[:,0], idx[:,1]].sum(), len(idx))             
+            self.classGranularpop[i].update(torch.sum(gcdTensor[idx[:,0], idx[:,1]]), len(idx))             
                 
     def meanBalanced(self):
         meanBalancedSuperpop=torch.mean(torch.tensor([self.classSuperpop[k]() for k in self.classSuperpop.keys()]))
@@ -317,15 +324,3 @@ def class_accuracy(y_pred, y_test):
     acc = correct_pred.sum() / (n * w)
     acc = acc * 100
     return acc
-
-
-def getMeanBalancedLoss(lossObj, pred, target, classLabels):
-    avgLoss = 0.0
-    uniqueLabels=np.unique(classLabels).astype(int)
-    numUniqueLabels=len(uniqueLabels)
-    for i in uniqueLabels:
-        idx=torch.nonzero(classLabels==i)
-        numIdx = sum(mask[idx])
-        loss = lossObj(pred[idx], target[idx])/numIdx
-        avgLoss += loss
-    return avgLoss/numUniqueLabels

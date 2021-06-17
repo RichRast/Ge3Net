@@ -38,14 +38,28 @@ if [[ -z $model_type ]] ; then echo "Missing model type" ; exit 1; fi
 if [[ -z $geno_type ]] ; then echo "Setting default genotype to humans" ; geno_type='humans' ; exit ; fi
 
 echo "Starting experiment $expt_id with Model $model_type and data from experiment # $data_id for geno_type $geno_type"
-mkdir -p $OUT_PATH/${geno_type}/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}
+
+
+if [[ -d $OUT_PATH/${geno_type}/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id} ]];
+then
+    echo " $OUT_PATH/${geno_type}/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id} already exists. Are you sure you want to overwrite ?";
+    select yn in "Yes" "No"; do
+        case $yn in
+            Yes ) echo "okay going to overwrite and continue to start training"; break;;
+            No ) echo "okay, exiting"; exit;;
+        esac
+    done
+else
+    echo "$OUT_PATH/${geno_type}/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id} doesn't exist, creating it";
+    mkdir -p $OUT_PATH/${geno_type}/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}
+    echo "dir created"
+fi
 
 sbatch << EOT
 #!/bin/bash
 #SBATCH -p gpu
 #SBATCH -c 10
 #SBATCH -G 1
-#SBATCH -C GPU_MEM:11GB
 #SBATCH --mem=250GB
 #SBATCH -t 24:00:00
 #SBATCH --output=$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
@@ -65,6 +79,8 @@ python3 trainer.py  --data.params '$USER_PATH/src/main/experiments/exp_$model_ty
 --data.dir '$OUT_PATH/$geno_type/labels/data_id_${data_id}' \
 --models.dir '$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/' \
 --model.summary $model_summary
+
+node_feat -n $(hostname|sed 's/.int.*//') >> $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
 EOT
 
 sleep .5
@@ -77,4 +93,4 @@ echo log_dir: $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id
 less +F $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
 
 # command from terminal directly
-# python3 trainer.py --data.params $USER_PATH/src/main/experiments/exp_B --data.geno_type humans  --data.labels $OUT_PATH/humans/labels/data_id_3_pca --data.dir $OUT_PATH/humans/labels/data_id_3_pca --models.dir $OUT_PATH/humans/training/Model_B_exp_id_11_data_id_3_pca --model.summary "tb_with_geo"
+# python3 trainer.py --data.params $USER_PATH/src/main/experiments/exp_B --data.geno_type humans  --data.labels $OUT_PATH/humans/labels/data_id_1_geo --data.dir $OUT_PATH/humans/labels/data_id_1_geo --models.dir $OUT_PATH/humans/training/Model_B_exp_id_22_data_id_1_geo --model.summary "tb_refactor"

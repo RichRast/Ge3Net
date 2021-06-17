@@ -4,6 +4,7 @@ import os
 import shutil
 import os.path as osp
 import numpy as np
+from torch import nn
 import torch.nn.functional as F
 from src.utils.decorators import timer
 import snoop
@@ -58,7 +59,7 @@ def save_checkpoint(state, save_path, is_best):
         shutil.copyfile(checkpoint, osp.join(save_path, 'best.pt'))
     
 @timer
-def load_model(model_path, model_ls, optimizer=None):
+def load_model(model_path, model_init, optimizer=None):
     if not osp.exists(model_path):
         # ToDo look into the raise exception error not
         # coming from BaseException
@@ -80,10 +81,10 @@ def load_model(model_path, model_ls, optimizer=None):
     print(f"best val balanced gcd metrics : {checkpoint['val_accr']['t_balanced_gcd']}")
     print(f"train balanced gcd metrics: {checkpoint['train_accr']['t_balanced_gcd']}")
     
-    for i, model_state in enumerate(checkpoint['model_state_dict']):
-        model_ls[i].load_state_dict(model_state)
+    model_stats=checkpoint['val_accr']
+    model_init.load_state_dict(checkpoint['model_state_dict'])
          
-    return model_ls
+    return model_init, model_stats
 
 def early_stopping(val_this_accr, val_prev_accr, patience, thresh):
     """
@@ -177,5 +178,9 @@ class CustomDataParallel(torch.nn.DataParallel):
 def countParams(m):
     return sum(p.numel() for p in m.parameters() if p.requires_grad)
 
-def swish(x):
-    return x * F.sigmoid(x)
+class Swish(nn.Module):
+    def __init__(self, params):
+        super(Swish, self).__init__()
+
+    def forward(x):
+        return x * F.sigmoid(x)

@@ -1,11 +1,14 @@
 import os.path as osp
 import torch
 import numpy as np
-from src.models import LSTM, AuxiliaryTask, Conv, Attention, Transformer, BasicBlock, Model_A, Model_B, Model_C
+from src.models import Model_A, Model_B, Model_C
+from src.models.modelSelection import modelSelect
+from src.models.modelParamsSelection import Selections
 from src.utils.modelUtil import load_model, Params
 from src.utils.decorators import timer
 from src.main.dataset import Haplotype
-from src.main.settings_model import parse_args, MODEL_CLASS
+from src.main.settings_model import parse_args
+from src.models.Ge3Net import Ge3NetBase
 
 @timer
 def main(config, params):
@@ -37,30 +40,38 @@ def main(config, params):
     test_generator = torch.utils.data.DataLoader(test_dataset, batch_size=params.batch_size, num_workers=0, pin_memory=True)
          
     #================================ Create the model ================================
-    model_subclass, model_basics = MODEL_CLASS[params.model]
-    middle_models=[]
-    
-    for i, model_basic in enumerate(model_basics):
-        # instantiate the model class
-        m = eval(model_basic)(params).to(params.device)
-        middle_models.append(m)
-        print(f'model {model_subclass} : {model_basic}')
-            
     model_path = osp.join(config['models.dir'], 'models_dir')
+    modelOption=modelSelect.get_selection()
+    option = Selections.get_selection()
+    criterion = option['loss'][params.criteria](reduction='sum', alpha=params.criteria_alpha, geography=params.geography)
+    cp_criterion=option['cpMetrics']['loss_cp']
+    model_init = modelOption['models'][params.model](params, criterion, cp_criterion)
     if config['model.loadBest']:
-        model_ret = load_model(''.join([str(model_path),'/best.pt']), middle_models)
+        model, model_stats = load_model(''.join([str(model_path),'/best.pt']), model_init)
     else:
-        model_ret = load_model(''.join([str(model_path),'/last.pt']), middle_models)
-    # call to the corresponding model, example - Model_L.model_L
-    model = eval(model_subclass[0])(*model_ret, params=params)
+        model, model_stats = load_model(''.join([str(model_path),'/last.pt']), model_init)
+    model.to(params.device)
+    model.eval()
+    print(f"is the model on cuda? : {next(model.parameters()).is_cuda}")
+
     #================================ Create the model ================================
-    
+    Ge3NetTrainer=Ge3NetBase(params, model, option)
     if labels_path is not None:
-        test_result = model.valid(test_generator)
+        test_result = Ge3NetTrainer.batchLoopValid(test_generator)
     else:
-        test_result = model.pred(test_generator)
+        print("Np labels found")
+        PredLs, VarLs, CpLs=[],[],[]
+        for i, data_x in enumerate(test_generator):
+            test_result = model._batch_validate_1_step(data_x)
+            PredLs.append(torch.stack(test_result.coord_mainLs, dim=0).contiguous().detach().cpu().numpy())
+            if params.cp_predict:CpLs.append(test_result.cp_logits.detach().cpu().numpy()) 
+            if params.mc_dropout:VarLs.append(test_result.y_var.detach().cpu().numpy())
+        test_result.coord_main=np.concatenate((PredLs), axis=1)
+        if params.cp_predict:test_result.cp_logits=np.concatenate((CpLs), axis=0)
+        if params.mc_dropout: test_result.y_var=np.concatenate((VarLs), axis=0)
+        
     
-    return test_result, test_dataset
+    return test_result, test_dataset, model , model_stats
     
 if __name__=="__main__":
     config = parse_args()

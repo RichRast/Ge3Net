@@ -15,7 +15,7 @@ for (( chm=$1; chm<=$2; chm++ )); do
     echo "processing for chm = ${chm}"
     mkdir -p $OUT_PATH/${geno_type}/sm_${sample_map}/chr${chm}
     # subset the vcf file with the sample map
-    cat $OUT_PATH/${geno_type}/ref_map_${sample_map}.txt | cut -f 1| bcftools view -S - $IN_PATH/${geno_type}/chr${chm}/chr${chm}_unfiltered.vcf.gz -o $OUT_PATH/${geno_type}/sm_${sample_map}/chr${chm}/chr${chm}_subset_tmp.vcf.gz -O z
+    cat $OUT_PATH/${geno_type}/ref_map_${sample_map}.txt | cut -f 1| bcftools view -S - $IN_PATH/${geno_type}/chr${chm}/chr${chm}_unfiltered_phased.vcf.gz -o $OUT_PATH/${geno_type}/sm_${sample_map}/chr${chm}/chr${chm}_subset_tmp.vcf.gz -O z
     # filter the snps by removing missing snps
     bcftools view -e 'GT[*] = "mis"' -o $OUT_PATH/${geno_type}/sm_${sample_map}/chr${chm}/chr${chm}_biallelic.vcf.gz -O z $OUT_PATH/${geno_type}/sm_${sample_map}/chr${chm}/chr${chm}_subset_tmp.vcf.gz
     echo "Missing snps removed for chm ${chm}" 
