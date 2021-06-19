@@ -68,7 +68,7 @@ ml load py-pytorch/1.4.0_py36
 ml load py-scipy/1.4.1_py36
 ml load py-matplotlib/3.2.1_py36
 ml load py-pandas/1.0.3_py36
-ml load cuda/10.1.168
+ml load cuda/9.0.176
 ml load git-lfs/2.4.0
 ml load system nvtop
 

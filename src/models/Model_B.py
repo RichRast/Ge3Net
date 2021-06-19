@@ -119,8 +119,9 @@ class model_B(nn.Module):
             loss_main_chunk /=sample_size
             loss_cp=None
             if self.cp is not None: 
+                pos_weight=(cps_chunk==0.).sum()/((cps_chunk==0.).sum() if (cps_chunk==1.).sum()==0 else (cps_chunk==0.).sum())
                 loss_cp = self.cp_criterion(cp_logits, cps_chunk, reduction='sum', \
-                pos_weight=(cps_chunk==0.).sum()/((cps_chunk==0.).sum() if (cps_chunk==1.).sum()==0 else (cps_chunk==0.).sum()))
+                pos_weight=0.05*torch.log(1.+pos_weight))
                 loss_main_chunk +=loss_cp/(cps_chunk.shape[0]*cps_chunk.shape[1])
                 loss_cp_list.append(loss_cp.item())
            
@@ -146,8 +147,9 @@ class model_B(nn.Module):
 
         loss_cp=None
         if self.cp is not None: 
+            pos_weight=(target.cp_logits==0.).sum()/((target.cp_logits==0.).sum() if (target.cp_logits==1.).sum()==0 else (target.cp_logits==0.).sum())
             loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum', \
-            pos_weight=(target.cp_logits==0.).sum()/((target.cp_logits==0.).sum() if (target.cp_logits==1.).sum()==0 else (target.cp_logits==0.).sum()))
+            pos_weight=0.05*torch.log(1.+pos_weight))
         
         rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp.item())
 

@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import scipy
 import logging
 import os
 import allel
@@ -174,7 +175,7 @@ def getAdmixedCombineChm(*args, **kwargs):
             write_output(save_path_chm, admixed_samples)
 
 @timer   
-def getSuperpopBins(labels_path:str, preds: np.ndarray)->np.ndarray:
+def nearestNeighbourMapping(labels_path:str, preds: np.ndarray, labelType="superpop", distType="L2")->np.ndarray:
     """
     compute distance of preds from labels and assign the bin to the closest label
     for a single example or a batch of examples
@@ -199,9 +200,15 @@ def getSuperpopBins(labels_path:str, preds: np.ndarray)->np.ndarray:
     labelsTrainArr=labelsTrainArr[np.newaxis,:,:]
     preds=preds[:,np.newaxis,:]
     preds=np.repeat(preds,labelsTrainArr.shape[0], axis=1) #(100x605)x5930x3
-    L2Matrix=np.sum(np.square(preds-labelsTrainArr), axis=2) #(100x605)x5930
-    idx=np.argmin(L2Matrix, axis=1)#60500
-    mappedSpArr=np.array(pop_arr_train[idx,3])
+    if distType=="L2":
+        distMatrix=np.sum(np.square(preds-labelsTrainArr), axis=2) #(100x605)x5930
+    elif distType=="hamming":
+        distFunc = np.vectorize(scipy.spatial.distance.cdist, signature='(m,n),(k,n)->(m,k)', excluded=['metric'])
+        distMatrix = distFunc(preds, labelsTrainArr, metric="hamming")
+    idx=np.argmin(distMatrix, axis=1)#60500
+    
+    mappedSpArr=np.array(pop_arr_train[idx,3]) if labelType=="superpop" else np.array(pop_arr_train[idx,2])
+    
     return mappedSpArr
 
 def getPairwiseDistancePops(**kwargs):
