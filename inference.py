@@ -59,7 +59,7 @@ def main(config, params):
     if labels_path is not None:
         test_result = Ge3NetTrainer.batchLoopValid(test_generator)
     else:
-        print("Np labels found")
+        print("No labels found")
         PredLs, VarLs, CpLs=[],[],[]
         for i, data_x in enumerate(test_generator):
             test_result = model._batch_validate_1_step(data_x)
