@@ -180,7 +180,7 @@ def getCpPred(name, cp_pred_raw, cpThresh, Batch_size, T):
         cp_idx = torch.nonzero(torch.abs(cp_pred_raw[:,1:,:]-cp_pred_raw[:,:-1,:])>cpThresh)
         cp_pred[cp_idx[:,0], cp_idx[:,1]]=1
     elif name==cpMethod.mc_dropout.name:
-        cp_idx = torch.nonzero(cp_pred_raw>cpThresh)
+        cp_idx = torch.nonzero(torch.abs(cp_pred_raw[:,1:,:]-cp_pred_raw[:,:-1,:])>cpThresh)
         cp_pred[cp_idx[:,0], cp_idx[:,1]]=1
     elif name==cpMethod.neural_network.name:
         cp_pred = (torch.sigmoid(cp_pred_raw)>cpThresh).int()

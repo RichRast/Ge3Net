@@ -7,7 +7,7 @@ from src.main.evaluation import modelOuts, branchLoss
 from src.models.AuxiliaryTask import AuxNetwork
 from src.models.BasicBlock import logits_Block
 import pdb
-import snoop
+
 
 class model_A(nn.Module):
     def __init__(self, params, criterion, cp_criterion):
@@ -38,10 +38,8 @@ class model_A(nn.Module):
     def getOptimizerParams(self):
         return self.Optimizerparams
         
-    def forward(self, x, **kwargs):
-        mask = kwargs.get('mask')
+    def forward(self, x, mask, **kwargs):
         mc_dropout = kwargs.get('mc_dropout')
-        if mask is None: mask = 1.0
 
         # Run Aux Network
         def _forwardNet(x):
@@ -57,44 +55,47 @@ class model_A(nn.Module):
 
         if mc_dropout is None:
             outs, out_nxt = _forwardNet(x)
+            outs.coord_mainLs=[outs.coord_main]
         else:
-            outs, out_nxt, coord_mainLs = mc_dropout._run(_forwardNet, x)
+            outs, out_nxt, coord_mainLs = mc_dropout(_forwardNet, x)
             outs.coord_mainLs=coord_mainLs
 
         # Run CP Network
         cp_logits = self.cp(out_nxt) if self.cp is not None else None
         outs.cp_logits = cp_logits
-        
         return outs
 
-    def _batch_train_1_step(self, train_x, train_labels, mask, **kwargs):
-        train_outs= self(train_x, mask=mask)
-        loss_inner = self._getLoss(train_outs, train_labels, mask, phase = "train")
-        return train_outs, loss_inner
+    def _batch_train_1_step(self, train_x, train_labels, mask):
+        train_outs= self(train_x, mask)
+        loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask)
+        return train_outs, loss_inner, lossBack
 
-    def _batch_validate_1_step(self, val_x, val_labels, mask, **kwargs):
+    def _batch_validate_1_step(self, val_x, **kwargs):
+        val_labels=kwargs.get('val_labels')
+        mask=kwargs.get('mask')
+        if mask is None: mask = torch.ones((val_x.shape[0], self.params.n_win, 1), device=self.params.device, dtype=torch.uint8)
         mc_dropout = kwargs.get('mc_dropout')
-        if mc_dropout is not None: 
-            activate_mc_dropout(*[self.aux, self.cp])
-        val_outs = self(val_x, mc_dropout=mc_dropout)            
-        loss_inner = self._getLoss(val_outs, val_labels, mask=mask)
+        if mc_dropout is not None: activate_mc_dropout(*[self.aux, self.cp])
+        val_outs = self(val_x, mask, mc_dropout=mc_dropout)       
+        if val_labels is None:
+            return val_outs      
+        loss_inner = self._getLoss(val_outs, val_labels, mask)
         return val_outs, loss_inner
 
-    def _getLoss(self, outs, target, **kwargs):
-        mask = kwargs.get('mask')
-        if mask is None: mask = 1.0
-        loss_aux=self.criterion(outs.coord_aux*mask, target.coord_main*mask)
+    def _getLoss(self, outs, target, mask):
+        loss_aux=self.criterion(outs.coord_aux*mask, target.coord_main*mask) if self.params.criteria!="gcd" \
+        else self.criterion(outs.coord_aux, target.coord_main, mask=mask) 
         loss_main=loss_aux
         loss_cp=None
         if self.cp is not None: 
-            loss_cp = self.cp_criterion(logits=outs.cp_logits, target=target.cp_logits)
+            loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum', \
+            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device))
         
-        rtnLoss = branchLoss(loss_main=loss_main, loss_aux=loss_aux, loss_cp = loss_cp)
+        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp.item())
 
         if self.training:
             sample_size=mask.sum()
             lossBack = loss_aux/sample_size
             if loss_cp is not None: lossBack += loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
-            rtnLoss.lossBack = lossBack
-
+            return rtnLoss, lossBack
         return rtnLoss

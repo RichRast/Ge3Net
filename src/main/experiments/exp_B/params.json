@@ -23,8 +23,8 @@
     "n_comp_subclass":0,
     "superpop_predict":false,
     "residual":false,
-    "geography":true,
-    "criteria":"gcd",
+    "geography":false,
+    "criteria":"l1_loss",
     "criteria_alpha":1.0,
     "hyper_search_type":"None",
     
@@ -42,6 +42,7 @@
     "logits_Block_hidden1":4,
     "logits_Block_out":1,
     "logits_Block_dropout":0.3,
+    "cp_pos_weight":10.0,
         
     "aux_net_in":1000, 
     "aux_net_hidden":100,

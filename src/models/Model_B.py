@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 from torch.autograd import Variable as V
-from src.models.Model_A import model_A
 from src.utils.decorators import timer
 from src.utils.modelUtil import split_batch, countParams, activate_mc_dropout
 from src.utils.dataUtil import square_normalize, get_gradient
@@ -9,7 +8,6 @@ from src.main.evaluation import branchLoss, modelOuts, RnnResults
 from src.models.AuxiliaryTask import AuxNetwork
 from src.models.LSTM import BiRNN
 from src.models.BasicBlock import logits_Block
-import snoop
 import pdb
 
 class model_B(nn.Module):
@@ -42,7 +40,7 @@ class model_B(nn.Module):
     def getOptimizerParams(self):
         return self.Optimizerparams
 
-    def forward(self, x, mask,**kwargs):        
+    def forward(self, x, mask, **kwargs):        
         mc_dropout = kwargs.get('mc_dropout')
 
         # Run Aux and LSTM Network
@@ -119,9 +117,8 @@ class model_B(nn.Module):
             loss_main_chunk /=sample_size
             loss_cp=None
             if self.cp is not None: 
-                pos_weight=(cps_chunk==0.).sum()/((cps_chunk==0.).sum() if (cps_chunk==1.).sum()==0 else (cps_chunk==0.).sum())
                 loss_cp = self.cp_criterion(cp_logits, cps_chunk, reduction='sum', \
-                pos_weight=torch.tensor([5.]).to(self.params.device))
+                pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device))
                 loss_main_chunk +=loss_cp/(cps_chunk.shape[0]*cps_chunk.shape[1])
                 loss_cp_list.append(loss_cp.item())
            
@@ -147,9 +144,8 @@ class model_B(nn.Module):
 
         loss_cp=None
         if self.cp is not None: 
-            pos_weight=(target.cp_logits==0.).sum()/((target.cp_logits==0.).sum() if (target.cp_logits==1.).sum()==0 else (target.cp_logits==0.).sum())
             loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum', \
-            pos_weight=torch.tensor([5.]).to(self.params.device))
+            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device))
         
         rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp.item())
 

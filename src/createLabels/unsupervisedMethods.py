@@ -117,7 +117,7 @@ class UnsupervisedSpace(ABC):
         labelsBySample = pd.DataFrame(columns=['Sample', 'ref_idx', 'labels'])
         labelsBySample['ref_idx']=list(self.lbls_dict.keys())
         labelsBySample['labels']=list(self.lbls_dict.values())
-        labelsBySample['Sample']=labelsBySample['ref_idx'].apply(lambda x: getValueBySelection(pop_arr, 1, x, 0) )
+        labelsBySample['Sample']=labelsBySample['ref_idx'].apply(lambda x: getValueBySelection(x, col1=1, arr=pop_arr, col2=0) )
         labelsBySample.to_csv(osp.join(self.data_out_path, 'labelsBySample.tsv'), sep="\t", index=None)
     
     def __call__(self, X, rev_pop_dict, pop_arr):
