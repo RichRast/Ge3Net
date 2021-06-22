@@ -59,7 +59,7 @@ class Ge3NetBase():
             if debugMode: self.model._checkModelParamGrads()
 
             train_outs, loss_inner, lossBack = self.model._batch_train_1_step(train_x, train_labels, cp_mask)
-            lossBack.backward()
+            if lossBack is not None: lossBack.backward() 
 
             #check that the model param grads are not None
             if debugMode: self.model._checkModelParamGrads()
@@ -230,7 +230,7 @@ class Ge3NetBase():
         phase = kwargs.get('phase')
         # phase="train" if any([m.training for m in list(self.model.values())]) else "valid/test"
         self.wandb.log({f"MainTask_Loss/{phase}":batchAvg["loss_main"], "batch_num":batch_num})
-        self.wandb.log({f"AuxTask_Loss/{phase}":batchAvg["loss_aux"], "batch_num":batch_num})
+        self.wandb.log({f"AuxTask_Loss/{phase}":batchAvg.get("loss_aux"), "batch_num":batch_num})
 
     def _checkModelParamGrad(self):
         print("**"*20+f" model {self.model.__class__.__name__}"+"**"*20)

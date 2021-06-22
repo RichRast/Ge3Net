@@ -15,4 +15,4 @@ class transformer(nn.Module):
         out1 = self.encoder(x)
         out2 = self.dropout(self.activation(self.layernorm(self.fc1(out1))))
         out3 =  self.fc2(out2)
-        return out3
+        return out1, out3
