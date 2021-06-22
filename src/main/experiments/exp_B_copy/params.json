@@ -1,7 +1,7 @@
 {
     "comment":"humans",
     "train_seed":  1234, 
-    "model":"Model_B",
+    "model":"Model_B_copy",
     "batch_size":256,
     "mc_dropout":false,
     "mc_samples":100,
@@ -65,21 +65,7 @@
     "tbptt":true,
     "tbptt_steps":20,
     "rnn_net_bidirectional":true,
-        
-    "Multi_Block_n_layers": 1,
-    "Multi_Block_in":64,
-    "Multi_Block_hidden":32,
-    "Multi_Block_hidden1":4,
-    "Multi_Block_out":8,
-    "Multi_Block_dropout":0.3,
     
-    "Residual_Block_n_layers": 1,
-    "Residual_Block_in":64,
-    "Residual_Block_hidden":32,
-    "Residual_Block_hidden1":4,
-    "Residual_Block_out":14,
-    "Residual_Block_dropout":0.3,
-            
     "thresh": 0.0001,
     "num_epochs":200,
     "SmoothLoss_beta":1.0,

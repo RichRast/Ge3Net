@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# sample command ./Batch_scripts/trainer_bash.sh -gt dogs -e 7 -d 1_umap -m D -sum "umap run"
+# sample command srun --pty -p gpu --gres=gpu:1 --mem=250GB --cpus-per-gpu=10 --time 24:00:00 ./Batch_scripts/trainer_bash_srun.sh -gt humans -e 2 -d 1_geo -m A -sum "model_A"
+cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
 Help()
@@ -55,14 +56,6 @@ else
     echo "dir created"
 fi
 
-sbatch << EOT
-#!/bin/bash
-#SBATCH -p gpu
-#SBATCH -c 10
-#SBATCH -G 1
-#SBATCH --mem=250GB
-#SBATCH -t 24:00:00
-#SBATCH --output=$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
 
 ml load py-pytorch/1.4.0_py36
 ml load py-scipy/1.4.1_py36
@@ -72,25 +65,14 @@ ml load cuda/9.0.176
 ml load git-lfs/2.4.0
 ml load system nvtop
 
-cd $USER_PATH
-python3 trainer.py  --data.params '$USER_PATH/src/main/experiments/exp_$model_type' \
+
+python3 trainer.py  --data.params $USER_PATH/src/main/experiments/exp_$model_type \
 --data.geno_type $geno_type \
---data.labels '$OUT_PATH/$geno_type/labels/data_id_${data_id}' \
---data.dir '$OUT_PATH/$geno_type/labels/data_id_${data_id}' \
---models.dir '$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/' \
+--data.labels $OUT_PATH/$geno_type/labels/data_id_${data_id} \
+--data.dir $OUT_PATH/$geno_type/labels/data_id_${data_id} \
+--models.dir $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/ \
 --model.summary $model_summary
 
-node_feat -n $(hostname|sed 's/.int.*//') >> $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
-EOT
-
-sleep .5
-echo "status of all jobs"
-squeue -u richras
-sleep .5
-echo "status of this job"
-
-echo log_dir: $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
-less +F $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
 
 # command from terminal directly
 # python3 trainer.py --data.params $USER_PATH/src/main/experiments/exp_B --data.geno_type humans  --data.labels $OUT_PATH/humans/labels/data_id_1_geo --data.dir $OUT_PATH/humans/labels/data_id_1_geo --models.dir $OUT_PATH/humans/training/Model_B_exp_id_22_data_id_1_geo --model.summary "tb_refactor"

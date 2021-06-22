@@ -70,7 +70,6 @@ def main(config, params):
         if params.cp_predict:test_result.cp_logits=np.concatenate((CpLs), axis=0)
         if params.mc_dropout: test_result.y_var=np.concatenate((VarLs), axis=0)
         
-    
     return test_result, test_dataset, model , model_stats
     
 if __name__=="__main__":

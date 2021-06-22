@@ -1,15 +1,16 @@
 {
-    "comment":"dogs",
+    "comment":"humans",
     "train_seed":  1234, 
     "model":"Model_C",
     "batch_size":256,
-    "mc_dropout":true,
+    "mc_dropout":false,
     "mc_samples":100,
     "cp_detect":true,
     "cp_tol":1,
-    "evalCp":false,
-    "evalBalancedGcd":false,
+    "evalCp":true,
+    "evalBalancedGcd":true,
     "evalExtraMainLosses":true,
+    "validCpMask":false,
     "rtnOuts":false,
     "reg_loss":false,
     "reg_loss_pow":1.0,
@@ -17,7 +18,7 @@
     "superpop_mask":false,
     "pop_sample_map":"pop_sample_map.tsv",
     "pop_num":[],
-    "plotting":true,
+    "plotting":false,
     "n_comp_overall": 3,
     "n_comp_subclass":0,
     "superpop_predict":false,
@@ -25,55 +26,23 @@
     "geography":true,
     "criteria":"gcd",
     "criteria_alpha":1.0,
-    
-    "hyper_search":false,
-    "hyper_search_type":"wandb", 
-    "wandb_n_trials": 3,
-    "optuna_n_trials":3,
+    "hyper_search_type":"None",
     
     "train_gens":[0,2,4,8],
     "valid_gens":[0,2,4,8],
     "evaluateTest":true,
     "test_gens":[0,2,4,8],
     "win_size" :1000,
-    "chmlen":81000,
-    "n_win" :81,
     "dataset_dim":3,
     "coordinates":"labels.pkl",  
-    
-    "wandb_config":{
-                "method": "random", 
-                "metric": {
-                 "name": "valid_weighted_loss",
-                  "goal": "minimize"   
-                },
-                "parameters": {
-                    "aux_net_hidden":{
-                        "values":[64,100,128,256]
-                        },
-                     "aux_net_dropout":{
-                         "distribution":"uniform",
-                         "min":0.2,
-                         "max":0.8
-                     }
-                },
-               "early_terminate":{
-                      "type": "hyperband",
-                      "min_iter": 3
-                }
-            },
             
-    "basic_Block_n_layers": 1,
-    "basic_Block_in":64,
-    "basic_Block_out":1,
-    "basic_Block_dropout":0.3,
-        
     "logits_Block_n_layers": 1,
     "logits_Block_in":64,
     "logits_Block_hidden":32,
     "logits_Block_hidden1":4,
     "logits_Block_out":1,
     "logits_Block_dropout":0.3,
+    "cp_pos_weight":10.0,
         
     "aux_net_in":1000, 
     "aux_net_hidden":100,
@@ -96,39 +65,15 @@
     "tbptt":true,
     "tbptt_steps":20,
     "rnn_net_bidirectional":true,
-        
-    "Multi_Block_n_layers": 1,
-    "Multi_Block_in":64,
-    "Multi_Block_hidden":32,
-    "Multi_Block_hidden1":4,
-    "Multi_Block_out":8,
-    "Multi_Block_dropout":0.3,
-    
-    "Residual_Block_n_layers": 1,
-    "Residual_Block_in":64,
-    "Residual_Block_hidden":32,
-    "Residual_Block_hidden1":4,
-    "Residual_Block_out":14,
-    "Residual_Block_dropout":0.3,
-        
-    "att":{
-    "key_size":64, 
-    "value_size":64, 
-    "query_size":64, 
-    "input_size":104,
-     "dropout":0.3,
-    "beta":1.0
-    },
-        
+            
     "thresh": 0.0001,
-    "num_epochs":500,
-     "SmoothLoss_beta":1.0,
+    "num_epochs":200,
+    "SmoothLoss_beta":1.0,
     "weightLoss_alpha":1.0,
-    "evaluation_acc":"smoothl1_loss",
     "learning_rate":[1e-4,1e-2,1e-4,1e-4, 1e-4],
     "weight_decay":[0,0,0,0,0],
     "eps":1e-4,
-    "early_stopping_thresh":5,
+    "early_stopping_thresh":6,
     "clip":10.0,
     "lr_steps_decay":10
     
