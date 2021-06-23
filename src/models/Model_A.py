@@ -14,7 +14,7 @@ class model_A(nn.Module):
         super(model_A, self).__init__()
         self.params=params
         self.aux = AuxNetwork(params)
-        self.cp = logits_Block(params) if self.params.cp_predict else None
+        self.cp = logits_Block(params, params.aux_net_hidden + params.dataset_dim) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
         self._setOptimizerParams()

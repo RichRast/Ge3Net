@@ -14,20 +14,13 @@ class basicBlock(nn.Module):
         return out
     
 class logits_Block(nn.Module):
-    def __init__(self, params):
+    def __init__(self, params, input):
         super(logits_Block, self).__init__()
         self.dropout = nn.Dropout(p=params.logits_Block_dropout)
         self.layernorm = nn.LayerNorm(params.logits_Block_hidden)
-        #self.layernorm = nn.LayerNorm(params.logits_Block_in)
         self.relu = nn.ReLU()
-        if params.model=='Model_D' or params.model=='Model_B' or params.model=='Model_C':
-            self.input = params.rnn_net_hidden * (1+1*params.rnn_net_bidirectional)
-        elif params.model=='Model_K':
-            self.input = params.att1_value_size 
-        elif params.model=='Model_A':
-            self.input = params.aux_net_hidden + params.dataset_dim
-            
-        #self.fc = nn.Linear(params.logits_Block_in, params.logits_Block_out)
+        self.input = input
+
         self.fc1 = nn.Linear(self.input, params.logits_Block_hidden)
         self.fc2 = nn.Linear(params.logits_Block_hidden, params.logits_Block_hidden1)
         self.layernorm1 = nn.LayerNorm(params.logits_Block_hidden1)
@@ -37,7 +30,6 @@ class logits_Block(nn.Module):
         out_1 = self.dropout(self.relu(self.layernorm(self.fc1(x))))
         out_2 = self.dropout(self.relu(self.layernorm1(self.fc2(out_1))))
         logits = self.fc3(out_2)
-        #logits = self.fc(x)
         return logits
 
     def loss(self, loss_fn, logits, target):

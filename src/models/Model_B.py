@@ -15,7 +15,7 @@ class model_B(nn.Module):
         super(model_B, self).__init__()
         self.params=params
         self.aux = AuxNetwork(self.params)
-        self.lstm = BiRNN(self.params)
+        self.lstm = BiRNN(self.params, self.params.aux_net_hidden + self.params.aux_net_out)
         self.cp = logits_Block(self.params) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
@@ -151,7 +151,7 @@ class model_B(nn.Module):
 
         if self.training:
             sample_size=mask.sum() 
-            lossBack = loss_aux/sample_size
+            lossBack = (loss_aux+loss_main)/sample_size
             if loss_cp is not None: lossBack += loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
             return rtnLoss, lossBack
         return rtnLoss

@@ -7,6 +7,9 @@ class modelSelect():
         "Model_B_copy": lambda params, criterion, cp_criterion : Model_B_copy.model_B_copy(params, criterion, cp_criterion),
         "Model_C": lambda params, criterion, cp_criterion : Model_C.model_C(params, criterion, cp_criterion),
         "Model_D": lambda params, criterion, cp_criterion : Model_D.model_D(params, criterion, cp_criterion),
+        "Model_E": lambda params, criterion, cp_criterion : Model_E.model_E(params, criterion, cp_criterion),
+        "Model_F": lambda params, criterion, cp_criterion : Model_F.model_F(params, criterion, cp_criterion),
+        "Model_G": lambda params, criterion, cp_criterion : Model_G.model_G(params, criterion, cp_criterion)
     }
 
     @classmethod

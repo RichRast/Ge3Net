@@ -15,8 +15,8 @@ class model_B_copy(nn.Module):
         super(model_B_copy, self).__init__()
         self.params=params
         self.aux = BaseNetwork(self.params)
-        self.lstm = BiRNN(self.params)
-        self.cp = logits_Block(self.params) if self.params.cp_predict else None
+        self.lstm = BiRNN(self.params, self.params.aux_net_hidden)
+        self.cp = logits_Block(self.params, self.params.rnn_net_hidden * (1+1*self.params.rnn_net_bidirectional)) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
         self._setOptimizerParams()
@@ -70,7 +70,7 @@ class model_B_copy(nn.Module):
     
     def _batch_train_1_step(self, train_x, train_labels, mask):
         if self.params.tbptt:
-            train_outs, loss_inner = self._trainTbtt(train_x, train_labels, mask)
+            train_outs, loss_inner, lossBack = self._trainTbtt(train_x, train_labels, mask)
         else:
             train_outs= self(train_x, mask)
             loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask)
@@ -146,7 +146,9 @@ class model_B_copy(nn.Module):
         rtnLoss = branchLoss(loss_main=loss_main.item(), loss_cp = loss_cp.item())
 
         if self.training:
-            if loss_cp is not None: lossBack = loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
+            sample_size=mask.sum()
+            lossBack=loss_main/sample_size
+            if loss_cp is not None: lossBack += loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
             return rtnLoss, lossBack
         return rtnLoss
 
@@ -161,6 +163,7 @@ class model_B_copy(nn.Module):
         # backward loss needs to be calculated only for loss_aux because loss_main and 
         # loss_cp were already backwarded during tbtt
         outs.coord_main = outs.coord_main*mask
-        return outs, loss_inner
+        lossBack=None
+        return outs, loss_inner, lossBack
 
     

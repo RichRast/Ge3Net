@@ -18,7 +18,7 @@ class model_F(nn.Module):
         self.pe = PositionalEncoding(self.params)
         self.attention = attention_single(self.params)
         self.ffnn = FFNN(self.params)
-        self.cp = logits_Block(self.params) if self.params.cp_predict else None
+        self.cp = logits_Block(self.params, ) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
         self._setOptimizerParams()

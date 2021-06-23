@@ -3,12 +3,9 @@ from torch import nn
 import numpy as np
 
 class BiRNN(nn.Module):
-    def __init__(self, params, rnn='lstm'):
+    def __init__(self, params, input_size, rnn='lstm'):
         super(BiRNN, self).__init__()
-        if params.model=="Model_C":
-            self.input_size = params.aux_net_out + params.rnn_net_out
-        else:
-            self.input_size = params.aux_net_hidden + params.rnn_net_out
+        self.input_size = input_size
         self.hidden_size = params.rnn_net_hidden
         self.num_layers = params.rnn_net_n_layers
         self.output = params.rnn_net_out

@@ -10,13 +10,13 @@ from src.models.Conv import Conv1d
 from src.models.BasicBlock import logits_Block
 import pdb
 
-class model_D(nn.Module):
+class model_E(nn.Module):
     def __init__(self, params, criterion, cp_criterion):
-        super(model_D, self).__init__()
+        super(model_E, self).__init__()
         self.params=params
         self.aux = AuxNetwork(self.params)
         self.conv = Conv1d(self.params)
-        self.cp = logits_Block(self.params) if self.params.cp_predict else None
+        self.cp = logits_Block(self.params, self.params.aux_net_hidden2) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
         self._setOptimizerParams()
@@ -46,8 +46,7 @@ class model_D(nn.Module):
         # Run Aux and Conv Network
         def _forwardNet(x):
             out1, _, out3, out4 = self.aux(x)
-            out1 = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
-        
+            
             out_conv = self.conv(out4)
             out_nxt = out3
             out_aux = square_normalize(out4) if self.params.geography else out4
@@ -100,7 +99,7 @@ class model_D(nn.Module):
 
         if self.training:
             sample_size=mask.sum() 
-            lossBack = loss_aux/sample_size
+            lossBack = (loss_main+loss_aux)/sample_size
             if loss_cp is not None: lossBack += loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
             return rtnLoss, lossBack
         return rtnLoss
