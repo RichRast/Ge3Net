@@ -18,7 +18,7 @@ class model_F(nn.Module):
         self.pe = PositionalEncoding(self.params)
         self.attention = attention_single(self.params)
         self.ffnn = FFNN(self.params)
-        self.cp = logits_Block(self.params, ) if self.params.cp_predict else None
+        self.cp = logits_Block(self.params, self.params.aux_net_hidden + self.params.dataset_dim) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
         self._setOptimizerParams()
@@ -106,7 +106,7 @@ class model_F(nn.Module):
 
         if self.training:
             sample_size=mask.sum() 
-            lossBack = loss_aux/sample_size
+            lossBack = (loss_aux+loss_main)/sample_size
             if loss_cp is not None: lossBack += loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
             return rtnLoss, lossBack
         return rtnLoss

@@ -64,7 +64,7 @@
     "rnn_net_dropout":0.3,
     "tbptt":true,
     "tbptt_steps":20,
-    "rnn_net_bidirectional":true,
+    "rnn_net_bidirectional":false,
             
     "thresh": 0.0001,
     "num_epochs":200,

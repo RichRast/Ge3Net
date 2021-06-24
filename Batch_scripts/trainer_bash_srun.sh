@@ -26,6 +26,7 @@ while [[ $# -gt 0 ]]; do
     -e | --expt_id ) shift ; expt_id=$1 ;;
     -m | --model ) shift ; model_type=$1 ;;
     -sum | --summary ) shift ; model_summary=$1 ;;
+    -v | --verbose ) shift ; verbose=$1;;
     -h | --help ) Help ; exit ;;
     \? ) echo "Error: Invalid option"; exit 1;;
     esac; shift

@@ -1,4 +1,4 @@
-from src.models import Model_A, Model_B, Model_C, Model_B_copy, Model_D, Model_E, Model_F, Model_G
+from src.models import Model_A, Model_B, Model_C, Model_B_copy, Model_D, Model_E, Model_F, Model_G, Model_H
 
 class modelSelect():
     _models={
@@ -9,7 +9,8 @@ class modelSelect():
         "Model_D": lambda params, criterion, cp_criterion : Model_D.model_D(params, criterion, cp_criterion),
         "Model_E": lambda params, criterion, cp_criterion : Model_E.model_E(params, criterion, cp_criterion),
         "Model_F": lambda params, criterion, cp_criterion : Model_F.model_F(params, criterion, cp_criterion),
-        "Model_G": lambda params, criterion, cp_criterion : Model_G.model_G(params, criterion, cp_criterion)
+        "Model_G": lambda params, criterion, cp_criterion : Model_G.model_G(params, criterion, cp_criterion),
+        "Model_H": lambda params, criterion, cp_criterion : Model_H.model_H(params, criterion, cp_criterion)
     }
 
     @classmethod

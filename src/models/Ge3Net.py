@@ -3,7 +3,7 @@ import numpy as np
 from torch import nn
 import os.path as osp
 from src.utils.decorators import timer
-from src.utils.modelUtil import save_checkpoint, early_stopping
+from src.utils.modelUtil import save_checkpoint, early_stopping, custom_opt
 from src.main.evaluation import GcdLoss, eval_cp_batch, balancedMetrics, t_results, \
 Running_Average, modelOuts, branchLoss, PrCounts, computePrMetric
 from src.models.MCDropout import MC_Dropout
@@ -151,7 +151,7 @@ class Ge3NetBase():
         cpRunAvgObj=kwargs.get('cpRunAvgObj')
         batchLoss=kwargs.get('batchLoss')
         batchCpLoss=kwargs.get('batchCpLoss')
-        sample_size=kwargs.get('sample_size')
+        # sample_size=kwargs.get('sample_size')
         cpThresh=kwargs.get('cpThresh')
         
         sample_size = mask.sum()
@@ -258,9 +258,14 @@ class Ge3NetBase():
         
         modelOptimParams=self.model.getOptimizerParams()
         optimizer = torch.optim.Adam(modelOptimParams)
+        
         # learning rate scheduler
         exp_lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = self.params.lr_steps_decay,\
         verbose=True)
+        attention_models_ls=["Model_F", "Model_H"]
+        if self.params.model in attention_models_ls:
+            optimizer = custom_opt(optimizer, d_model=self.params.att_input_size, \
+            warmup_steps=self.params.att_warmup_steps, factor=self.params.att_factor, groups=self.params.warmup_lr_groups)
         print(("Begin Training...."))
         start_epoch = 0
         patience = 0

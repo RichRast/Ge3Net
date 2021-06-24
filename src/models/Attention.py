@@ -34,17 +34,17 @@ class attention(nn.Module):
 class attention_single(nn.Module):
     def __init__(self, params):
         super(attention_single, self).__init__() # Initialize self._modules as OrderedDict
-        self.key_size = params.att1_key_size
-        self.query_size = params.att1_query_size
-        self.value_size = params.att1_value_size
+        self.key_size = params.att_key_size
+        self.query_size = params.att_query_size
+        self.value_size = params.att_value_size
         self.input = params.aux_net_hidden + params.dataset_dim
         self.linear_keys = nn.Linear(self.input, self.key_size)
         self.linear_query = nn.Linear(self.input, self.query_size)
         self.Linear_value = nn.Linear(self.input, self.value_size)
         self.sqrt_key_size = math.sqrt(self.key_size)
-        self.dropout = nn.Dropout(p=params.att1_dropout)
+        self.dropout = nn.Dropout(p=params.att_dropout)
         self.layernorm = nn.LayerNorm(self.value_size)
-        self.beta = params.att1_beta
+        self.beta = params.att_beta
 
     def forward(self, x):
         # shape of x is BxTxemb_dim
@@ -106,12 +106,12 @@ class PositionalEncoding(nn.Module):
         pe: positional encoding of the embed dim , shape[batch_size, embed_dim, 1]
         """
         PE_constant = params.PE_constant
-        d_model = params.d_model
+        d_model = params.PE_d_model
         self.dropout = nn.Dropout(params.PE_dropout)
         pos = torch.arange(0, params.n_win, dtype=torch.float).unsqueeze(1)
         i = torch.arange(0, d_model/2, dtype=torch.float)
         den_term = torch.exp(math.log(PE_constant)* (2*i/d_model))
-        pe = torch.zeros(params.n_win, params.d_model)
+        pe = torch.zeros(params.n_win, params.PE_d_model)
         pe[:,0::2] = torch.sin(pos/den_term)
         pe[:,1::2] = torch.cos(pos/den_term)
         pe = pe.unsqueeze(2).permute(2,0,1)
@@ -119,7 +119,7 @@ class PositionalEncoding(nn.Module):
 
 
     def forward(self, x):
-        x = x + self.pe
+        x = x + self.pe[...,:-1]
         return self.dropout(x)
 
 
@@ -146,3 +146,14 @@ class FFNN(nn.Module):
         out3 = self.fc3(out2)
         return out2, out3
 
+class AttentionBlock(nn.Module):
+    def __init__(self, params):
+        super(AttentionBlock, self).__init__()
+        self.pe = PositionalEncoding(params)
+        self.attention = attention_single(params)
+        self.ffnn = FFNN(params)
+    
+    def forward(self,x):
+        out_nxt, _, weight = self.attention(self.pe(x))
+        _, out_att = self.ffnn(out_nxt)
+        return out_att

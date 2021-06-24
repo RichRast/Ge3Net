@@ -154,6 +154,9 @@ class custom_opt():
         self.factor = factor
         self.groups = groups
 
+    def state_dict(self):
+        return self.optimizer.state_dict()
+        
     def step(self):
         self._step_num += 1
         rate = self.rate()

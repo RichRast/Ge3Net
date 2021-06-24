@@ -1,234 +1,191 @@
 import torch
+from torch import nn
 from torch.autograd import Variable as V
-import sys
-sys.path.insert(1, '/home/users/richras/Ge2Net_Repo')
-from models import distributions
-from models import BOCD
-import numpy as np
-import pandas as pd
-import allel
-from helper_funcs import get_recomb_rate, interpolate_genetic_pos, form_windows,\
-activate_mc_dropout, split_batch, square_normalize
-from models import BOCD, distributions
+from src.utils.decorators import timer
+from src.utils.modelUtil import split_batch, countParams, activate_mc_dropout
+from src.utils.dataUtil import square_normalize, get_gradient
+from src.main.evaluation import branchLoss, modelOuts, RnnResults
+from src.models.AuxiliaryTask import AuxNetwork
+from src.models.LSTM import BiRNN
+from src.models.Attention import attention_single, PositionalEncoding, FFNN
+from src.models.BasicBlock import logits_Block
+import pdb
 
-class model_H(object):
-    def __init__(self, aux_network, main_network, config, params):
+class model_H(nn.Module):
+    def __init__(self, params, criterion, cp_criterion):
+        super(model_H, self).__init__()
+        self.params=params
+        self.aux = AuxNetwork(self.params)
+        self.pe = PositionalEncoding(self.params)
+        self.attention = attention_single(self.params)
+        self.ffnn = FFNN(self.params)
+        self.lstm = BiRNN(self.params, self.params.aux_net_hidden + self.params.aux_net_out)
+        self.cp = logits_Block(self.params, self.params.rnn_net_hidden * (1+1*self.params.rnn_net_bidirectional)) if self.params.cp_predict else None
+        self.criterion=criterion
+        self.cp_criterion = cp_criterion if self.params.cp_predict else None
+        self._setOptimizerParams()
 
-        self.aux_network = aux_network
-        self.main_network = main_network
-        self.criterion = torch.nn.MSELoss()
-        self.accr_criterion = torch.nn.MSELoss(reduction='sum')
+        count_params=[]
+        for m in [self.aux, self.pe, self.attention, self.ffnn, self.lstm, self.cp]:
+            params_count=countParams(m)
+            print(f"Parameter count for model {m.__class__.__name__}:{params_count}")
+            count_params.append(params_count)
+        print(f"Total parameters:{sum(count_params)}")
 
-        # compute recomb_rate
-        genetic_map_path = config['data.genetic_map']
-        vcf_file_path = config['data.vcf_dir']
-        df_gm_chm, df_vcf, df_vcf_pos = get_recomb_rate(genetic_map_path, vcf_file_path, chm='chr22')
-        df_snp_pos = interpolate_genetic_pos(df_vcf_pos, df_gm_chm)
-        recomb_w = form_windows(df_snp_pos, params.dataset)
-        self.recomb_rate = np.diff(recomb_w)
-
-    def train(self, optimizer, training_generator, params, writer=None):
-        self.aux_network.train()
-        self.main_network.train()
-        accr = []
-        total_samples = []
-
-        for i, train_gen in enumerate(training_generator):
-
-            train_x, train_y = train_gen
-
-            train_x = train_x[:, 0:params.dataset['chmlen']].float().to(params.device)
-            train_labels = train_y.to(params.device)
-
-            # Forward pass
-            # update the gradients to zero
-            optimizer.zero_grad()
-            
-            _, out7, _, out9 = self.aux_network(train_x)
-            loss_aux = self.criterion(out9, train_labels)
-
-            train_x = out7.reshape(train_x.shape[0], params.dataset['n_win'], params.aux_net['hidden_unit'])
-
-            #pass train_x through BOCD and pass the predictive probs (log_prob_x_given_x1)
-            #as an additional feature to lstm
-            # CPD is on CPU for now, Todo make them both to either device
-            data_tensor = out9
-            batch_size_cpd = out9.shape[0]
-            n_vec_dim = out9.shape[-1]
-            mu_prior = torch.mean(data_tensor, dim =1).float().reshape(batch_size_cpd, 1,n_vec_dim)
-            cov_prior = (torch.var(data_tensor, dim =1).float().unsqueeze(1) * \
-                         torch.eye(n_vec_dim).to(params.device)).reshape(batch_size_cpd,1,n_vec_dim,n_vec_dim)
-            cov_x = torch.eye(n_vec_dim).to(params.device).unsqueeze(0).repeat([batch_size_cpd,1,1]).reshape(batch_size_cpd,1,n_vec_dim,n_vec_dim)
-            
-            likelihood_model = distributions.Multivariate_Gaussian(mu_prior, cov_prior, cov_x)
-            T = params.dataset['n_win']
-            
-            model_cpd_train = BOCD.BOCD(self.recomb_rate, T, likelihood_model, batch_size_cpd)
-
-            _,_, predictive, e_mean = model_cpd_train.run_recursive(data_tensor, params.device)
-            #shape of predictive will be batch_size x 318(n_win + 1) x dim 
-            train_lstm = torch.cat((train_x, predictive[:,:-1,:]), dim =2)
-
-
-            # LSTM
-            rnn_state = None
-            bptt_batch_chunks = split_batch(train_lstm.clone(), params.rnn_net['tbptt_steps'])
-            batch_label = split_batch(train_labels, params.rnn_net['tbptt_steps'])
-
-            if params.rnn_net['tbptt']:
-                for text_chunk, batch_label_chunk in zip(bptt_batch_chunks, batch_label):
-                    text_chunk = V(text_chunk)
-
-                    _, train_vector, rnn_state = self.main_network(text_chunk, rnn_state)
-
-                    # for each bptt size we have the same batch_labels
-                    loss_main = self.criterion(train_vector, batch_label_chunk)
-
-                    # do back propagation for tbptt steps in time
-                    loss_main.backward()
-
-                    # after doing back prob, detach rnn state to implement TBPTT
-                    # now rnn_state was detached and chain of gradients was broken
-                    rnn_state = self.main_network._detach_rnn_state(rnn_state)
-
-                    
-                    tmp_accr_sum = self.accr_criterion(train_vector, batch_label_chunk)
-                    accr.append(tmp_accr_sum)
-            else:
-                _,_,train_vector, _ = self.main_network(train_x)
-                loss_main = self.criterion(train_vector, train_labels)
-                
-                tmp_accr_sum = self.accr_criterion(train_vector, train_labels)
-                accr.append(tmp_accr_sum)
-            
-            sample_size = train_labels.shape[0]*train_labels.shape[1]
-            total_samples.append(sample_size)
-            
-            # clip gradient norm
-            torch.nn.utils.clip_grad_norm_(self.main_network.parameters(), params.clip)
-
-            # backward pass
-            if params.rnn_net['tbptt']:
-                loss_aux.backward()
-            else:
-                loss = loss_main + loss_aux
-                loss.backward()
-
-            # update the weights
-            optimizer.step()
-            
-            if writer is not None:
-                # Write to tensorboard for train every batch
-                writer.add_scalar('MainTask_Loss/train', loss_main.item(), i)
-                writer.add_scalar('AuxTask_Loss/train', loss_aux.item(), i)
-
-        train_accr = torch.sum(torch.stack(accr)) / sum(total_samples)
-
-        # plot_grad_flow(model.named_parameters())
-        # plot_grad_flow_v2(model.named_parameters())  # grad flow plot
-        
-        return train_accr
+    def _setOptimizerParams(self):
+        self.Optimizerparams=[]
+        for i, m in enumerate([self.aux, self.pe, self.attention, self.ffnn, self.lstm, self.cp]):
+            params_dict={}
+            params_dict['params']= m.parameters()
+            params_dict['lr'] = self.params.learning_rate[i]
+            params_dict['weight_decay'] = self.params.weight_decay[i]
+            self.Optimizerparams.append(params_dict)
     
-    def eval(self, validation_generator, params, writer=None):
-        self.main_network.eval()
-        self.aux_network.eval()
+    def getOptimizerParams(self):
+        return self.Optimizerparams
+
+    def forward(self, x, mask, **kwargs):        
+        mc_dropout = kwargs.get('mc_dropout')
+
+        # Run Aux and LSTM Network
+        def _forwardNet(x):
+            out1, _, _, out4 = self.aux(x)
+            out1 = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
         
-        
-        
-        with torch.no_grad():
-            accr = []
-            total_samples = []
+            # add residual connection by taking the gradient of aux network predictions
+            aux_diff = get_gradient(out4)
+            out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
+            out_att_nxt, _, weight = self.attention(self.pe(out_nxt_aux))
+            _, out_att = self.ffnn(out_att_nxt)
+            vec_64, out_rnn, _ = self.lstm(out_att)
+            out_nxt = vec_64
+            out_aux = square_normalize(out4) if self.params.geography else out4
+            out_main = square_normalize(out_rnn) if self.params.geography else out_rnn
+            outs = modelOuts(coord_main = out_main*mask, coord_aux= out_aux*mask)
+            return outs, out_nxt
+
+        if mc_dropout is None:
+            outs, out_nxt = _forwardNet(x)
+            outs.coord_mainLs=[outs.coord_main]
+        else:
+            outs, out_nxt, coord_mainLs = mc_dropout(_forwardNet, x)
+            outs.coord_mainLs=coord_mainLs
+
+        # Run CP Network
+        cp_logits = self.cp(out_nxt) if self.cp is not None else None
+        outs.cp_logits = cp_logits        
+        return outs
+    
+    def _batch_train_1_step(self, train_x, train_labels, mask):
+        if self.params.tbptt:
+            train_outs, loss_inner, lossBack = self._trainTbtt(train_x, train_labels, mask)
+        else:
+            train_outs= self(train_x, mask)
+            loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask)
+        return train_outs, loss_inner, lossBack
+
+    
+    def _batch_validate_1_step(self, val_x, **kwargs):
+        val_labels=kwargs.get('val_labels')
+        mask=kwargs.get('mask')
+        if mask is None: mask = torch.ones((val_x.shape[0], self.params.n_win, 1), device=self.params.device, dtype=torch.uint8)
+        mc_dropout = kwargs.get('mc_dropout')
+        if mc_dropout is not None: activate_mc_dropout(*[self.aux, self.lstm, self.cp])
+        val_outs = self(val_x, mask, mc_dropout=mc_dropout) #call forward
+        if val_labels is None:
+            return val_outs           
+        loss_inner = self._getLoss(val_outs, val_labels, mask)
+        return val_outs, loss_inner
+
+    def _tbtt(self, x, target):
+        rnn_state = None
+        bptt_batch_chunks = split_batch(x.clone(), self.params.tbptt_steps)
+        batch_cps_chunks = split_batch(target.cp_logits, self.params.tbptt_steps)
+        batch_label = split_batch(target.coord_main, self.params.tbptt_steps)
+        loss_main_list, out_rnn_list, vec64_list=[],[],[]
+        loss_cp_list, cp_logits_list = [], []
+        for x_chunk, batch_label_chunk, cps_chunk in zip(bptt_batch_chunks, batch_label, batch_cps_chunks):
+            x_chunk = V(x_chunk, requires_grad=True)
             
-            for j, val_gen in enumerate(validation_generator):
-                val_x, val_y = val_gen
-                val_x = val_x[:, 0:params.dataset['chmlen']].float().to(params.device)
-                val_labels = val_y.to(params.device)
-                
-                if params.mc_dropout:
-                    activate_mc_dropout(self.main_network, self.aux_network)
-                    output_list = []
+            vec_64, out_rnn_chunk, rnn_state = self.lstm(x_chunk, rnn_state)
+            if self.params.geography: out_rnn_chunk=square_normalize(out_rnn_chunk)
+            cp_logits = self.cp(vec_64) if self.cp is not None else None
+            vec64_list.append(vec_64)
+            out_rnn_list.append(out_rnn_chunk)
+            cp_logits_list.append(cp_logits)
+            
+            # Calculate Loss
+            cp_mask_chunk = (cps_chunk==0).float()
+            loss_main_chunk=self.criterion(out_rnn_chunk*cp_mask_chunk, batch_label_chunk*cp_mask_chunk) \
+            if self.params.criteria!="gcd" else self.criterion(out_rnn_chunk, batch_label_chunk, mask=cp_mask_chunk) 
+            loss_main_list.append(loss_main_chunk.item())
+            sample_size=cp_mask_chunk.sum()
+            loss_main_chunk /=sample_size
+            loss_cp=None
+            if self.cp is not None: 
+                loss_cp = self.cp_criterion(cp_logits, cps_chunk, reduction='sum', \
+                pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device))
+                loss_main_chunk +=loss_cp/(cps_chunk.shape[0]*cps_chunk.shape[1])
+                loss_cp_list.append(loss_cp.item())
+           
+            loss_main_chunk.backward()
+            # after doing back prob, detach rnn state to implement TBPTT
+            # now rnn_state was detached and chain of gradients was broken
+            rnn_state = self.lstm._detach_rnn_state(rnn_state)
+            
+        loss_main = sum(loss_main_list)
+        loss_cp = sum(loss_cp_list)
+        out_rnn = torch.cat(out_rnn_list, 1).detach()
+        vec_64 = torch.cat(vec64_list, 1).detach()
+        cp_logits = torch.cat(cp_logits_list, 1).detach()
+        outs = modelOuts(coord_main = out_rnn, cp_logits=cp_logits)
+        loss_inner = branchLoss(loss_main=loss_main, loss_cp=loss_cp)
+        return vec_64, outs, loss_inner
+   
+    def _getLoss(self, outs, target, mask):
+        loss_aux=self.criterion(outs.coord_aux*mask, target.coord_main*mask) if self.params.criteria!="gcd" \
+        else self.criterion(outs.coord_aux, target.coord_main, mask=mask) 
+        loss_main=self.criterion(outs.coord_main*mask, target.coord_main*mask) if self.params.criteria!="gcd" \
+        else self.criterion(outs.coord_main, target.coord_main, mask=mask) 
 
-                    for _ in range(params.mc_samples):
-                        _, out7, _ , out9 = self.aux_network(val_x)
+        loss_cp=None
+        if self.cp is not None: 
+            loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum', \
+            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device))
+        
+        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp.item())
 
-                        val_loss_regress_MLP = self.criterion(out9, val_labels)
+        if self.training:
+            sample_size=mask.sum() 
+            lossBack = (loss_aux+loss_main)/sample_size
+            if loss_cp is not None: lossBack += loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
+            return rtnLoss, lossBack
+        return rtnLoss
 
-                        val_x_sample = out7.reshape(val_x.shape[0], params.dataset['n_win'], params.aux_net['hidden_unit'])
+    def _trainTbtt(self, x, target, mask):
+        # Aux Model
+        out1, _, _, out4 = self.aux(x)
+        out1 = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
+        aux_diff = get_gradient(out4)
+        out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
+        out_att_nxt, _, weight = self.attention(self.pe(out_nxt_aux))
+        _, out_att = self.ffnn(out_att_nxt)
+        out_aux = square_normalize(out4) if self.params.geography else out4
 
-                        #pass train_x through BOCD and pass the predictive probs (log_prob_x_given_x1)
-                        #as an additional feature to lstm
-                        # CPD is on CPU for now, Todo make them both to either device
-                        data_tensor = out9
-                        batch_size_cpd = out9.shape[0]
-                        n_vec_dim = out9.shape[-1]
-                        mu_prior = torch.mean(data_tensor, dim =1).float().reshape(batch_size_cpd, 1,n_vec_dim)
-                        cov_prior = (torch.var(data_tensor, dim =1).float().unsqueeze(1) * \
-                                    torch.eye(n_vec_dim).to(params.device)).reshape(batch_size_cpd,1,n_vec_dim,n_vec_dim)
-                        cov_x  = torch.eye(n_vec_dim).to(params.device).unsqueeze(0).repeat([batch_size_cpd,1,1]).reshape(batch_size_cpd,1,n_vec_dim,n_vec_dim)
+        # Tbtt
+        out_nxt, outs, loss_inner = self._tbtt(out_att, target)
+        
+        loss_aux = self.criterion(out_aux*mask, target.coord_main*mask) if self.params.criteria!="gcd" \
+        else self.criterion(out_aux, target.coord_main, mask=mask) 
+        
+        sample_size=mask.sum()
+        lossBack = loss_aux/sample_size
+        loss_inner.loss_aux = loss_aux.item()
+        
+        # backward loss needs to be calculated only for loss_aux because loss_main and 
+        # loss_cp were already backwarded during tbtt
+        outs.coord_main = outs.coord_main*mask
+        outs.coord_aux = out_aux*mask
+        return outs, loss_inner, lossBack
 
-                        likelihood_model = distributions.Multivariate_Gaussian(mu_prior, cov_prior, cov_x)
-                        T = params.dataset['n_win']
-
-                        model_cpd_val = BOCD.BOCD(self.recomb_rate, T, likelihood_model, batch_size_cpd)
-
-                        _,_, predictive,e_mean = model_cpd_val.run_recursive(data_tensor, params.device)
-                        #shape of predictive will be batch_size x 318(n_win + 1) x dim 
-                        val_lstm = torch.cat((val_x_sample, predictive[:,:-1,:]), dim =2)
-
-                        _, val_outputs, _ = self.main_network(val_lstm)
-
-                        output_list.append(val_outputs)
-                    
-                    
-                    outputs_cat = torch.cat(output_list, 0).contiguous().\
-                    view(params.mc_samples, -1, params.dataset['n_win'], val_outputs.shape[-1]).mean(0)
-                else:
-                    _, out7, _ , out9 = self.aux_network(val_x)
-
-                    val_loss_regress_MLP = self.criterion(out9, val_labels)
-
-                    val_x_sample = out7.reshape(val_x.shape[0], params.dataset['n_win'], params.aux_net['hidden_unit'])
-
-                    #pass train_x through BOCD and pass the predictive probs (log_prob_x_given_x1)
-                    #as an additional feature to lstm
-                    # CPD is on CPU for now, Todo make them both to either device
-                    data_tensor = out9
-                    batch_size_cpd = out9.shape[0]
-                    n_vec_dim = out9.shape[-1]
-                    mu_prior = torch.mean(data_tensor, dim =1).float().reshape(batch_size_cpd, 1,n_vec_dim)
-                    cov_prior = (torch.var(data_tensor, dim =1).float().unsqueeze(1) * \
-                                 torch.eye(n_vec_dim).to(params.device)).reshape(batch_size_cpd,1,n_vec_dim,n_vec_dim)
-                    cov_x  = torch.eye(n_vec_dim).to(params.device).unsqueeze(0).repeat([batch_size_cpd,1,1]).reshape(batch_size_cpd,1,n_vec_dim,n_vec_dim)
-
-                    likelihood_model = distributions.Multivariate_Gaussian(mu_prior, cov_prior, cov_x)
-                    T = params.dataset['n_win']
-
-                    model_cpd_val = BOCD.BOCD(self.recomb_rate, T, likelihood_model, batch_size_cpd)
-
-                    _,_, predictive = model_cpd_val.run_recursive(data_tensor, params.device)
-                    #shape of predictive will be batch_size x 318(n_win + 1) x dim 
-                    val_lstm = torch.cat((val_x_sample, predictive[:,:-1,:]), dim =2)
-
-                    _, val_outputs, _ = self.main_network(val_lstm)
-                    outputs_cat = val_outputs
-                    
-                val_loss_main = self.criterion(outputs_cat, val_labels)
-                
-                tmp_accr_sum = self.accr_criterion(outputs_cat, val_labels)
-                accr.append(tmp_accr_sum)
-                sample_size = val_labels.shape[0]*val_labels.shape[1]
-                total_samples.append(sample_size)
-                
-                if j>0:
-                    y_pred = torch.cat((y_pred, outputs_cat), dim=0)
-                else:
-                    y_pred = outputs_cat
-                    
-                if writer is not None:
-                    # write to Tensorboard
-                    writer.add_scalar('MainTask_Loss/val', val_loss_main.item(), j)
-                    writer.add_scalar('AuxTask_Loss/val', val_loss_regress_MLP.item(), j)
-
-            val_accr = torch.sum(torch.stack(accr)) / sum(total_samples)
-
-        return val_accr, y_pred
+    
