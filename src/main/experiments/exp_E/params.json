@@ -30,7 +30,7 @@
     
     "train_gens":[0,2,4,8],
     "valid_gens":[0,2,4,8],
-    "evaluateTest":true,
+    "evaluateTest":false,
     "test_gens":[0,2,4,8],
     "win_size" :1000,
     "dataset_dim":3,
@@ -57,7 +57,7 @@
     "leaky_relu_slope":0.1,
     "aux_next_norm":"LayerNorm",
     
-    "conv_dropout":0.3,
+    "conv_dropout":0.2,
     "conv_in":3,
     "conv_hidden_unit":3,
     "conv_out":3,

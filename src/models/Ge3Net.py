@@ -262,10 +262,10 @@ class Ge3NetBase():
         # learning rate scheduler
         exp_lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = self.params.lr_steps_decay,\
         verbose=True)
-        attention_models_ls=["Model_F", "Model_H"]
-        if self.params.model in attention_models_ls:
-            optimizer = custom_opt(optimizer, d_model=self.params.att_input_size, \
-            warmup_steps=self.params.att_warmup_steps, factor=self.params.att_factor, groups=self.params.warmup_lr_groups)
+        # attention_models_ls=["Model_F", "Model_H"]
+        # if self.params.model in attention_models_ls:
+        #     optimizer = custom_opt(optimizer, d_model=self.params.att_input_size, \
+        #     warmup_steps=self.params.att_warmup_steps, factor=self.params.att_factor, groups=self.params.warmup_lr_groups)
         print(("Begin Training...."))
         start_epoch = 0
         patience = 0

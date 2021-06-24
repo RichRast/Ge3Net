@@ -8,13 +8,13 @@ class Conv1d(nn.Module):
         self.params=params
         self.option=Selections.get_selection()
         self.dropout = nn.Dropout(p= self.params.conv_dropout)
-        self.normalizationlayer1 = self.option['normalizationLayer'][self.params.conv_net_norm](self.params.conv_hidden_unit)
+        self.normalizationlayer1 = self.option['normalizationLayer'][self.params.conv_net_norm](self.params.conv_in)
         self.relu = nn.ReLU()
-        self.conv1d = nn.Conv1d( self.params.conv_hidden_unit,  self.params.conv_out,  self.params.conv_kernel_size, padding= self.params.conv_padding, padding_mode= self.params.conv_padding_mode)
+        self.conv1d = nn.Conv1d( self.params.conv_in,  self.params.conv_out,  self.params.conv_kernel_size, padding= self.params.conv_padding, padding_mode= self.params.conv_padding_mode)
 
     def forward(self, x):
         x_permuted = x.permute(0,2,1)
         # out = self.conv1d(self.normalizationlayer1(self.dropout(self.relu(self.conv1d(x_permuted)))))
-        out = self.normalizationlayer1(self.dropout(self.conv1d(x_permuted)))
+        out = self.conv1d(self.normalizationlayer1(self.conv1d(x_permuted)))
         out_1 = out.permute(0,2,1)
         return out_1
