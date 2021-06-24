@@ -302,12 +302,19 @@ class Ge3NetBase():
             checkpoint = osp.join(modelSavePath, 'models_dir')
             models_state_dict = self.model.state_dict() 
 
+            test_result=t_results()
+            if self.params.evaluateTest and epoch%20==0:
+                test_result = self.batchLoopValid(test_generator)
+                plt.close('all')
+                if self.wandb is not None: self.epoch_logger("test", test_result, epoch)
+
             save_checkpoint({
                 'epoch': epoch,
                 'model_state_dict': models_state_dict,
                 'optimizer_state_dict': optimizer.state_dict(),
                 'val_accr': eval_result._asdict(),
-                'train_accr': train_result._asdict()
+                'train_accr': train_result._asdict(),
+                'test_accr': test_result._asdict()
                 }, checkpoint, is_best=is_best)
             
             try:
@@ -318,11 +325,6 @@ class Ge3NetBase():
                 print(f"exception while saving params:{e}")
                 pass
 
-            if self.params.evaluateTest and epoch%20==0:
-                test_result = self.batchLoopValid(test_generator)
-                plt.close('all')
-                if self.wandb is not None: self.epoch_logger("test", test_result, epoch)
-            
             if self.params.hyper_search_type=='optuna':    
                 trial.report(eval_result.t_accr['loss_main'], epoch)
                 if trial.should_prune():

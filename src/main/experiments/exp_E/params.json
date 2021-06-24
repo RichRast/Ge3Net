@@ -70,7 +70,7 @@
     "num_epochs":200,
     "SmoothLoss_beta":1.0,
     "weightLoss_alpha":1.0,
-    "learning_rate":[1e-4,1e-2,1e-4],
+    "learning_rate":[1e-3,1e-3,1e-3],
     "weight_decay":[0,0,0],
     "eps":1e-4,
     "early_stopping_thresh":6,

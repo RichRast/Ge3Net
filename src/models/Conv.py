@@ -15,6 +15,6 @@ class Conv1d(nn.Module):
     def forward(self, x):
         x_permuted = x.permute(0,2,1)
         # out = self.conv1d(self.normalizationlayer1(self.dropout(self.relu(self.conv1d(x_permuted)))))
-        out = self.conv1d(self.normalizationlayer1(self.conv1d(x_permuted)))
+        out = self.normalizationlayer1(self.conv1d(x_permuted))
         out_1 = out.permute(0,2,1)
         return out_1

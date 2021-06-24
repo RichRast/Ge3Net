@@ -62,6 +62,7 @@
     "rnn_net_hidden":32,
     "rnn_net_n_layers":2,
     "rnn_net_dropout":0.3,
+    "rnn_net_norm":"LayerNorm",
     "tbptt":true,
     "tbptt_steps":20,
     "rnn_net_bidirectional":true,
