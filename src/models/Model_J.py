@@ -17,7 +17,7 @@ class model_J(nn.Module):
         self.params=params
         self.aux = AuxNetwork(self.params)
         self.pe = PositionalEncoding(self.params)
-        self.attention = attention_single(self.params)
+        self.attention = attention_single(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
         self.ffnn = FFNN(self.params)
         self.conv = Conv1d(self.params)
         self.cp = logits_Block(self.params, self.params.FFNN_output) if self.params.cp_predict else None

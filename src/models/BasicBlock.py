@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from src.models.modelParamsSelection import Selections
 
 class basicBlock(nn.Module):
     def __init__(self, params):
@@ -36,43 +37,20 @@ class logits_Block(nn.Module):
         out_loss = loss_fn(logits, target)
         return out_loss
 
-class Multi_Block(nn.Module):
-    def __init__(self, params):
-        super(Multi_Block, self).__init__()
-        if params.model=='Model_D':
-            self.input = params.rnn_net_hidden * (1+1*params.rnn_net_bidirectional)
-        elif params.model=='Model_K':
-            self.input = params.att1_value_size 
-        elif params.model=='Model_A':
-            self.input = params.aux_net_hidden + params.dataset_dim
-        self.fc1 = nn.Linear(self.input, params.Multi_Block_out)
-        
-    def forward(self, x):
-        logits = self.fc1(x)
-        return logits
-
-class Residual_Block(nn.Module):
-    def __init__(self, params):
-        super(Residual_Block, self).__init__()
-        self.dropout = nn.Dropout(p=params.Residual_Block_dropout)
-        self.layernorm = nn.LayerNorm(params.Residual_Block_hidden)
-        self.relu = nn.ReLU()
-        if params.model=='Model_D':
-            self.input = params.rnn_net_hidden * (1+1*params.rnn_net_bidirectional)
-        elif params.model=='Model_K':
-            self.input = params.att1_value_size 
-        elif params.model=='Model_A':
-            self.input = params.aux_net_hidden + params.dataset_dim
-        self.fc1 = nn.Linear(self.input, params.Residual_Block_out)
-        # self.fc1 = nn.Linear(self.input, params.Residual_Block_hidden)
-        # self.fc2 = nn.Linear(params.Residual_Block_hidden, params.Residual_Block_hidden1)
-        # self.layernorm1 = nn.LayerNorm(params.Residual_Block_hidden1)
-        # self.fc3 = nn.Linear(params.Residual_Block_hidden1, params.Residual_Block_out)
+class mlp(nn.Module):
+    def __init__(self, params, input):
+        super(mlp, self).__init__()
+        self.option=Selections.get_selection()
+        self.params=params
+        self.input=input
+        self.dropout = nn.Dropout(p=params.mlp_dropout)
+        self.normalizationLayer1 = self.option['normalizationLayer'][self.params.mlp_net_norm](self.params.mlp_net_hidden)
+        self.relu = nn.LeakyReLU(params.leaky_relu_slope)
+        self.fc1 = nn.Linear(self.input, self.params.mlp_net_hidden)
+        self.fc2 = nn.Linear(self.mlp_net_hidden, self.params.mlp_net_out)
 
     def forward(self, x):
-        # out_1 = self.dropout(self.relu(self.layernorm(self.fc1(x))))
-        # out_2 = self.dropout(self.relu(self.layernorm1(self.fc2(out_1))))
-        # logits = self.fc3(out_2)
-        logits = self.fc1(x)
-        
-        return logits 
+        out1 = self.normalizationLayer1(self.fc1(x))
+        out = self.fc2(self.relu(self.dropout(out1)))
+        return out1, out
+

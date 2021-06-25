@@ -32,12 +32,12 @@ class attention(nn.Module):
         return out1, att_score, weight
     
 class attention_single(nn.Module):
-    def __init__(self, params):
+    def __init__(self, params, input):
         super(attention_single, self).__init__() # Initialize self._modules as OrderedDict
         self.key_size = params.att_key_size
         self.query_size = params.att_query_size
         self.value_size = params.att_value_size
-        self.input = params.aux_net_hidden + params.dataset_dim
+        self.input = input
         self.linear_keys = nn.Linear(self.input, self.key_size)
         self.linear_query = nn.Linear(self.input, self.query_size)
         self.Linear_value = nn.Linear(self.input, self.value_size)
@@ -117,9 +117,8 @@ class PositionalEncoding(nn.Module):
         pe = pe.unsqueeze(2).permute(2,0,1)
         self.register_buffer('pe', pe)
 
-
     def forward(self, x):
-        x = x + self.pe[...,:-1]
+        x = x + (self.pe[...,:-1] if x.shape[-1]%2!=0 else self.pe)
         return self.dropout(x)
 
 
@@ -147,10 +146,10 @@ class FFNN(nn.Module):
         return out2, out3
 
 class AttentionBlock(nn.Module):
-    def __init__(self, params):
+    def __init__(self, params, input):
         super(AttentionBlock, self).__init__()
         self.pe = PositionalEncoding(params)
-        self.attention = attention_single(params)
+        self.attention = attention_single(params, input)
         self.ffnn = FFNN(params)
     
     def forward(self,x):

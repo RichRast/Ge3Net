@@ -15,8 +15,8 @@ class model_I(nn.Module):
         super(model_I, self).__init__()
         self.params=params
         self.aux = AuxNetwork(self.params)
-        self.attentionBlock1 = AttentionBlock(self.params)
-        self.attentionBlock2 = AttentionBlock(self.params)
+        self.attentionBlock1 = AttentionBlock(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
+        self.attentionBlock2 = AttentionBlock(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
         self.cp = logits_Block(self.params, self.params.aux_net_hidden + self.params.dataset_dim) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
