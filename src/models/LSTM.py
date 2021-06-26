@@ -4,12 +4,12 @@ import numpy as np
 from src.models.modelParamsSelection import Selections
 
 class BiRNN(nn.Module):
-    def __init__(self, params, input_size, rnn='lstm'):
+    def __init__(self, params, input_size, output_size, rnn='lstm'):
         super(BiRNN, self).__init__()
         self.input_size = input_size
         self.hidden_size = params.rnn_net_hidden
         self.num_layers = params.rnn_net_n_layers
-        self.output = params.rnn_net_out
+        self.output = output_size
         self.dropout = nn.Dropout(p=params.rnn_net_dropout)
         self.rnn = rnn
         self.tbptt = params.tbptt
@@ -50,8 +50,8 @@ class BiRNN(nn.Module):
         # self.rnn.flatten_parameters()
         # truncated backprop - detach the state after n steps and use it for the next sequence
         out1, rnn_state = self.rnn(x, rnn_state)
-        # if self.num_layers==1:
-        out1=self.dropout(out1)
+        if self.num_layers==1:
+            out1=self.dropout(out1)
         out = self.fc1(out1)
         return out1, out, rnn_state
 

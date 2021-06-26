@@ -302,7 +302,7 @@ class Ge3NetBase():
             checkpoint = osp.join(modelSavePath, 'models_dir')
             models_state_dict = self.model.state_dict() 
 
-            test_result=t_results()
+            if not self.params.evaluateTest: test_result=t_results()
             if self.params.evaluateTest and epoch%20==0:
                 test_result = self.batchLoopValid(test_generator)
                 plt.close('all')

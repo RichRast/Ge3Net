@@ -69,16 +69,20 @@ def load_model(model_path, model_init, optimizer=None):
     checkpoint = torch.load(model_path)
 
     print(f"best val loss metrics : {checkpoint['val_accr']['t_accr']}")
+    # print(f"test loss metrics : {checkpoint['test_accr']['t_accr']}")
     print(f"at epoch : {checkpoint['epoch']}")
     print(f"train loss metrics: {checkpoint['train_accr']['t_accr']}")
 
     print(f"best val cp metrics : {checkpoint['val_accr']['t_cp_accr']}")
+    # print(f"test cp metrics : {checkpoint['test_accr']['t_cp_accr']}")
     print(f"train cp metrics: {checkpoint['train_accr']['t_cp_accr']}")
 
     print(f"best val sp metrics : {checkpoint['val_accr']['t_sp_accr']}")
+    # print(f"test sp metrics : {checkpoint['test_accr']['t_sp_accr']}")
     print(f"train sp metrics: {checkpoint['train_accr']['t_sp_accr']}")
 
     print(f"best val balanced gcd metrics : {checkpoint['val_accr']['t_balanced_gcd']}")
+    # print(f"test balanced gcd metrics : {checkpoint['test_accr']['t_balanced_gcd']}")
     print(f"train balanced gcd metrics: {checkpoint['train_accr']['t_balanced_gcd']}")
     
     model_stats=checkpoint['val_accr']
@@ -156,7 +160,7 @@ class custom_opt():
 
     def state_dict(self):
         return self.optimizer.state_dict()
-        
+
     def step(self):
         self._step_num += 1
         rate = self.rate()

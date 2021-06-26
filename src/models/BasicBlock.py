@@ -47,7 +47,7 @@ class mlp(nn.Module):
         self.normalizationLayer1 = self.option['normalizationLayer'][self.params.mlp_net_norm](self.params.mlp_net_hidden)
         self.relu = nn.LeakyReLU(params.leaky_relu_slope)
         self.fc1 = nn.Linear(self.input, self.params.mlp_net_hidden)
-        self.fc2 = nn.Linear(self.mlp_net_hidden, self.params.mlp_net_out)
+        self.fc2 = nn.Linear(self.params.mlp_net_hidden, self.params.mlp_net_out)
 
     def forward(self, x):
         out1 = self.normalizationLayer1(self.fc1(x))

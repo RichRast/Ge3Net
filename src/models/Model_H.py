@@ -19,7 +19,7 @@ class model_H(nn.Module):
         self.pe = PositionalEncoding(self.params)
         self.attention = attention_single(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
         self.ffnn = FFNN(self.params)
-        self.lstm = BiRNN(self.params, self.params.aux_net_hidden + self.params.aux_net_out)
+        self.lstm = BiRNN(self.params, self.params.aux_net_hidden + self.params.aux_net_out, self.params.rnn_net_out)
         self.cp = logits_Block(self.params, self.params.rnn_net_hidden * (1+1*self.params.rnn_net_bidirectional)) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None

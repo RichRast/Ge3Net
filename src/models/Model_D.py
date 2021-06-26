@@ -15,7 +15,7 @@ class model_D(nn.Module):
         super(model_D, self).__init__()
         self.params=params
         self.aux = AuxNetwork(self.params)
-        self.lstm = BiRNN(self.params, self.params.aux_net_hidden + self.params.aux_net_out)
+        self.lstm = BiRNN(self.params, self.params.aux_net_hidden + self.params.aux_net_out, self.params.rnn_net_out)
         self.cp = logits_Block(self.params, self.params.rnn_net_hidden * (1+1*self.params.rnn_net_bidirectional)) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
