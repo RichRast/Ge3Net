@@ -11,22 +11,25 @@ from src.models.Attention import attention_single, PositionalEncoding, FFNN
 from src.models.BasicBlock import logits_Block
 import pdb
 
-class model_H(nn.Module):
+class model_O(nn.Module):
     def __init__(self, params, criterion, cp_criterion):
-        super(model_H, self).__init__()
+        super(model_O, self).__init__()
         self.params=params
         self.aux = AuxNetwork(self.params)
         self.pe = PositionalEncoding(self.params)
         self.attention = attention_single(self.params, self.params.aux_net_hidden1)
-        self.ffnn = FFNN(self.params)
-        self.lstm = BiRNN(self.params, self.params.FFNN_output, self.params.rnn_net_out)
+        self.ffnn = FFNN(self.params, self.params.FFNN_input1, self.params.FFNN_output)
+        self.lstm1 = BiRNN(self.params, self.params.FFNN_output, self.params.rnn_net_out1)
+        self.attention2 = attention_single(self.params, self.params.rnn_net_out1)
+        self.ffnn2 = FFNN(self.params, self.params.FFNN2_input1, self.params.FFNN2_output)
+        self.lstm2 = BiRNN(self.params, self.params.FFNN2_output, self.params.rnn_net_out2)
         self.cp = logits_Block(self.params, self.params.rnn_net_hidden * (1+1*self.params.rnn_net_bidirectional)) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
         self._setOptimizerParams()
 
         count_params=[]
-        for m in [self.aux, self.pe, self.attention, self.ffnn, self.lstm, self.cp]:
+        for m in [self.aux, self.pe, self.attention, self.ffnn, self.lstm1, self.attention2, self.ffnn2, self.lstm2, self.cp]:
             params_count=countParams(m)
             print(f"Parameter count for model {m.__class__.__name__}:{params_count}")
             count_params.append(params_count)
@@ -34,7 +37,7 @@ class model_H(nn.Module):
 
     def _setOptimizerParams(self):
         self.Optimizerparams=[]
-        for i, m in enumerate([self.aux, self.pe, self.attention, self.ffnn, self.lstm, self.cp]):
+        for i, m in enumerate([self.aux, self.pe, self.attention, self.ffnn, self.lstm1, self.attention2, self.ffnn2, self.lstm2, self.cp]):
             params_dict={}
             params_dict['params']= m.parameters()
             params_dict['lr'] = self.params.learning_rate[i]
@@ -54,13 +57,16 @@ class model_H(nn.Module):
         
             # add residual connection by taking the gradient of aux network predictions
             # aux_diff = get_gradient(out4)
-            # out_nxt_aux = torch.cat((out2, aux_diff), dim =2)
+            # out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
             out_att_nxt, _, weight = self.attention(self.pe(out2))
             _, out_att = self.ffnn(out_att_nxt)
-            vec_64, out_rnn, _ = self.lstm(out_att)
+            _, out_rnn, _ = self.lstm1(out_att)
+            out_att2_nxt, _, weight2 = self.attention2(out_rnn)
+            _, out_att2 = self.ffnn2(out_att2_nxt)
+            vec_64, out_rnn2, _ = self.lstm2(out_att2)
             out_nxt = vec_64
             out_aux = square_normalize(out4) if self.params.geography else out4
-            out_main = square_normalize(out_rnn) if self.params.geography else out_rnn
+            out_main = square_normalize(out_rnn2) if self.params.geography else out_rnn2
             outs = modelOuts(coord_main = out_main*mask, coord_aux= out_aux*mask)
             return outs, out_nxt
 
@@ -77,71 +83,23 @@ class model_H(nn.Module):
         return outs
     
     def _batch_train_1_step(self, train_x, train_labels, mask):
-        if self.params.tbptt:
-            train_outs, loss_inner, lossBack = self._trainTbtt(train_x, train_labels, mask)
-        else:
-            train_outs= self(train_x, mask)
-            loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask)
+        self.params.tbptt=False #disable tbptt option
+        train_outs= self(train_x, mask)
+        loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask)
         return train_outs, loss_inner, lossBack
-
     
     def _batch_validate_1_step(self, val_x, **kwargs):
         val_labels=kwargs.get('val_labels')
         mask=kwargs.get('mask')
         if mask is None: mask = torch.ones((val_x.shape[0], self.params.n_win, 1), device=self.params.device, dtype=torch.uint8)
         mc_dropout = kwargs.get('mc_dropout')
-        if mc_dropout is not None: activate_mc_dropout(*[self.aux, self.lstm, self.cp])
+        if mc_dropout is not None: activate_mc_dropout(*[self.aux, self.pe, self.attention, self.ffnn, self.lstm1, self.attention2, self.ffnn2, self.lstm2, self.cp])
         val_outs = self(val_x, mask, mc_dropout=mc_dropout) #call forward
         if val_labels is None:
             return val_outs           
         loss_inner = self._getLoss(val_outs, val_labels, mask)
         return val_outs, loss_inner
 
-    def _tbtt(self, x, target):
-        rnn_state = None
-        bptt_batch_chunks = split_batch(x.clone(), self.params.tbptt_steps)
-        batch_cps_chunks = split_batch(target.cp_logits, self.params.tbptt_steps)
-        batch_label = split_batch(target.coord_main, self.params.tbptt_steps)
-        loss_main_list, out_rnn_list, vec64_list=[],[],[]
-        loss_cp_list, cp_logits_list = [], []
-        for x_chunk, batch_label_chunk, cps_chunk in zip(bptt_batch_chunks, batch_label, batch_cps_chunks):
-            x_chunk = V(x_chunk, requires_grad=True)
-            
-            vec_64, out_rnn_chunk, rnn_state = self.lstm(x_chunk, rnn_state)
-            if self.params.geography: out_rnn_chunk=square_normalize(out_rnn_chunk)
-            cp_logits = self.cp(vec_64) if self.cp is not None else None
-            vec64_list.append(vec_64)
-            out_rnn_list.append(out_rnn_chunk)
-            cp_logits_list.append(cp_logits)
-            
-            # Calculate Loss
-            cp_mask_chunk = (cps_chunk==0).float()
-            loss_main_chunk=self.criterion(out_rnn_chunk*cp_mask_chunk, batch_label_chunk*cp_mask_chunk) \
-            if self.params.criteria!="gcd" else self.criterion(out_rnn_chunk, batch_label_chunk, mask=cp_mask_chunk) 
-            loss_main_list.append(loss_main_chunk.item())
-            sample_size=cp_mask_chunk.sum()
-            loss_main_chunk /=sample_size
-            loss_cp=None
-            if self.cp is not None: 
-                loss_cp = self.cp_criterion(cp_logits, cps_chunk, reduction='sum', \
-                pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device))
-                loss_main_chunk +=loss_cp/(cps_chunk.shape[0]*cps_chunk.shape[1])
-                loss_cp_list.append(loss_cp.item())
-           
-            loss_main_chunk.backward()
-            # after doing back prob, detach rnn state to implement TBPTT
-            # now rnn_state was detached and chain of gradients was broken
-            rnn_state = self.lstm._detach_rnn_state(rnn_state)
-            
-        loss_main = sum(loss_main_list)
-        loss_cp = sum(loss_cp_list)
-        out_rnn = torch.cat(out_rnn_list, 1).detach()
-        vec_64 = torch.cat(vec64_list, 1).detach()
-        cp_logits = torch.cat(cp_logits_list, 1).detach()
-        outs = modelOuts(coord_main = out_rnn, cp_logits=cp_logits)
-        loss_inner = branchLoss(loss_main=loss_main, loss_cp=loss_cp)
-        return vec_64, outs, loss_inner
-   
     def _getLoss(self, outs, target, mask):
         loss_aux=self.criterion(outs.coord_aux*mask, target.coord_main*mask) if self.params.criteria!="gcd" \
         else self.criterion(outs.coord_aux, target.coord_main, mask=mask) 
@@ -156,36 +114,10 @@ class model_H(nn.Module):
         rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp.item())
 
         if self.training:
-            sample_size=mask.sum() 
+            sample_size=torch.sum(mask) 
             lossBack = (loss_aux+loss_main)/sample_size
             if loss_cp is not None: lossBack += loss_cp/(target.cp_logits.shape[0]*target.cp_logits.shape[1])
             return rtnLoss, lossBack
         return rtnLoss
-
-    def _trainTbtt(self, x, target, mask):
-        # Aux Model
-        out1, _, _, out4 = self.aux(x)
-        out1 = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
-        aux_diff = get_gradient(out4)
-        out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
-        out_att_nxt, _, weight = self.attention(self.pe(out_nxt_aux))
-        _, out_att = self.ffnn(out_att_nxt)
-        out_aux = square_normalize(out4) if self.params.geography else out4
-
-        # Tbtt
-        out_nxt, outs, loss_inner = self._tbtt(out_att, target)
-        
-        loss_aux = self.criterion(out_aux*mask, target.coord_main*mask) if self.params.criteria!="gcd" \
-        else self.criterion(out_aux, target.coord_main, mask=mask) 
-        
-        sample_size=mask.sum()
-        lossBack = loss_aux/sample_size
-        loss_inner.loss_aux = loss_aux.item()
-        
-        # backward loss needs to be calculated only for loss_aux because loss_main and 
-        # loss_cp were already backwarded during tbtt
-        outs.coord_main = outs.coord_main*mask
-        outs.coord_aux = out_aux*mask
-        return outs, loss_inner, lossBack
 
     

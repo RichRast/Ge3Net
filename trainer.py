@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import os.path as osp
 import logging
-from src.models import Model_A, Model_B, Model_C, Model_D, Model_E, Model_F, Model_B_copy
 from src.utils.modelUtil import  Params, weight_int
 from src.utils.dataUtil import set_logger, load_path
 from src.utils.labelUtil import repeat_pop_arr

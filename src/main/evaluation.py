@@ -164,8 +164,8 @@ class SmoothL1Loss():
         z2 = rev_mask*(abs(input_y - target) - 0.5*self.alpha)
         z = z1 + z2
         if self.reduction=='sum':
-            return z.sum()
-        return z.mean()
+            return torch.sum(z)
+        return torch.mean(z)
     
 def getCpPred(name, cp_pred_raw, cpThresh, Batch_size, T):
     cp_pred = torch.zeros((Batch_size, T))

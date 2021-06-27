@@ -10,9 +10,9 @@ from src.models.LSTM import BiRNN
 from src.models.BasicBlock import logits_Block
 import pdb
 
-class model_B_copy(nn.Module):
+class model_B(nn.Module):
     def __init__(self, params, criterion, cp_criterion):
-        super(model_B_copy, self).__init__()
+        super(model_B, self).__init__()
         self.params=params
         self.aux = BaseNetwork(self.params)
         self.lstm = BiRNN(self.params, self.params.aux_net_hidden, self.params.rnn_net_out)

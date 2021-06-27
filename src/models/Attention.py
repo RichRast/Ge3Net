@@ -34,10 +34,15 @@ class attention(nn.Module):
 class attention_single(nn.Module):
     def __init__(self, params, input):
         super(attention_single, self).__init__() # Initialize self._modules as OrderedDict
-        self.key_size = params.att_key_size
-        self.query_size = params.att_query_size
-        self.value_size = params.att_value_size
         self.input = input
+        # self.key_size = params.att_key_size
+        # self.query_size = params.att_query_size
+        # self.value_size = params.att_value_size
+
+        self.key_size = input
+        self.query_size = input
+        self.value_size = input
+        
         self.linear_keys = nn.Linear(self.input, self.key_size)
         self.linear_query = nn.Linear(self.input, self.query_size)
         self.Linear_value = nn.Linear(self.input, self.value_size)
@@ -123,15 +128,22 @@ class PositionalEncoding(nn.Module):
 
 
 class FFNN(nn.Module):
-    def __init__(self, params):
+    def __init__(self, params, input, output):
         super(FFNN, self).__init__()
-        self.fc1 = nn.Linear(params.FFNN_input1, params.FFNN_input2)
+        # self.fc1 = nn.Linear(params.FFNN_input1, params.FFNN_input2)
+        self.fc1 = nn.Linear(input, input)
         self.dropout1 = nn.Dropout(params.FFNN_dropout1)
-        self.layernorm1 = nn.LayerNorm(params.FFNN_input2)
-        self.fc2 = nn.Linear(params.FFNN_input2, params.FFNN_input3)
+        # self.layernorm1 = nn.LayerNorm(params.FFNN_input2)
+        # self.fc2 = nn.Linear(params.FFNN_input2, params.FFNN_input3)
+        self.layernorm1 = nn.LayerNorm(input)
+        self.fc2 = nn.Linear(input, input)
+
         self.dropout2 = nn.Dropout(params.FFNN_dropout2)
-        self.layernorm2 = nn.LayerNorm(params.FFNN_input3)
-        self.fc3 = nn.Linear(params.FFNN_input3, params.FFNN_output)
+        # self.layernorm2 = nn.LayerNorm(params.FFNN_input3)
+        # self.fc3 = nn.Linear(params.FFNN_input3, params.FFNN_output)
+
+        self.layernorm2 = nn.LayerNorm(input)
+        self.fc3 = nn.Linear(input, output)
         if params.FFNN_activation == 'gelu':
             self.activation = nn.GELU()
         else:

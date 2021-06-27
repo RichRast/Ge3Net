@@ -154,7 +154,7 @@ class Ge3NetBase():
         # sample_size=kwargs.get('sample_size')
         cpThresh=kwargs.get('cpThresh')
         
-        sample_size = mask.sum()
+        sample_size = torch.sum(mask)
         if self.params.evalExtraMainLosses:
             batchLoss={**batchLoss, **{metric:self.losses[metric](y.coord_main*mask, target.coord_main*mask).item() for metric in self.losses if self.losses[metric] is not None}}
             
