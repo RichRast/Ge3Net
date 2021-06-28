@@ -8,7 +8,6 @@ from src.main.evaluation import branchLoss, modelOuts, RnnResults
 from src.models.AuxiliaryTask import AuxNetwork
 from src.models.LSTM import BiRNN
 from src.models.BasicBlock import logits_Block
-import pdb
 
 class model_D(nn.Module):
     def __init__(self, params, criterion, cp_criterion):

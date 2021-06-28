@@ -6,8 +6,6 @@ from src.utils.dataUtil import square_normalize, get_gradient
 from src.main.evaluation import modelOuts, branchLoss
 from src.models.AuxiliaryTask import AuxNetwork
 from src.models.BasicBlock import logits_Block
-import pdb
-
 
 class model_A(nn.Module):
     def __init__(self, params, criterion, cp_criterion):

@@ -15,7 +15,7 @@ from src.main.visualization import Plot_per_epoch
 from src.models.Ge3Net import Ge3NetBase
 
 import wandb
-import pdb
+
 
 @timer
 def main(config, params, trial=None):
@@ -39,7 +39,7 @@ def main(config, params, trial=None):
     plotObj=None
     if config['log.verbose']:
         # Set the logger
-        set_logger(config['models.dir'])
+        logger=set_logger(config['models.dir'])
         wandb.init(project='Ge3Net', config=params, allow_val_change=True)
         wandb.run.name='_'.join([str(params.model), str(config['model.summary'])])
         # params=wandb.config
@@ -58,7 +58,7 @@ def main(config, params, trial=None):
 
     #============================= Create and load datasets ===============================#
     # Create the input data pipeline
-    logging.info("Loading the datasets...")
+    logger.info("Loading the datasets...")
     training_dataset = Haplotype('train', params, data_path, labels_path=labels_path)
     validation_dataset = Haplotype('valid', params, data_path, labels_path=labels_path)
     training_generator = torch.utils.data.DataLoader(training_dataset, batch_size=params.batch_size, shuffle=True, num_workers=0, pin_memory=True)
@@ -77,9 +77,9 @@ def main(config, params, trial=None):
     model.to(params.device)
     model.apply(weight_int)
 
-    print(f"is the model on cuda? : {next(model.parameters()).is_cuda}")
+    logger.info(f"is the model on cuda? : {next(model.parameters()).is_cuda}")
     if torch.cuda.device_count() > 1:
-        print("Using", torch.cuda.device_count(), "GPUs")
+        logger.info("Using", torch.cuda.device_count(), "GPUs")
         model = torch.nn.DataParallel(model, dim=0)
 
     if config['log.verbose']:

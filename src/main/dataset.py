@@ -9,8 +9,6 @@ from src.utils.dataUtil import load_path, getWinInfo
 from src.utils.labelUtil import repeat_pop_arr
 from src.utils.modelUtil import convert_nVector
 from src.utils.decorators import timer
-import pdb
-import snoop
 
 class Haplotype(Dataset):
     @timer

@@ -9,7 +9,6 @@ from src.models.AuxiliaryTask import AuxNetwork
 from src.models.Conv import Conv1d
 from src.models.Attention import attention_single, PositionalEncoding, FFNN
 from src.models.BasicBlock import logits_Block
-import pdb
 
 class model_J(nn.Module):
     def __init__(self, params, criterion, cp_criterion):

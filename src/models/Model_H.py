@@ -9,7 +9,6 @@ from src.models.AuxiliaryTask import AuxNetwork
 from src.models.LSTM import BiRNN
 from src.models.Attention import attention_single, PositionalEncoding, FFNN
 from src.models.BasicBlock import logits_Block
-import pdb
 
 class model_H(nn.Module):
     def __init__(self, params, criterion, cp_criterion):

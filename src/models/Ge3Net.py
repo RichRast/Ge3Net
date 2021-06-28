@@ -10,8 +10,7 @@ from src.models.MCDropout import MC_Dropout
 from dataclasses import fields
 import matplotlib.pyplot as plt
 import optuna
-import pdb
-import snoop
+
 
 class Ge3NetBase():
     def __init__(self, params, model, option):
