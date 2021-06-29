@@ -91,11 +91,12 @@
     "tbptt_steps":20,
     "rnn_net_bidirectional":true,
             
+    "custom_opt": false,
     "thresh": 0.0001,
     "num_epochs":500,
     "SmoothLoss_beta":1.0,
     "weightLoss_alpha":1.0,
-    "learning_rate":[1e-3,1e-3,1e-2,1e-3],
+    "learning_rate":[1e-3, 1e-3, 1e-3,1e-2,1e-3],
     "weight_decay":[0,0,0,0],
     "warmup_lr_groups":[2,3],
     "eps":1e-4,

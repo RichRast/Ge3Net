@@ -6,7 +6,7 @@ from src.utils.modelUtil import split_batch, countParams, activate_mc_dropout
 from src.utils.dataUtil import square_normalize, get_gradient
 from src.main.evaluation import branchLoss, modelOuts, RnnResults
 from src.models.AuxiliaryTask import AuxNetwork
-from src.models.Attention import AttentionBlock
+from src.models.Attention import AttentionBlock, PositionalEncoding
 from src.models.BasicBlock import logits_Block
 
 class model_I(nn.Module):
@@ -14,15 +14,16 @@ class model_I(nn.Module):
         super(model_I, self).__init__()
         self.params=params
         self.aux = AuxNetwork(self.params)
-        self.attentionBlock1 = AttentionBlock(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
-        self.attentionBlock2 = AttentionBlock(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
+        self.pe = PositionalEncoding(self.params)
+        self.attentionBlock1 = AttentionBlock(self.params, self.params.aux_net_hidden + self.params.dataset_dim, self.params.FFNN_input2, self.params.FFNN_input3, self.params.FFNN_output)
+        self.attentionBlock2 = AttentionBlock(self.params, self.params.aux_net_hidden + self.params.dataset_dim, self.params.FFNN2_input2, self.params.FFNN2_input3, self.params.FFNN2_output)
         self.cp = logits_Block(self.params, self.params.aux_net_hidden + self.params.dataset_dim) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
         self._setOptimizerParams()
 
         count_params=[]
-        for m in [self.aux, self.attentionBlock1, self.attentionBlock2, self.cp]:
+        for m in [self.aux, self.pe, self.attentionBlock1, self.attentionBlock2, self.cp]:
             params_count=countParams(m)
             print(f"Parameter count for model {m.__class__.__name__}:{params_count}")
             count_params.append(params_count)
@@ -30,7 +31,7 @@ class model_I(nn.Module):
 
     def _setOptimizerParams(self):
         self.Optimizerparams=[]
-        for i, m in enumerate([self.aux, self.attentionBlock1, self.attentionBlock2, self.cp]):
+        for i, m in enumerate([self.aux, self.pe, self.attentionBlock1, self.attentionBlock2, self.cp]):
             params_dict={}
             params_dict['params']= m.parameters()
             params_dict['lr'] = self.params.learning_rate[i]
@@ -51,7 +52,7 @@ class model_I(nn.Module):
             # add residual connection by taking the gradient of aux network predictions
             aux_diff = get_gradient(out4)
             out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
-            out_att1 = self.attentionBlock1(out_nxt_aux)
+            out_att1 = self.attentionBlock1(self.pe(out_nxt_aux))
             out_att2 = self.attentionBlock2(out_att1)
             out_aux = square_normalize(out4) if self.params.geography else out4
             out_main = square_normalize(out_att2) if self.params.geography else out_att2
@@ -74,14 +75,13 @@ class model_I(nn.Module):
         train_outs= self(train_x, mask)
         loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask)
         return train_outs, loss_inner, lossBack
-
     
     def _batch_validate_1_step(self, val_x, **kwargs):
         val_labels=kwargs.get('val_labels')
         mask=kwargs.get('mask')
         if mask is None: mask = torch.ones((val_x.shape[0], self.params.n_win, 1), device=self.params.device, dtype=torch.uint8)
         mc_dropout = kwargs.get('mc_dropout')
-        if mc_dropout is not None: activate_mc_dropout(*[self.aux, self.attentionBlock1, self.attentionBlock2, self.cp])
+        if mc_dropout is not None: activate_mc_dropout(*[self.aux, self.pe, self.attentionBlock1, self.attentionBlock2, self.cp])
         val_outs = self(val_x, mask, mc_dropout=mc_dropout) #call forward
         if val_labels is None:
             return val_outs           

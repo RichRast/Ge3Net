@@ -36,11 +36,12 @@ def save_file(path, file, en_pickle=False, en_df=False ):
             file.to_csv(path, sep="\t", index=False)
         else:
             np.save(f, file)
-       
-def set_logger(log_path):
+
+def set_logger(log_path, scriptname):
     """Set the logger to log info in terminal and file log_path
     """
-    logger = logging.getLogger("Ge3Net")
+    
+    logger = logging.getLogger(scriptname)
     logger.setLevel(logging.DEBUG)
     if not osp.exists(log_path):
         print(f'Logging path does not exist, making {log_path}')

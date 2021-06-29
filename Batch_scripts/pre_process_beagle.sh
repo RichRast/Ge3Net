@@ -33,7 +33,7 @@ sbatch<<EOT
 #SBATCH -c 1
 #SBATCH --mem=1100G
 #SBATCH -t 24:00:00
-#SBATCH --output=$IN_PATH/dogs/beagle_${start_chm}_${end_chm}.out
+#SBATCH --output=$IN_PATH/${geno_type}/beagle_${start_chm}_${end_chm}.out
 
 ml load biology
 ml load java/11.0.11
@@ -44,4 +44,4 @@ if ./Batch_scripts/pre_process_loop_beagle.sh ${start_chm} ${end_chm} ${geno_typ
 else echo "Fail"; fi
 
 EOT
-less +F $IN_PATH/dogs/beagle_${start_chm}_${end_chm}.out
+less +F $IN_PATH/${geno_type}/beagle_${start_chm}_${end_chm}.out

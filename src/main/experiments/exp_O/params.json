@@ -1,6 +1,6 @@
 {
     "comment":"humans",
-    "train_seed":  1234, 
+    "train_seed":1234, 
     "model":"Model_O",
     "batch_size":256,
     "mc_dropout":false,
@@ -58,10 +58,10 @@
     "leaky_relu_slope":0.1,
     "aux_next_norm":"LayerNorm",
 
-    "att_key_size":128, 
-    "att_value_size":128, 
-    "att_query_size":128, 
-    "att_input_size":128,
+    "att_key_size":100, 
+    "att_value_size":100, 
+    "att_query_size":100, 
+    "att_input_size":100,
     "att_dropout":0.3,
     "att_beta":1.0,
     "att_num_heads":1,
@@ -70,12 +70,12 @@
     "att_factor":1e-4,
     
     "PE_constant":10000,
-    "PE_d_model":128,
+    "PE_d_model":100,
     "PE_dropout":0.3,
     
-    "FFNN_input1":128,
-    "FFNN_input2":128,
-    "FFNN_input3":128,
+    "FFNN_input1":100,
+    "FFNN_input2":100,
+    "FFNN_input3":100,
     "FFNN_dropout1":0.3,
     "FFNN_dropout2":0.3,
     "FFNN_output":64,
@@ -100,6 +100,7 @@
     "FFNN2_input3":64,
     "FFNN2_output":64,
             
+    "custom_opt": false,
     "thresh": 0.0001,
     "num_epochs":500,
     "SmoothLoss_beta":1.0,

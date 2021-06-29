@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# sample command ./Batch_scripts/trainer_bash.sh -gt dogs -e 7 -d 1_umap -m D -sum "umap run"
+# sample command ./Batch_scripts/trainer_bash.sh -gt dogs -e 7 -d 1_umap -m D -sum "umap run" -v
 source ini.sh
 
 Help()
@@ -14,6 +14,7 @@ Help()
     echo "-d|--data_id     Specify the data experiment number to run, example 3 "
     echo "-m|--model       Specify the model type and mjor version, example: D6"
     echo "-sum|--summary  Specify summary or description of this run"
+    echo "-v|--verbose     Specify True, False for verbose "
     echo "-h|--help        Print this help"
     echo
 }
@@ -25,6 +26,7 @@ while [[ $# -gt 0 ]]; do
     -e | --expt_id ) shift ; expt_id=$1 ;;
     -m | --model ) shift ; model_type=$1 ;;
     -sum | --summary ) shift ; model_summary=$1 ;;
+    -v | --verbose ) shift ; verbose="True" ;;
     -h | --help ) Help ; exit ;;
     \? ) echo "Error: Invalid option"; exit 1;;
     esac; shift
@@ -36,6 +38,7 @@ if [[ -z $data_id ]] ; then echo "Missing data experiment id for which to run th
 if [[ -z $expt_id ]] ; then echo "Missing experiment id for Ge2Net training" ; exit 1; fi
 if [[ -z $model_type ]] ; then echo "Missing model type" ; exit 1; fi
 if [[ -z $geno_type ]] ; then echo "Setting default genotype to humans" ; geno_type='humans' ; exit ; fi
+if [[ -z $verbose ]] ; then echo "Setting verbose to default of False" ; verbose='False' ; exit ; fi
 
 echo "Starting experiment $expt_id with Model $model_type and data from experiment # $data_id for geno_type $geno_type"
 
@@ -78,9 +81,12 @@ python3 trainer.py  --data.params '$USER_PATH/src/main/experiments/exp_$model_ty
 --data.labels '$OUT_PATH/$geno_type/labels/data_id_${data_id}' \
 --data.dir '$OUT_PATH/$geno_type/labels/data_id_${data_id}' \
 --models.dir '$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/' \
---model.summary $model_summary
+--model.summary $model_summary \
+--log.verbose $verbose
 
-node_feat -n $(hostname|sed 's/.int.*//') >> $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
+if [[ $verbose = "True" ]] ; then 
+    node_feat -n $(hostname|sed 's/.int.*//') >> $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/.log
+fi
 EOT
 
 sleep .5

@@ -4,7 +4,7 @@ import numpy as np
 from src.models import Model_A, Model_B, Model_C
 from src.models.modelSelection import modelSelect
 from src.models.modelParamsSelection import Selections
-from src.utils.modelUtil import load_model, Params
+from src.utils.modelUtil import load_model, Params, loadTrainingStats
 from src.utils.decorators import timer
 from src.main.dataset import Haplotype
 from src.main.settings_model import parse_args
@@ -47,9 +47,11 @@ def main(config, params):
     cp_criterion=option['cpMetrics']['loss_cp']
     model_init = modelOption['models'][params.model](params, criterion, cp_criterion)
     if config['model.loadBest']:
-        model, model_stats = load_model(''.join([str(model_path),'/best.pt']), model_init)
+        model = load_model(''.join([str(model_path),'/model_weights/best.pt']), model_init)
+        model_stats = loadTrainingStats(''.join([str(model_path),'/training_Stats/best.pt']))
     else:
-        model, model_stats = load_model(''.join([str(model_path),'/last.pt']), model_init)
+        model = load_model(''.join([str(model_path),'/model_weights/last.pt']), model_init)
+        model_stats = loadTrainingStats(''.join([str(model_path),'/training_Stats/best.pt']))
     model.to(params.device)
     model.eval()
     print(f"is the model on cuda? : {next(model.parameters()).is_cuda}")

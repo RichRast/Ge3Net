@@ -2,50 +2,22 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-
-class attention(nn.Module):
-    def __init__(self, params):
-        super(attention, self).__init__() # Initialize self._modules as OrderedDict
-        self.key_size = params.att['key_size']
-        self.query_size = params.att['query_size']
-        self.value_size = params.att['value_size']
-        self.linear_keys = nn.Linear(params.att['input_size'], self.key_size)
-        self.linear_query = nn.Linear(params.att['input_size'], self.query_size)
-        self.Linear_value = nn.Linear(params.att['input_size'], self.value_size)
-        self.sqrt_key_size = math.sqrt(self.key_size)
-        self.dropout = nn.Dropout(p=params.att['dropout'])
-        self.layernorm = nn.LayerNorm(params.att['input_size'] + params.att['value_size'])
-        self.beta = params.att['beta']
-
-    def forward(self, x):
-        # shape of x is BxTxemb_dim
-        
-        keys = self.linear_keys(x) #shape BxTxkey_size
-        query = self.linear_query(x) #shape BxTXquery_size
-        value = self.Linear_value(x) #shape BxTxvalue_size
-
-        num = torch.bmm(query, keys.permute(0,2,1)) # shape BxTxT
-        weight = F.softmax((self.beta*num)/self.sqrt_key_size, dim =2)
-        att_score = torch.bmm(weight, value)
-        out = torch.cat((x, att_score), dim=2)
-        out1 = self.layernorm(self.dropout(out))
-        return out1, att_score, weight
     
 class attention_single(nn.Module):
-    def __init__(self, params, input):
+    def __init__(self, params, input_size):
         super(attention_single, self).__init__() # Initialize self._modules as OrderedDict
-        self.input = input
+        self.input_size = input_size
         # self.key_size = params.att_key_size
         # self.query_size = params.att_query_size
         # self.value_size = params.att_value_size
 
-        self.key_size = input
-        self.query_size = input
-        self.value_size = input
+        self.key_size = input_size
+        self.query_size = input_size
+        self.value_size = input_size
         
-        self.linear_keys = nn.Linear(self.input, self.key_size)
-        self.linear_query = nn.Linear(self.input, self.query_size)
-        self.Linear_value = nn.Linear(self.input, self.value_size)
+        self.linear_keys = nn.Linear(self.input_size, self.key_size)
+        self.linear_query = nn.Linear(self.input_size, self.query_size)
+        self.Linear_value = nn.Linear(self.input_size, self.value_size)
         self.sqrt_key_size = math.sqrt(self.key_size)
         self.dropout = nn.Dropout(p=params.att_dropout)
         self.layernorm = nn.LayerNorm(self.value_size)
@@ -65,38 +37,6 @@ class attention_single(nn.Module):
         out1 = self.layernorm(out)
         return out1, att_score, weight       
         
-
-class MultiHeadedAttention(nn.Module):
-    def __init__(self, params):
-        super(MultiHeadedAttention, self).__init__()
-        # 4 because 3 linear layers are for Q, K and V and 
-        # the last linear layer is for final W matrix to 
-        # get the attention score with softmax in the desired shape
-        self.seq_len = params.dataset['n_win']
-        self.device = params.device
-        self.num_heads = params.att['num_heads']
-        #self.attn = nn.ModuleList([attention_single(params) for _ in range(self.num_heads)])
-        self.attn = _get_clones(attention_single(params), self.num_heads)
-        self.fc = nn.Linear(params.att['input_size'], params.att['z_f_size'])
-        self.layernorm = nn.LayerNorm(params.att['z_f_size'])
-        self.dropout = nn.Dropout(params.att['dropout2'])
-        
-    def forward(self, x):
-        batch_size = x.shape[0]
-        weight = torch.zeros([self.num_heads, batch_size, self.seq_len, self.seq_len]).to(self.device)
-        for i in range(self.num_heads):
-            out1, att_score, weight[i,:,:,:] = self.attn[i](x)
-            if i >0:
-                att_score_f = torch.cat((att_score_f, att_score), dim=2)
-            else:
-                att_score_f = att_score
-                return out1, att_score, weight
-               
-        z_f = att_score_f
-        out2 = x + self.dropout(z_f)
-        out3 = self.layernorm(out2)
-        return out3, att_score_f, weight
-
 class PositionalEncoding(nn.Module):
     def __init__(self, params):
         super(PositionalEncoding, self).__init__()
@@ -128,22 +68,20 @@ class PositionalEncoding(nn.Module):
 
 
 class FFNN(nn.Module):
-    def __init__(self, params, input, output):
+    def __init__(self, params, input1_size, input2_size, input3_size, output_size):
         super(FFNN, self).__init__()
-        # self.fc1 = nn.Linear(params.FFNN_input1, params.FFNN_input2)
-        self.fc1 = nn.Linear(input, input)
+        self.input1_size= input1_size
+        self.input2_size= input2_size
+        self.input3_size= input3_size
+        self.output_size=output_size
+        self.fc1 = nn.Linear(self.input1_size, self.input2_size)
         self.dropout1 = nn.Dropout(params.FFNN_dropout1)
-        # self.layernorm1 = nn.LayerNorm(params.FFNN_input2)
-        # self.fc2 = nn.Linear(params.FFNN_input2, params.FFNN_input3)
-        self.layernorm1 = nn.LayerNorm(input)
-        self.fc2 = nn.Linear(input, input)
+        self.layernorm1 = nn.LayerNorm(self.input2_size)
+        self.fc2 = nn.Linear(self.input2_size, self.input3_size)
 
         self.dropout2 = nn.Dropout(params.FFNN_dropout2)
-        # self.layernorm2 = nn.LayerNorm(params.FFNN_input3)
-        # self.fc3 = nn.Linear(params.FFNN_input3, params.FFNN_output)
-
-        self.layernorm2 = nn.LayerNorm(input)
-        self.fc3 = nn.Linear(input, output)
+        self.layernorm2 = nn.LayerNorm(self.input3_size)
+        self.fc3 = nn.Linear(self.input3_size, self.output_size)
         if params.FFNN_activation == 'gelu':
             self.activation = nn.GELU()
         else:
@@ -158,13 +96,16 @@ class FFNN(nn.Module):
         return out2, out3
 
 class AttentionBlock(nn.Module):
-    def __init__(self, params, input):
+    def __init__(self, params, input1_size, input2_size, input3_size, output_size):
         super(AttentionBlock, self).__init__()
-        self.pe = PositionalEncoding(params)
-        self.attention = attention_single(params, input)
-        self.ffnn = FFNN(params)
+        self.input1_size=input1_size
+        self.input2_size= input2_size
+        self.input3_size= input3_size
+        self.output_size=output_size
+        self.attention = attention_single(params, self.input1_size)
+        self.ffnn = FFNN(params, self.input1_size, self.input2_size, self.input3_size, output_size)
     
     def forward(self,x):
-        out_nxt, _, weight = self.attention(self.pe(x))
+        out_nxt, _, weight = self.attention(x)
         _, out_att = self.ffnn(out_nxt)
         return out_att

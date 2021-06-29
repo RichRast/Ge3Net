@@ -6,7 +6,7 @@ from src.utils.modelUtil import split_batch, countParams, activate_mc_dropout
 from src.utils.dataUtil import square_normalize, get_gradient
 from src.main.evaluation import branchLoss, modelOuts, RnnResults
 from src.models.AuxiliaryTask import BaseNetwork
-from src.models.Attention import AttentionBlock
+from src.models.Attention import AttentionBlock, PositionalEncoding
 from src.models.BasicBlock import logits_Block
 
 class model_K(nn.Module):
@@ -14,14 +14,15 @@ class model_K(nn.Module):
         super(model_K, self).__init__()
         self.params=params
         self.aux = BaseNetwork(self.params)
-        self.attentionBlock = AttentionBlock(self.params, self.params.aux_net_hidden)
+        self.pe = PositionalEncoding(self.params)
+        self.attentionBlock = AttentionBlock(self.params, self.params.aux_net_hidden, self.params.FFNN_input2, self.params.FFNN_input3, self.params.FFNN_output)
         self.cp = logits_Block(self.params, self.params.aux_net_hidden) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
         self._setOptimizerParams()
 
         count_params=[]
-        for m in [self.aux, self.attentionBlock, self.cp]:
+        for m in [self.aux, self.pe, self.attentionBlock, self.cp]:
             params_count=countParams(m)
             print(f"Parameter count for model {m.__class__.__name__}:{params_count}")
             count_params.append(params_count)
@@ -29,7 +30,7 @@ class model_K(nn.Module):
 
     def _setOptimizerParams(self):
         self.Optimizerparams=[]
-        for i, m in enumerate([self.aux, self.attentionBlock, self.cp]):
+        for i, m in enumerate([self.aux, self.pe, self.attentionBlock, self.cp]):
             params_dict={}
             params_dict['params']= m.parameters()
             params_dict['lr'] = self.params.learning_rate[i]
@@ -49,7 +50,7 @@ class model_K(nn.Module):
             out1 = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
         
             # add residual connection by taking the gradient of aux network predictions
-            out_att = self.attentionBlock(out1)
+            out_att = self.attentionBlock(self.pe(out1))
             out_nxt=out1
             out_main = square_normalize(out_att) if self.params.geography else out_att
             outs = modelOuts(coord_main = out_main*mask)
@@ -78,7 +79,7 @@ class model_K(nn.Module):
         mask=kwargs.get('mask')
         if mask is None: mask = torch.ones((val_x.shape[0], self.params.n_win, 1), device=self.params.device, dtype=torch.uint8)
         mc_dropout = kwargs.get('mc_dropout')
-        if mc_dropout is not None: activate_mc_dropout(*[self.aux, self.attentionBlock, self.cp])
+        if mc_dropout is not None: activate_mc_dropout(*[self.aux, self.pe, self.attentionBlock, self.cp])
         val_outs = self(val_x, mask, mc_dropout=mc_dropout) #call forward
         if val_labels is None:
             return val_outs           

@@ -2,6 +2,7 @@ import argparse
 import os
 import os.path as osp
 import distutils.util
+import logging
 
 parser = argparse.ArgumentParser()                 
 # model arguments
@@ -29,4 +30,3 @@ def parse_args():
     os.environ["WANDB_DIR"] = config['log.wandb_dir']
     
     return config
-

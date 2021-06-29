@@ -91,6 +91,7 @@
     "tbptt_steps":20,
     "rnn_net_bidirectional":true,
             
+    "custom_opt": false,
     "thresh": 0.0001,
     "num_epochs":500,
     "SmoothLoss_beta":1.0,

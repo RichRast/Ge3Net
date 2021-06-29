@@ -13,9 +13,7 @@ from src.models.modelParamsSelection import Selections
 from src.main.settings_model import parse_args
 from src.main.visualization import Plot_per_epoch
 from src.models.Ge3Net import Ge3NetBase
-
 import wandb
-
 
 @timer
 def main(config, params, trial=None):
@@ -39,7 +37,7 @@ def main(config, params, trial=None):
     plotObj=None
     if config['log.verbose']:
         # Set the logger
-        logger=set_logger(config['models.dir'])
+        logger=set_logger(config['models.dir'], __name__)
         wandb.init(project='Ge3Net', config=params, allow_val_change=True)
         wandb.run.name='_'.join([str(params.model), str(config['model.summary'])])
         # params=wandb.config

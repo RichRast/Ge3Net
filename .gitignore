@@ -3,6 +3,7 @@ __pycache__/
 Notebooks/Large_Notebooks
 Notebooks/Other_Notebooks
 Notebooks/Models
+Notebooks/ancient
 slurm*
 wandb/
 .vscode/

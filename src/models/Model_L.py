@@ -6,7 +6,7 @@ from src.utils.modelUtil import split_batch, countParams, activate_mc_dropout
 from src.utils.dataUtil import square_normalize, get_gradient
 from src.main.evaluation import branchLoss, modelOuts, RnnResults
 from src.models.AuxiliaryTask import BaseNetwork
-from src.models.Attention import AttentionBlock
+from src.models.Attention import AttentionBlock, PositionalEncoding
 from src.models.LSTM import BiRNN
 from src.models.BasicBlock import logits_Block
 
@@ -15,7 +15,8 @@ class model_L(nn.Module):
         super(model_L, self).__init__()
         self.params=params
         self.aux = BaseNetwork(self.params)
-        self.attentionBlock = AttentionBlock(self.params, self.params.aux_net_hidden)
+        self.pe = PositionalEncoding(self.params)
+        self.attentionBlock = AttentionBlock(self.params, self.params.aux_net_hidden, self.params.FFNN_input2, self.params.FFNN_input3, self.params.FFNN_output)
         self.lstm = BiRNN(self.params, self.params.aux_net_hidden, self.params.rnn_net_out)
         self.cp = logits_Block(self.params, self.params.rnn_net_hidden*(1+1*params.rnn_net_bidirectional)) if self.params.cp_predict else None
         self.criterion=criterion
@@ -23,7 +24,7 @@ class model_L(nn.Module):
         self._setOptimizerParams()
 
         count_params=[]
-        for m in [self.aux, self.attentionBlock, self.lstm, self.cp]:
+        for m in [self.aux, self.pe, self.attentionBlock, self.lstm, self.cp]:
             params_count=countParams(m)
             print(f"Parameter count for model {m.__class__.__name__}:{params_count}")
             count_params.append(params_count)
@@ -31,7 +32,7 @@ class model_L(nn.Module):
 
     def _setOptimizerParams(self):
         self.Optimizerparams=[]
-        for i, m in enumerate([self.aux, self.attentionBlock, self.lstm, self.cp]):
+        for i, m in enumerate([self.aux, self.pe, self.attentionBlock, self.lstm, self.cp]):
             params_dict={}
             params_dict['params']= m.parameters()
             params_dict['lr'] = self.params.learning_rate[i]
@@ -51,7 +52,7 @@ class model_L(nn.Module):
             out1 = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
         
             # add residual connection by taking the gradient of aux network predictions
-            out_att = self.attentionBlock(out1)
+            out_att = self.attentionBlock(self.pe(out1))
             vec_64, out_rnn, _ = self.lstm(out_att)
             out_nxt = vec_64
             out_main = square_normalize(out_rnn) if self.params.geography else out_rnn
@@ -71,6 +72,7 @@ class model_L(nn.Module):
         return outs
     
     def _batch_train_1_step(self, train_x, train_labels, mask):
+        self.params.tbptt=False
         train_outs= self(train_x, mask)
         loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask)
         return train_outs, loss_inner, lossBack
@@ -81,7 +83,7 @@ class model_L(nn.Module):
         mask=kwargs.get('mask')
         if mask is None: mask = torch.ones((val_x.shape[0], self.params.n_win, 1), device=self.params.device, dtype=torch.uint8)
         mc_dropout = kwargs.get('mc_dropout')
-        if mc_dropout is not None: activate_mc_dropout(*[self.aux, self.attentionBlock, self.lstm, self.cp])
+        if mc_dropout is not None: activate_mc_dropout(*[self.aux, self.pe, self.attentionBlock, self.lstm, self.cp])
         val_outs = self(val_x, mask, mc_dropout=mc_dropout) #call forward
         if val_labels is None:
             return val_outs           

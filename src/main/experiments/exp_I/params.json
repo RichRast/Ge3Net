@@ -58,6 +58,10 @@
     "FFNN_dropout2":0.3,
     "FFNN_output":3,
     "FFNN_activation":"relu",
+
+    "FFNN2_input1":103,
+    "FFNN2_input2":103,
+    "FFNN2_input3":103,
             
     "logits_Block_n_layers": 1,
     "logits_Block_hidden":32,
@@ -80,11 +84,12 @@
     "leaky_relu_slope":0.1,
     "aux_next_norm":"LayerNorm",
     
+    "custom_opt": false,
     "thresh": 0.0001,
     "num_epochs":500,
     "SmoothLoss_beta":1.0,
     "weightLoss_alpha":1.0,
-    "learning_rate":[1e-4, 1e-3, 1e-3, 1e-4],
+    "learning_rate":[1e-3, 1e-3, 1e-3, 1e-3, 1e-3],
     "warmup_lr_groups":[1,2],
     "weight_decay":[0,0,0,0],
     "eps":1e-4,

@@ -47,7 +47,7 @@ class Params():
         return self.__dict__
 
 def save_checkpoint(state, save_path, is_best):
-    
+
     if not osp.exists(save_path):
         print(f'Checkpoint path does not exists, making {save_path}')
         os.makedirs(save_path)
@@ -58,14 +58,26 @@ def save_checkpoint(state, save_path, is_best):
         shutil.copyfile(checkpoint, osp.join(save_path, 'best.pt'))
     
 @timer
-def load_model(model_path, model_init, optimizer=None):
-    if not osp.exists(model_path):
+def load_model(model_weights_path, model_init):
+    if not osp.exists(model_weights_path):
         # ToDo look into the raise exception error not
         # coming from BaseException
-        print(f'{model_path} does not exist')
-        raise (f'{model_path} does not exist')
+        print(f'{model_weights_path} does not exist')
+        raise (f'{model_weights_path} does not exist')
         
-    checkpoint = torch.load(model_path)
+    checkpoint = torch.load(model_weights_path)
+    model_init.load_state_dict(checkpoint['model_state_dict'])
+         
+    return model_init
+
+def loadTrainingStats(trainingStats_path):
+    if not osp.exists(trainingStats_path):
+        # ToDo look into the raise exception error not
+        # coming from BaseException
+        print(f'{trainingStats_path} does not exist')
+        raise (f'{trainingStats_path} does not exist')
+        
+    checkpoint = torch.load(trainingStats_path)
 
     print(f"best val loss metrics : {checkpoint['val_accr']['t_accr']}")
     # print(f"test loss metrics : {checkpoint['test_accr']['t_accr']}")
@@ -85,9 +97,8 @@ def load_model(model_path, model_init, optimizer=None):
     print(f"train balanced gcd metrics: {checkpoint['train_accr']['t_balanced_gcd']}")
     
     model_stats=checkpoint['val_accr']
-    model_init.load_state_dict(checkpoint['model_state_dict'])
          
-    return model_init, model_stats
+    return model_stats
 
 def early_stopping(val_this_accr, val_prev_accr, patience, thresh):
     """

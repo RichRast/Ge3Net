@@ -261,10 +261,11 @@ class Ge3NetBase():
         # learning rate scheduler
         exp_lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = self.params.lr_steps_decay,\
         verbose=True)
-        # attention_models_ls=["Model_F", "Model_H"]
-        # if self.params.model in attention_models_ls:
-        #     optimizer = custom_opt(optimizer, d_model=self.params.att_input_size, \
-        #     warmup_steps=self.params.att_warmup_steps, factor=self.params.att_factor, groups=self.params.warmup_lr_groups)
+        
+        if self.params.custom_opt:
+            optimizer = custom_opt(optimizer, d_model=self.params.att_input_size, \
+            warmup_steps=self.params.att_warmup_steps, factor=self.params.att_factor, groups=self.params.warmup_lr_groups)
+            
         print(("Begin Training...."))
         start_epoch = 0
         patience = 0
@@ -309,12 +310,20 @@ class Ge3NetBase():
 
             save_checkpoint({
                 'epoch': epoch,
-                'model_state_dict': models_state_dict,
-                'optimizer_state_dict': optimizer.state_dict(),
+                'model_state_dict': models_state_dict
+                }, osp.join(checkpoint, 'model_weights'), is_best=is_best)
+
+            save_checkpoint({
+                'epoch': epoch,
+                'optimizer_state_dict': optimizer.state_dict()
+                }, osp.join(checkpoint,'optimizer_state'), is_best=is_best)
+
+            save_checkpoint({
+                'epoch': epoch,
                 'val_accr': eval_result._asdict(),
                 'train_accr': train_result._asdict(),
                 'test_accr': test_result._asdict()
-                }, checkpoint, is_best=is_best)
+                }, osp.join(checkpoint, 'training_Stats'), is_best=is_best)
             
             try:
                 if epoch==start_epoch: 
