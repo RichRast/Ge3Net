@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
     
+# credit to http://nlp.seas.harvard.edu/2018/04/03/attention.html
+
 class attention_single(nn.Module):
     def __init__(self, params, input_size):
         super(attention_single, self).__init__() # Initialize self._modules as OrderedDict
@@ -38,7 +40,7 @@ class attention_single(nn.Module):
         return out1, att_score, weight       
         
 class PositionalEncoding(nn.Module):
-    def __init__(self, params):
+    def __init__(self, params, d_model):
         super(PositionalEncoding, self).__init__()
         """
         Computes the positional encoding of input x, given by
@@ -51,12 +53,12 @@ class PositionalEncoding(nn.Module):
         pe: positional encoding of the embed dim , shape[batch_size, embed_dim, 1]
         """
         PE_constant = params.PE_constant
-        d_model = params.PE_d_model
+        self.d_model = d_model
         self.dropout = nn.Dropout(params.PE_dropout)
         pos = torch.arange(0, params.n_win, dtype=torch.float).unsqueeze(1)
         i = torch.arange(0, d_model/2, dtype=torch.float)
         den_term = torch.exp(math.log(PE_constant)* (2*i/d_model))
-        pe = torch.zeros(params.n_win, params.PE_d_model)
+        pe = torch.zeros(params.n_win, self.d_model)
         pe[:,0::2] = torch.sin(pos/den_term)
         pe[:,1::2] = torch.cos(pos/den_term)
         pe = pe.unsqueeze(2).permute(2,0,1)

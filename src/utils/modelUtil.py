@@ -1,5 +1,4 @@
 import torch
-import json
 import yaml
 import os
 import shutil
@@ -23,30 +22,6 @@ def weight_int(m):
         if m.bias is not None:
             torch.nn.init.zeros_(m.bias)
     
-    
-class ParamsJson():
-    """Class that loads hyperparameters from a json file
-    """
-    def __init__(self, json_path):
-        with open(json_path) as f:
-            params = json.load(f)
-            self.__dict__.update(params)
-
-    def save(self, json_path):
-        with open(json_path, 'w') as f:
-            json.dump(self.__dict__, f, indent=4, default=str)
-
-    def update(self, json_path):
-        """Loads parameters from json file"""
-        with open(json_path) as f:
-            params = json.load(f)
-            self.__dict__.update(params)
-
-    @property
-    def dict(self):
-        """Gives dict-like access to Params instance by `params.dict['learning_rate']"""
-        return self.__dict__
-
 class Params():
     """Class that loads hyperparameters from a yaml file
     """
@@ -56,8 +31,13 @@ class Params():
             self.__dict__.update(params)
 
     def save(self, yaml_path):
+        # for a custom class or an object such as device(type=cuda),
+        # provide a string representation, like the default=str argument for 
+        # json dump
+        yaml.SafeDumper.yaml_representers[None] = lambda self, data: \
+        yaml.representer.SafeRepresenter.represent_str(self, str(data))
         with open(yaml_path, 'w') as f:
-            yaml.safe_dump(self.__dict__, f, indent=4, default=str)
+            yaml.safe_dump(self.__dict__, f, indent=4)
 
     def update(self, yaml_path):
         """Loads parameters from yaml file"""

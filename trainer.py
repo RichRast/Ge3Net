@@ -16,7 +16,8 @@ from src.models.Ge3Net import Ge3NetBase
 import wandb
 
 @timer
-def main(config, params, trial=None):
+def main(config, params, **kwargs):
+    trial=kwargs.get('trail')
     # use GPU if available
     params.cuda = torch.cuda.is_available()
 
@@ -35,14 +36,14 @@ def main(config, params, trial=None):
     labels_path = config['data.labels']
     data_path=config['data.dir']
     plotObj=None
+    # Set the logger
+    logger=set_logger(config['models.dir'], __name__)
     if config['log.verbose']:
-        # Set the logger
-        logger=set_logger(config['models.dir'], __name__)
         wandb.init(project='Ge3Net', config=params, allow_val_change=True)
         wandb.run.name='_'.join([str(params.model), str(config['model.summary'])])
-        # params=wandb.config
-
+        
         # Initiate the class for plotting per epoch
+        #ToDo: refactor this and remove params.pop_num- it doesnt exist
         if params.plotting and labels_path is not None:
             pop_dict = load_path(osp.join(labels_path, 'granular_pop.pkl'), en_pickle=True)
             rev_pop_dict = {v:k for k,v in pop_dict.items()}
@@ -86,14 +87,13 @@ def main(config, params, trial=None):
         wandb.watch(model, log='all')
  
     Ge3NetTrainer=Ge3NetBase(params, model, option)
-    Ge3NetTrainer.launchTraining(config['models.dir'], training_generator, validation_generator, test_generator=test_generator, \
-    plotObj=plotObj, wandb=(lambda x: wandb if x else None)(config['log.verbose']))
+    best_val_accr = Ge3NetTrainer.launchTraining(config['models.dir'], training_generator, validation_generator, test_generator=test_generator, \
+    plotObj=plotObj, wandb=(lambda x: wandb if x else None)(config['log.verbose']), trial=trial)
+    if trial is not None: return best_val_accr 
 
 if __name__=="__main__":
     config = parse_args()
-    json_path = osp.join(config['data.params'], 'params.json')
-    assert osp.isfile(json_path), "No json configuration file found at {}".format(json_path)
-    params = Params(json_path)
-    params.dict['n_win']=0 # these are set during data load
-    params.dict['chmlen']=0
+    yaml_path = osp.join(config['data.params'], 'params.yaml')
+    assert osp.isfile(yaml_path), "No yaml configuration file found at {}".format(yaml_path)
+    params = Params(yaml_path)
     main(config, params)

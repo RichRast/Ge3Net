@@ -122,9 +122,8 @@ class Haplotype(Dataset):
         
         if self.params.cp_detect:
             # if the only gen is gen 0 then there will be no changepoints with founders
-            assert max(self.gens_to_ret)>0, "No changepoints will be found. Feeding only founders."
             cps = self.data['granular_pop'][:,:-1]-self.data['granular_pop'][:,1:] #window dim is 1 less
-            assert cps.sum()!=0, "No changepoints found. Check the input file"
+            assert (max(self.gens_to_ret)==0 or cps.sum()!=0), "No changepoints found. Check the input file"
             # find window indices where diff for any dim !=0
             cps_copy = np.zeros_like(self.data['granular_pop'], dtype=np.int8)
             cps_idx = np.nonzero(cps)

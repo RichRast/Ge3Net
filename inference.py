@@ -76,8 +76,8 @@ def main(config, params):
     
 if __name__=="__main__":
     config = parse_args()
-    json_path = osp.join(config['models.dir'], 'params.json')
-    assert osp.isfile(json_path), "No json configuration file found at {}".format(json_path)
-    params = Params(json_path)
+    yaml_path = osp.join(config['data.params'], 'params.yaml')
+    assert osp.isfile(yaml_path), "No yaml configuration file found at {}".format(yaml_path)
+    params = Params(yaml_path)
     params.rtnOuts=True
     main(config, params)

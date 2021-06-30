@@ -15,8 +15,8 @@ class model_O(nn.Module):
         super(model_O, self).__init__()
         self.params=params
         self.aux = AuxNetwork(self.params)
-        self.pe = PositionalEncoding(self.params)
-        self.attention = attention_single(self.params, self.params.aux_net_hidden)
+        self.pe = PositionalEncoding(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
+        self.attention = attention_single(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
         self.ffnn = FFNN(self.params, self.params.FFNN_input1, self.params.FFNN_input2, self.params.FFNN_input3, self.params.FFNN_output)
         self.lstm1 = BiRNN(self.params, self.params.FFNN_output, self.params.rnn_net_out1)
         self.attention2 = attention_single(self.params, self.params.rnn_net_out1)
@@ -55,9 +55,9 @@ class model_O(nn.Module):
             out1 = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
         
             # add residual connection by taking the gradient of aux network predictions
-            # aux_diff = get_gradient(out4)
-            # out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
-            out_att_nxt, _, weight = self.attention(self.pe(out1))
+            aux_diff = get_gradient(out4)
+            out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
+            out_att_nxt, _, weight = self.attention(self.pe(out_nxt_aux))
             _, out_att = self.ffnn(out_att_nxt)
             _, out_rnn, _ = self.lstm1(out_att)
             out_att2_nxt, _, weight2 = self.attention2(out_rnn)

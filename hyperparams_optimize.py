@@ -2,133 +2,104 @@ import os
 import os.path as osp
 import pickle
 import optuna
-import wandb
 import trainer
 from src.utils.modelUtil import Params
 from src.main.settings_model import parse_args
 
 class objective(object):
-    def __init__(self, params, root_model_dir):
+    def __init__(self, params, config, save_path):
         self.params = params
         self.config = config
+        self.save_path = save_path
     
     def __call__(self, trial):
-        lr0 = trial.suggest_float("lr0", 1e-5, 1e-1, log = True)
-        self.params.learning_rate[0] = lr0
+        lr_aux = trial.suggest_float("lr_aux", 1e-5, 1e-1, log = True)
+        self.params.learning_rate[0] = lr_aux
         
-        lr1 = trial.suggest_float("lr1", 1e-5, 1e-1, log = True)
-        self.params.learning_rate[1] = lr1
+        lr_att = trial.suggest_float("lr_att", 1e-5, 1e-1, log = True)
+        self.params.learning_rate[2] = lr_att
         
-        aux_hidden = trial.suggest_int("num_hidden",100,512)
-        self.params.aux_net_hidden = aux_hidden
+        lr_ffnn = trial.suggest_float("lr_ffnn", 1e-5, 1e-1, log = True)
+        self.params.learning_rate[3] = lr_ffnn
+
+        lr_lstm = trial.suggest_float("lr_lstm", 1e-5, 1e-1, log = True)
+        self.params.learning_rate[4] = lr_lstm
+
+        lr_att2 = trial.suggest_float("lr_att2", 1e-5, 1e-1, log = True)
+        self.params.learning_rate[5] = lr_att2
+
+        lr_ffnn2 = trial.suggest_float("lr_ffnn2", 1e-5, 1e-1, log = True)
+        self.params.learning_rate[6] = lr_ffnn2
+
+        lr_lstm2 = trial.suggest_float("lr_lstm2", 1e-5, 1e-1, log = True)
+        self.params.learning_rate[7] = lr_lstm2
+
+        lr_cp = trial.suggest_float("lr_cp", 1e-5, 1e-1, log = True)
+        self.params.learning_rate[8] = lr_cp
+
+        batch_size = trial.suggest_categorical("batch_size",[64, 128, 256])
+        self.params.batch_size = batch_size
+
+        # aux_net_hidden = trial.suggest_int("aux_net_hidden",100,512)
+        # self.params.aux_net_hidden = aux_net_hidden
+         
+        aux_net_dropout = trial.suggest_float("aux_net_dropout", 0.1,0.5)
+        self.params.aux_net_dropout = aux_net_dropout
         
-        lr2 = trial.suggest_float("lr2", 1e-5, 1e-1, log = True)
-        self.params.learning_rate[2] = lr2
+        rnn_net_dropout = trial.suggest_float("rnn_net_dropout", 0.1,0.5)
+        self.params.rnn_net_dropout = rnn_net_dropout
         
-        #rnn_hidden_unit = trial.suggest_int("rnn_hidden_unit",32,128)
-        #self.params.rnn_net["hidden_size"] = rnn_hidden_unit
-        tbptt = trial.suggest_int("tbptt", 0,1)
-        self.params.tbptt = tbptt
+        # save the params in yaml file
+        params_filename = ''.join(['_trial_', str(trial.number), 'params.yaml'])
+        params.save(osp.join(self.save_path, params_filename))
         
-        aux_dropout = trial.suggest_float("aux_dropout", 0.1,0.5)
-        self.params.aux_net_dropout = aux_dropout
-        
-        rnn_dropout = trial.suggest_float("rnn_dropout", 0.1,0.5)
-        self.params.rnn_net_dropout = rnn_dropout
-        
-        # save the params in json file
-        json_path = osp.join(config['model.working_dir'], config['model_version'])
-        if not osp.exists(json_path):
-            os.mkdir(json_path)
-        params_filename = ''.join(['_trial_', str(trial.number), 'params.json'])
-        params.save(osp.join(json_path, params_filename))
-        
-        accuracy = trainer.main(self.config, self.params, trial)
+        accuracy = trainer.main(self.config, self.params, trial=trial)
         return accuracy
     
-    
-def save_study(study, save_filename):
-    if not osp.exists(save_filename):
-        os.mkdir(save_filename)
-        
+def save_study(study, save_path):    
     # save the study
     print("Saving the study")
-    with open(osp.join(save_filename, "study.pkl"), 'wb') as f:
+    with open(osp.join(save_path, "study.pkl"), 'wb') as f:
         pickle.dump(study, f)
-        
-class wandb_trainer():
-    def __init__(self, config, params):
-        self.params = params
-        self.config = config
-    
-    def __call__(self):
-        trainer.main(self.config, self.params)
-        
-def main(config, params):
-    
-    save_filename = osp.join(config['models.dir'], 'hyperparams_study')
-    if params.hyper_search_type=="optuna":       
-        study = optuna.create_study(direction="minimize", study_name=''.join(["study", config['model_version']]))
-        study.enqueue_trial({"lr1": 1e-2})
-        
-        try:
-            study.optimize(objective(params, config), n_trials=params.optuna_n_trials)
-        except:
-            print("Trial interrupted, saving the study so far")
-            save_study(study, save_filename)
-
-        pruned_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]
-        complete_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
-
-        print("Study statistics: ")
-        print(" Number of finished trials: ", len(study.trials))
-        print(" Number of pruned trials: ", len(pruned_trials))
-        print(" Number of complete trials: ", len(complete_trials))
-
-        print("Best trial: ")
-        trial = study.best_trial
-        
-        print(" Value: ", trial.value)
-
-        print(" Params: ")
-        for key, value in trial.params.items():
-            print(" {}: {}".format(key, value))
-            
-        # save the sudy if all trials got completed
-        save_study(study, save_filename)
                 
-    elif params.hyper_search_type=="wandb":
-        sweep_config = params.wandb_config
-        job_name = "wandb_sweep"
-        sweep_id = wandb.sweep(sweep_config, project=job_name)
-        if len(params.sweep_id)==8:
-            sweep_id = params.sweep_id
-            print(f"sweep_id:{sweep_id}")
-        wb_train = wandb_trainer(config, params)
-        wandb.agent(sweep_id, function = wb_train, count=params.wandb_n_trials)
-        
-    else:
-        # optimize learning rate for group 0
-        learning_rates=[1e-6, 1e-2, 1e-4]
-
-        for lr in learning_rates:
-            params.learning_rate[0] = lr
-
-            # launch the training job
-            job_name = "learning_rate_{}".format(lr)
-            
-            # write the parameters to a json file
-            json_path = osp.join(save_filename, ''.join(['lr_', str(lr), 'params.json']))
-            params.save(json_path)
+def main(config, params):
+    params.optuna_n_trials=3
+    save_path = osp.join(config['models.dir'], 'hyperparams_studies')
+    if not osp.exists(save_path):
+        os.makedirs(save_path)
+    study = optuna.create_study(direction="minimize")
+    study.enqueue_trial({"lr_lstm": 1e-2})
+    study.enqueue_trial({"lr_lstm2": 1e-2})
     
-            accuracy = trainer.main(config, params)
-            print(f'accuracy:{accuracy}')
+    try:
+        study.optimize(objective(params, config, save_path), n_trials=params.optuna_n_trials)
+    except Exception as e:
+        print(f"Trial interrupted with exception: {e}, saving the study so far")
+        save_study(study, save_path)
 
+    pruned_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]
+    complete_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
+
+    print("Study statistics: ")
+    print(" Number of finished trials: ", len(study.trials))
+    print(" Number of pruned trials: ", len(pruned_trials))
+    print(" Number of complete trials: ", len(complete_trials))
+
+    print("Best trial: ")
+    trial = study.best_trial
+    
+    print(" Value: ", trial.value)
+
+    print(" Params: ")
+    for key, value in trial.params.items():
+        print(" {}: {}".format(key, value))
+        
+    # save the sudy if all trials got completed
+    save_study(study, save_path)
+                
 if __name__=="__main__":
     config = parse_args()
-    json_path = osp.join(config['data.params'], 'params.json')
-    assert osp.isfile(json_path), "No json configuration file found at {}".format(json_path)
-    params = Params(json_path)
-    params.dict['n_win']=0 # these are set during data load
-    params.dict['chmlen']=0
+    yaml_path = osp.join(config['data.params'], 'params.yaml')
+    assert osp.isfile(yaml_path), "No yaml configuration file found at {}".format(yaml_path)
+    params = Params(yaml_path)
     main(config, params)

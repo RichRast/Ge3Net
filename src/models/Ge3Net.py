@@ -327,13 +327,13 @@ class Ge3NetBase():
             
             try:
                 if epoch==start_epoch: 
-                    self.params.save(''.join([modelSavePath, '/params.json']))
+                    self.params.save(''.join([modelSavePath, '/params.yaml']))
                     print(f"saving params at epoch:{epoch}")
             except Exception as e:
                 print(f"exception while saving params:{e}")
                 pass
 
-            if self.params.hyper_search_type=='optuna':    
+            if trial is not None:    
                 trial.report(eval_result.t_accr['loss_main'], epoch)
                 if trial.should_prune():
                     raise optuna.exceptions.TrialPruned()

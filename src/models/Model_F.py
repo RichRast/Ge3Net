@@ -14,7 +14,7 @@ class model_F(nn.Module):
         super(model_F, self).__init__()
         self.params=params
         self.aux = AuxNetwork(self.params)
-        self.pe = PositionalEncoding(self.params)
+        self.pe = PositionalEncoding(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
         self.attention = attention_single(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
         self.ffnn = FFNN(self.params, self.params.FFNN_input1, self.params.FFNN_input2, self.params.FFNN_input3, self.params.FFNN_output)
         self.cp = logits_Block(self.params, self.params.aux_net_hidden + self.params.dataset_dim) if self.params.cp_predict else None

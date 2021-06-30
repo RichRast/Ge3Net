@@ -67,7 +67,7 @@ ml load cuda/9.0.176
 ml load git-lfs/2.4.0
 ml load system nvtop
 
-python3 hyperparams_optimize.py  --data.params $USER_PATH/src/main/experiments/exp_hyper_$model_type \
+python3 hyperparams_optimize.py  --data.params $USER_PATH/src/main/experiments/exp_$model_type \
 --data.geno_type $geno_type \
 --data.labels $OUT_PATH/$geno_type/labels/data_id_${data_id} \
 --data.dir $OUT_PATH/$geno_type/labels/data_id_${data_id} \
