@@ -30,7 +30,7 @@ if [[ target_server = "nero-mrivas.compute.stanford.edu" ]]; then
 else 
     rsync --exclude '/data_out/archive/' -avP $source_dir $target_dir
 fi
-
+echo "Backup complete"
 ## Resubmit the job for the next execution
 # sbatch $0
 EOT

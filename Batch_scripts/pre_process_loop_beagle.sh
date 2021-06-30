@@ -18,6 +18,6 @@ elif [[ ${geno_type} = "ancient" ]]; then
     echo "phasing for ${geno_type}"
     mkdir -p $OUT_PATH/${geno_type}/phased_data
     # subset the vcf file with the sample map
-    java -Xmx1000g -jar /home/users/richras/packages/beagle.jar gt=$IN_PATH/${geno_type}/packedPed_format/v44.3_1240K_ancient.bed out=$OUT_PATH/${geno_type}/v44_ancient_phased map=$IN_PATH/${geno_type}/packedPed_format/v44.3_1240K_ancient.map
+    java -Xmx1000g -jar /home/users/richras/packages/beagle.jar gt=$IN_PATH/${geno_type}/ped_format/v44_ancient.ped out=$OUT_PATH/${geno_type}/v44_ancient_phased map=$IN_PATH/${geno_type}/ped_format/v44_ancient.map
 
 fi

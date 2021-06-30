@@ -16,7 +16,7 @@ class model_O(nn.Module):
         self.params=params
         self.aux = AuxNetwork(self.params)
         self.pe = PositionalEncoding(self.params)
-        self.attention = attention_single(self.params, self.params.aux_net_hidden1)
+        self.attention = attention_single(self.params, self.params.aux_net_hidden)
         self.ffnn = FFNN(self.params, self.params.FFNN_input1, self.params.FFNN_input2, self.params.FFNN_input3, self.params.FFNN_output)
         self.lstm1 = BiRNN(self.params, self.params.FFNN_output, self.params.rnn_net_out1)
         self.attention2 = attention_single(self.params, self.params.rnn_net_out1)

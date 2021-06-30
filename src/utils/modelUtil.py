@@ -1,5 +1,6 @@
 import torch
 import json
+import yaml
 import os
 import shutil
 import os.path as osp
@@ -23,7 +24,7 @@ def weight_int(m):
             torch.nn.init.zeros_(m.bias)
     
     
-class Params():
+class ParamsJson():
     """Class that loads hyperparameters from a json file
     """
     def __init__(self, json_path):
@@ -46,6 +47,24 @@ class Params():
         """Gives dict-like access to Params instance by `params.dict['learning_rate']"""
         return self.__dict__
 
+class Params():
+    """Class that loads hyperparameters from a yaml file
+    """
+    def __init__(self, yaml_path):
+        with open(yaml_path) as f:
+            params = yaml.safe_load(f)
+            self.__dict__.update(params)
+
+    def save(self, yaml_path):
+        with open(yaml_path, 'w') as f:
+            yaml.safe_dump(self.__dict__, f, indent=4, default=str)
+
+    def update(self, yaml_path):
+        """Loads parameters from yaml file"""
+        with open(yaml_path) as f:
+            params = yaml.safe_load(f)
+            self.__dict__.update(params)
+    
 def save_checkpoint(state, save_path, is_best):
 
     if not osp.exists(save_path):

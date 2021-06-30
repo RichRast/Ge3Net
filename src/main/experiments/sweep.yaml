@@ -1,0 +1,13 @@
+program: trainer.py
+method: grid
+metric:
+  goal: minimize
+  name: val best accuracy
+parameters:
+  aux_net_dropout:
+    values: [0.1, 0.2, 0.4, 0.5, 0.7]
+early_terminate:
+  type: hyperband
+  s: 2
+  eta: 3
+  max_iter: 27

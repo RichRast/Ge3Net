@@ -66,7 +66,7 @@ class wandb_trainer():
         
 def main(config, params):
     
-    save_filename = osp.join(config['model.working_dir'], config['model_version'])
+    save_filename = osp.join(config['models.dir'], 'hyperparams_study')
     if params.hyper_search_type=="optuna":       
         study = optuna.create_study(direction="minimize", study_name=''.join(["study", config['model_version']]))
         study.enqueue_trial({"lr1": 1e-2})
@@ -103,6 +103,7 @@ def main(config, params):
         sweep_id = wandb.sweep(sweep_config, project=job_name)
         if len(params.sweep_id)==8:
             sweep_id = params.sweep_id
+            print(f"sweep_id:{sweep_id}")
         wb_train = wandb_trainer(config, params)
         wandb.agent(sweep_id, function = wb_train, count=params.wandb_n_trials)
         
