@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import math
 from torch import nn
 import os.path as osp
 from src.utils.decorators import timer
@@ -269,6 +270,7 @@ class Ge3NetBase():
         print(("Begin Training...."))
         start_epoch = 0
         patience = 0
+        best_val_accr = math.inf
         for epoch in range(start_epoch, self.params.num_epochs):
             train_result = self.batchLoopTrain(optimizer, training_generator)
             eval_result = self.batchLoopValid(validation_generator)
@@ -333,11 +335,11 @@ class Ge3NetBase():
                 print(f"exception while saving params:{e}")
                 pass
 
-            if trial is not None:    
-                trial.report(eval_result.t_accr['loss_main'], epoch)
-                if trial.should_prune():
-                    raise optuna.exceptions.TrialPruned()
-                return best_val_accr
+        if trial is not None:    
+            trial.report(eval_result.t_accr['loss_main'], epoch)
+            if trial.should_prune():
+                raise optuna.exceptions.TrialPruned()
+            return best_val_accr
         #============================= Epoch Loop ===============================#    
         torch.cuda.empty_cache()
 

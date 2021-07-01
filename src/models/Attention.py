@@ -9,10 +9,6 @@ class attention_single(nn.Module):
     def __init__(self, params, input_size):
         super(attention_single, self).__init__() # Initialize self._modules as OrderedDict
         self.input_size = input_size
-        # self.key_size = params.att_key_size
-        # self.query_size = params.att_query_size
-        # self.value_size = params.att_value_size
-
         self.key_size = input_size
         self.query_size = input_size
         self.value_size = input_size
@@ -27,7 +23,6 @@ class attention_single(nn.Module):
 
     def forward(self, x):
         # shape of x is BxTxemb_dim
-        
         keys = self.linear_keys(x) #shape BxTxkey_size
         query = self.linear_query(x) #shape BxTXquery_size
         value = self.Linear_value(x) #shape BxTxvalue_size
@@ -53,7 +48,7 @@ class PositionalEncoding(nn.Module):
         pe: positional encoding of the embed dim , shape[batch_size, embed_dim, 1]
         """
         PE_constant = params.PE_constant
-        self.d_model = d_model
+        self.d_model= d_model if d_model%2==0 else d_model + 1
         self.dropout = nn.Dropout(params.PE_dropout)
         pos = torch.arange(0, params.n_win, dtype=torch.float).unsqueeze(1)
         i = torch.arange(0, d_model/2, dtype=torch.float)

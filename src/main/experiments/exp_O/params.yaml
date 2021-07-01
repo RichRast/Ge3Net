@@ -6,7 +6,7 @@ mc_samples: 100
 cp_detect: true
 cp_tol: 1
 evalCp: true
-evalBalancedGcd: true
+evalBalancedGcd: false
 evalExtraMainLosses: true
 validCpMask: false
 rtnOuts: false
@@ -69,7 +69,7 @@ att_warmup_steps: 50
 att_factor: 0.0001
 
 PE_constant: 10000
-PE_d_model: 103
+PE_d_model: 104
 PE_dropout: 0.3
 
 FFNN_input1: 103

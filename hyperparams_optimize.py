@@ -63,13 +63,13 @@ def save_study(study, save_path):
         pickle.dump(study, f)
                 
 def main(config, params):
-    params.optuna_n_trials=3
+    params.optuna_n_trials=10
+    params.evalBalancedGcd=False
     save_path = osp.join(config['models.dir'], 'hyperparams_studies')
     if not osp.exists(save_path):
         os.makedirs(save_path)
     study = optuna.create_study(direction="minimize")
-    study.enqueue_trial({"lr_lstm": 1e-2})
-    study.enqueue_trial({"lr_lstm2": 1e-2})
+    study.enqueue_trial({"lr_lstm": 1e-2, "lr_lstm2": 1e-2})
     
     try:
         study.optimize(objective(params, config, save_path), n_trials=params.optuna_n_trials)
