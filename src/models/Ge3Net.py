@@ -7,11 +7,13 @@ from src.utils.decorators import timer
 from src.utils.modelUtil import save_checkpoint, early_stopping, custom_opt
 from src.main.evaluation import GcdLoss, eval_cp_batch, balancedMetrics, t_results, \
 Running_Average, modelOuts, branchLoss, PrCounts, computePrMetric
+from src.utils.dataUtil import set_logger
 from src.models.MCDropout import MC_Dropout
 from dataclasses import fields
 import matplotlib.pyplot as plt
 import optuna
 
+logger=set_logger(__name__)
 
 class Ge3NetBase():
     def __init__(self, params, model, option):
@@ -127,6 +129,7 @@ class Ge3NetBase():
         if self.params.evalCp: valCpBatchAvg['prMetrics']=computePrMetric(valCpRunAvgObj['prCounts'])
         # delete tensors for memory optimization
         del valRunAvgObj, valCpRunAvgObj, valGcdBalancedMetricsObj
+        del valPredLs, valVarLs, valCpLs
         torch.cuda.empty_cache()
         return t_results(t_accr=valBatchAvg, t_cp_accr=valCpBatchAvg, t_out=val_outs, t_balanced_gcd=valBalancedGcd)
 
@@ -142,7 +145,10 @@ class Ge3NetBase():
         BalancedGcd=None
         if self.params.geography and self.params.evalBalancedGcd:
             gcdMatrix=GcdLoss().rawGcd(outs.coord_main, labels.coord_main).detach()
+            # gcdMatrix=self.losses['gcd'].rawGcd(outs.coord_main, labels.coord_main).detach()
             BalancedGcd=self.getExtraGcdMetrics(gcdBalancedMetricsObj, gcdMatrix, superpop, granularpop, mask)
+            del gcdMatrix
+        torch.cuda.empty_cache()
         return BatchAvg, CpBatchAvg, BalancedGcd
 
     # Need to think this one
@@ -188,18 +194,18 @@ class Ge3NetBase():
 
     def getBalancedClassGcd(self, gcdObj):
         balancedGcdMetrics={}
-        meanBalancedGcd=self.option['balancedMetrics']['meanBalanced'](gcdObj)()
-        medianBalancedGcd=self.option['balancedMetrics']['medianBalanced'](gcdObj)()
-        balancedGcdMetrics['meanBalancedGcdSp'], balancedGcdMetrics['meanBalancedGcdGp'] = meanBalancedGcd
-        balancedGcdMetrics['medianBalancedGcdSp'], balancedGcdMetrics['medianBalancedGcdGp'] = medianBalancedGcd
+        balancedGcdMetrics['meanBalancedGcdSp'], balancedGcdMetrics['meanBalancedGcdGp']= \
+            self.option['balancedMetrics']['meanBalanced'](gcdObj)()
+        balancedGcdMetrics['medianBalancedGcdSp'], balancedGcdMetrics['medianBalancedGcdGp']=\
+            self.option['balancedMetrics']['medianBalanced'](gcdObj)()
         balancedGcdMetrics['median']=self.option['balancedMetrics']['median'](gcdObj)()
         return  balancedGcdMetrics
 
     def getExtraGcdMetrics(self, gcdMetricsObj, gcdMatrix, superpop, granularpop, mask):       
-        gcdMetricsObj.fillData(gcdMatrix*mask.squeeze(-1))
-        gcdMetricsObj.balancedMetric(superpop, granularpop)
+        gcdMetricsObj.fillData(torch.clone(gcdMatrix)*mask.squeeze(-1))
+        gcdMetricsObj.computeBalancedMetric(superpop, granularpop, mask)
         trainBalancedGcd = self.getBalancedClassGcd(gcdMetricsObj)
-        accAtGcd=gcdMetricsObj.accAtThresh()
+        # accAtGcd=gcdMetricsObj.accAtThresh()
         return trainBalancedGcd
 
     def _getSample(self,**kwargs):
@@ -233,11 +239,11 @@ class Ge3NetBase():
         self.wandb.log({f"AuxTask_Loss/{phase}":batchAvg.get("loss_aux"), "batch_num":batch_num})
 
     def _checkModelParamGrad(self):
-        print("**"*20+f" model {self.model.__class__.__name__}"+"**"*20)
+        logger.info("**"*20+f" model {self.model.__class__.__name__}"+"**"*20)
         for n, p in self.model.named_parameters():
             if p.requires_grad:
-                if p.grad is not None: print(n, p.grad) 
-                else: print(f"{n}, None")
+                if p.grad is not None: logger.info(n, p.grad) 
+                else: logger.info(f"{n}, None")
 
     def _logOutput(self, batchAvg, batch_num, vcf_idx, out, label):
         self._logger(batchAvg=batchAvg, batch_num=batch_num)
@@ -267,7 +273,7 @@ class Ge3NetBase():
             optimizer = custom_opt(optimizer, d_model=self.params.att_input_size, \
             warmup_steps=self.params.att_warmup_steps, factor=self.params.att_factor, groups=self.params.warmup_lr_groups)
             
-        print(("Begin Training...."))
+        logger.info(("Begin Training...."))
         start_epoch = 0
         patience = 0
         best_val_accr = math.inf
@@ -288,7 +294,7 @@ class Ge3NetBase():
             if epoch!=start_epoch:
                 patience = early_stopping(eval_result.t_accr['loss_main'], val_prev_accr, patience, self.params.thresh)
                 if patience == self.params.early_stopping_thresh:
-                    print("Early stopping...")
+                    logger.info("Early stopping...")
                     break
             
             val_prev_accr = eval_result.t_accr['loss_main']
@@ -299,8 +305,8 @@ class Ge3NetBase():
                 self.wandb.log({f"val best accuracy":best_val_accr, "epoch":epoch})
 
             # saving a model at every epoch
-            print(f"Saving at epoch {epoch}")
-            print(f"train accr: {train_result.t_accr['loss_main']}, val accr: {eval_result.t_accr['loss_main']}")
+            logger.info(f"Saving at epoch {epoch}")
+            logger.info(f"train accr: {train_result.t_accr['loss_main']}, val accr: {eval_result.t_accr['loss_main']}")
             checkpoint = osp.join(modelSavePath, 'models_dir')
             models_state_dict = self.model.state_dict() 
 
@@ -330,9 +336,9 @@ class Ge3NetBase():
             try:
                 if epoch==start_epoch: 
                     self.params.save(''.join([modelSavePath, '/params.yaml']))
-                    print(f"saving params at epoch:{epoch}")
+                    logger.info(f"saving params at epoch:{epoch}")
             except Exception as e:
-                print(f"exception while saving params:{e}")
+                logger.info(f"exception while saving params:{e}")
                 pass
 
         if trial is not None:    

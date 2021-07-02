@@ -15,9 +15,11 @@ from src.main.visualization import Plot_per_epoch
 from src.models.Ge3Net import Ge3NetBase
 import wandb
 
+logger=set_logger(__name__)
+
 @timer
 def main(config, params, **kwargs):
-    trial=kwargs.get('trail')
+    trial=kwargs.get('trial')
     # use GPU if available
     params.cuda = torch.cuda.is_available()
 
@@ -36,8 +38,7 @@ def main(config, params, **kwargs):
     labels_path = config['data.labels']
     data_path=config['data.dir']
     plotObj=None
-    # Set the logger
-    logger=set_logger(config['models.dir'], __name__)
+    
     if config['log.verbose']:
         wandb.init(project='Ge3Net', config=params, allow_val_change=True)
         wandb.run.name='_'.join([str(params.model), str(config['model.summary'])])

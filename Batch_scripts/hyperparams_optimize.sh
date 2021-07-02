@@ -73,8 +73,7 @@ python3 hyperparams_optimize.py  --data.params $USER_PATH/src/main/experiments/e
 --data.dir $OUT_PATH/$geno_type/labels/data_id_${data_id} \
 --models.dir $OUT_PATH/$geno_type/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/ \
 --model.summary $model_summary \
---log.verbose $verbose
+--log.verbose $verbose 2>&1 | tee $OUT_PATH/$geno_type/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
 
-if [[ $verbose = "True" ]] ; then 
-    node_feat -n $(hostname|sed 's/.int.*//') >> $OUT_PATH/$geno_type/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/.log
-fi
+node_feat -n $(hostname|sed 's/.int.*//') >> $OUT_PATH/$geno_type/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
+

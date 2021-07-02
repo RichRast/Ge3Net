@@ -37,25 +37,17 @@ def save_file(path, file, en_pickle=False, en_df=False ):
         else:
             np.save(f, file)
 
-def set_logger(log_path, scriptname):
+def set_logger(scriptname):
     """Set the logger to log info in terminal and file log_path
     """
-    
     logger = logging.getLogger(scriptname)
     logger.setLevel(logging.DEBUG)
-    if not osp.exists(log_path):
-        print(f'Logging path does not exist, making {log_path}')
-        os.makedirs(log_path)
-
+    
     if not logger.handlers:
-        # Logging to a file
-        file_handler = logging.FileHandler(log_path + ".log")
-        file_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s: %(funcName)s:%(name)s:%(message)s'))
-        logger.addHandler(file_handler)
-
         # Logging to console
         stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(logging.Formatter('%(message)s'))
+        #stream_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s: %(funcName)s:%(name)s:%(message)s'))
+        stream_handler.setFormatter(logging.Formatter('%(levelname)s: %(funcName)s:%(name)s:%(message)s'))
         logger.addHandler(stream_handler)
     return logger
 

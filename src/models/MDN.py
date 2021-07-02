@@ -1,12 +1,30 @@
 import torch
 import torch.nn as nn
+import math
 import pdb
 
 # credit to https://github.com/sagelywizard/pytorch-mdn/blob/master/mdn/mdn.py
 
+ONEOVERSQRT2PI = 1.0 / math.sqrt(2 * math.pi)
+
 class MixtureDensityNetwork(nn.Module):
+    """
+    MDN layer where the output can be mapped to a mixture of distributions- gaussian here
+
+    Arguments:
+        input: 
+            x: (BXWxGXD): B is the batch size, W is the number of windows, G is the number of gaussians
+            and D is the input dimension vector
+        output:
+            pi: (BXWXG)
+            sigma: (BXWXGXO)
+            mu: (BXWXGXO)
+            B is batch size, W is number of windows, G is the number of gaussians and O is the output
+            dimension vector
+    """
     def __init__(self, params, input_size, output_size):
         super(MixtureDensityNetwork, self).__init__()
+        self.params = params
         self.num_gaussian = params.mdn_num_gaussian
         self.hidden = params.mdn_hidden
         self.input_size = input_size
@@ -14,7 +32,7 @@ class MixtureDensityNetwork(nn.Module):
 
         self.pi = nn.Sequential(
             nn.Linear(self.input_size, self.num_gaussians),
-            nn.Softmax(dim=1)
+            nn.Softmax(dim=2)
         )
         self.mu = nn.Linear(self.input_size, self.output_size*self.num_gaussian)
         self.sigma = nn.Linear(self.input_size, self.output_size*self.num_gaussian)
@@ -22,15 +40,24 @@ class MixtureDensityNetwork(nn.Module):
     def forward(self, x):
         pi = self.pi(x)
         sigma = torch.exp(self.sigma(x)) # sigma >=0 , page 274, eq 5.151
-        sigma = sigma.view(-1, self.num_gaussian, self.output_size)
+        sigma = sigma.view(-1, self.params.n_win, self.num_gaussian, self.output_size)
         mu = self.mu(x)
-        mu = mu.view(-1, self.num_gaussian, self.output_size)
+        mu = mu.view(-1, self.params.n_win, self.num_gaussian, self.output_size)
         return pi, sigma, mu
 
-def gaussian_probability(sigma, mu, target):
-    ...
+def gaussian_probability(sigma, mu, x):
+    """
+    Given an input x that is the output of MDN layer, return the probability of x
+    belonging to a gaussian with parameters mu, sigma
+    Arguments:
+        input: 
+            sigma: (BXWXGXO)
+            mu: (BXWXGXO)
+            x: (BXWXGXO)
+        output:
+    """
 
-def mdn_loss(pi, sigma, mu, target):
+def mdn_loss(pi, sigma, mu, x):
     ...
 
 def sample(pi, sigma, mu):

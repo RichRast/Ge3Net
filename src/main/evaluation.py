@@ -9,7 +9,7 @@ from typing import Any
 from enum import Enum
 from sklearn.metrics import recall_score, precision_score, \
 balanced_accuracy_score, accuracy_score
-
+import pdb
 
 t_results = namedtuple('t_results',['t_accr', 't_cp_accr', 't_sp_accr', 't_out', 't_balanced_gcd'])
 t_results.__new__.__defaults__=(None,)*len(t_results._fields)
@@ -275,6 +275,7 @@ class GcdLoss():
             sum_gcd = np.sum(rawGcd * mask)
             return sum_gcd
 
+
 @dataclass
 class balancedMetrics():
     def __init__(self):
@@ -293,29 +294,41 @@ class balancedMetrics():
     def medianMetric(self):
         return torch.median(torch.cat(self.batchMetricLs)).item() 
 
-    def balancedMetric(self, superpop, granular_pop):
+    def computeBalancedMetric(self, superpop, granular_pop, mask):
         gcdTensor = self.batchMetricLs[-1]
         superpop_num=np.unique(superpop).astype(int)
         granularpop_num=np.unique(granular_pop).astype(int)
+        
         for i in superpop_num:
-            if self.classSuperpop.get(i) is None: self.classSuperpop[i]=Running_Average()
             idx=torch.nonzero(superpop==i)
-            self.classSuperpop[i].update(torch.sum(gcdTensor[idx[:,0], idx[:,1]]), len(idx))
+            num_samples = torch.sum(mask[idx[:,0], idx[:,1]]).item()
+            if num_samples == 0:
+                continue
+            if self.classSuperpop.get(i) is None: self.classSuperpop[i]=Running_Average()
+            self.classSuperpop[i].update(torch.sum(gcdTensor[idx[:,0], idx[:,1]]).item(), num_samples)
             
         for i in granularpop_num:
-            if self.classGranularpop.get(i) is None: self.classGranularpop[i]=Running_Average()
             idx=torch.nonzero(granular_pop==i)
-            self.classGranularpop[i].update(torch.sum(gcdTensor[idx[:,0], idx[:,1]]), len(idx))             
-                
+            num_samples = torch.sum(mask[idx[:,0], idx[:,1]]).item()
+            # It can happen that for a certain batch a granular pop has windows that are changepoints,
+            # so mask =0 at all those windows, in which case num_samples=0, and then this will
+            # throw an error because of division by zero inside Running Average. hHence if that situation 
+            # occurs, break out of the loop and continue to the next granular pop and dont make the running
+            # average object for that granular pop 
+            if num_samples == 0:
+                continue
+            if self.classGranularpop.get(i) is None: self.classGranularpop[i]=Running_Average()
+            self.classGranularpop[i].update(torch.sum(gcdTensor[idx[:,0], idx[:,1]]).item(), num_samples)             
+    
     def meanBalanced(self):
-        meanBalancedSuperpop=torch.mean(torch.tensor([self.classSuperpop[k]() for k in self.classSuperpop.keys()]))
-        meanBalancedGranularpop=torch.mean(torch.tensor([self.classGranularpop[k]() for k in self.classGranularpop.keys()]))
-        return meanBalancedSuperpop.item(), meanBalancedGranularpop.item()
+        meanBalancedSuperpop=np.mean([self.classSuperpop[k]() for k in self.classSuperpop.keys()])
+        meanBalancedGranularpop=np.mean([self.classGranularpop[k]() for k in self.classGranularpop.keys()])
+        return meanBalancedSuperpop, meanBalancedGranularpop
 
     def medianBalanced(self):
-        medianBalancedSuperpop=torch.median(torch.tensor([self.classSuperpop[k]() for k in self.classSuperpop.keys()]))
-        medianBalancedGranularpop=torch.median(torch.tensor([self.classGranularpop[k]() for k in self.classGranularpop.keys()]))
-        return medianBalancedSuperpop.item(), medianBalancedGranularpop.item()
+        medianBalancedSuperpop=np.median([self.classSuperpop[k]() for k in self.classSuperpop.keys()])
+        medianBalancedGranularpop=np.median([self.classGranularpop[k]() for k in self.classGranularpop.keys()])
+        return medianBalancedSuperpop, medianBalancedGranularpop
 
 def class_accuracy(y_pred, y_test):
     correct_pred = (y_pred == y_test).astype(float)

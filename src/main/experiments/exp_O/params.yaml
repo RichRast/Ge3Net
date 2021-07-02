@@ -6,7 +6,7 @@ mc_samples: 100
 cp_detect: true
 cp_tol: 1
 evalCp: true
-evalBalancedGcd: false
+evalBalancedGcd: true
 evalExtraMainLosses: true
 validCpMask: false
 rtnOuts: false
