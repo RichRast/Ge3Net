@@ -16,7 +16,7 @@ class model_L(nn.Module):
         self.params=params
         self.aux = BaseNetwork(self.params)
         self.pe = PositionalEncoding(self.params, self.params.aux_net_hidden)
-        self.attentionBlock = AttentionBlock(self.params, self.params.aux_net_hidden, self.params.FFNN_input2, self.params.FFNN_input3, self.params.FFNN_output)
+        self.attentionBlock = AttentionBlock(self.params, self.params.aux_net_hidden, self.params.FFNN_output)
         self.lstm = BiRNN(self.params, self.params.aux_net_hidden, self.params.rnn_net_out)
         self.cp = logits_Block(self.params, self.params.rnn_net_hidden*(1+1*params.rnn_net_bidirectional)) if self.params.cp_predict else None
         self.criterion=criterion

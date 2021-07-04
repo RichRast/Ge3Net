@@ -39,11 +39,9 @@ class Params():
         with open(yaml_path, 'w') as f:
             yaml.safe_dump(self.__dict__, f, indent=4)
 
-    def update(self, yaml_path):
-        """Loads parameters from yaml file"""
-        with open(yaml_path) as f:
-            params = yaml.safe_load(f)
-            self.__dict__.update(params)
+    def update(self, newParams_dict):
+        """updates new parameters to the existing params dict"""
+        self.__dict__.update(newParams_dict)
     
 def save_checkpoint(state, save_path, is_best):
 

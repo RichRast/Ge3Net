@@ -7,16 +7,17 @@ from src.utils.dataUtil import square_normalize, get_gradient
 from src.main.evaluation import branchLoss, modelOuts, RnnResults
 from src.models.AuxiliaryTask import AuxNetwork
 from src.models.Attention import PositionalEncoding
-from src.models.Transformer import transformer
+
 from src.models.BasicBlock import logits_Block
 
+# with MDN layer
 class model_G(nn.Module):
     def __init__(self, params, criterion, cp_criterion):
         super(model_G, self).__init__()
         self.params=params
         self.aux = AuxNetwork(self.params)
         self.pe = PositionalEncoding(self.params)
-        self.transformer = transformer(self.params)
+        # self.transformer = transformer(self.params)
         self.cp = logits_Block(self.params) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None

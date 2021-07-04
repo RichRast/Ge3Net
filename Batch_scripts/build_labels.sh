@@ -4,6 +4,7 @@ source ini.sh
 # sample command ./Batch_scripts/build_labels.sh -gt=dogs -e=1 -sim -bl -n_o=3 -sm=expt1 -s=1234 -um=umap -st_chm=22 -ed_chm=22
 #./Batch_scripts/build_labels.sh -gt=humans -e=1 -sim -bl -n_o=3 -um=pca -vt=ukb -st_chm=22 -ed_chm=22
 # sample_map for dogs can be expt1, a, b, c
+# ./Batch_scripts/build_labels.sh -gt=ancient -e=1 -sim -bl -n_o=3 -sm=time_block17H_3K -um=geo -st_chm=22 -ed_chm=22
 
 Help()
 {
@@ -77,6 +78,8 @@ if [[ (-z ${sample_map}) && (${geno_type} = "dogs") ]]; then echo "No sample map
 if [[ (-z ${sample_map}) && (${geno_type} = "humans") ]]; then sample_map="None"; fi
 if [[ -z $vcf_type ]] ; then echo "no specific vcf type specified"; fi
 if [[ -z ${n_comp_subclass} ]]; then echo "setting n_comp_subclass to 0"; n_comp_subclass=0; fi
+if [[ (${unsupMethod} = "geo") && (-z ${n_comp}) ]]; then echo "Setting n_comp=3 for n vectors"; n_comp=3; fi
+
 
 # set the vcf, genetic map and ref map according to genotype
 echo "Setting variables for ${geno_type}"
@@ -109,6 +112,12 @@ gen_map=$IN_PATH/dogs/chr22/chr22_average_canFam3.1.txt;
 all_chm_snps=$OUT_PATH/dogs/sm_${sample_map}/ld_False/vcf_type_/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy;
 # all_chm_snps='$OUT_PATH/dogs/expt2_biallelic/all_chm_combined_snps_variance_filter_0.0_sample_win_100.npy';
 n_comp=23; # smallest number of samples in a class is 23, only used for extended/residual pca
+elif [[  ${geno_type} = 'ancient' ]]; then
+vcf_dir=$OUT_PATH/${geno_type}/chr22/chr22_phased_imputed.vcf.gz;
+ref_map=$OUT_PATH/${geno_type}/sm_${sample_map}.tsv;
+gen_map=$OUT_PATH/${geno_type}/chr22/chr22_sm_coverage_2_re_ordered.map;
+all_chm_snps="None"
+
 else
 echo "${geno_type} not supported"; exit 1 ;
 fi

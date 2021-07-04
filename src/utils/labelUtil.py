@@ -76,19 +76,6 @@ def split_sample_maps(sample_map, split_perc, random_seed=10):
     
     return train_sample_map, valid_sample_map, test_sample_map
 
-# deprecate the below to be replaced by the more general getAdmixedCombineChm
-def get_admixed_samples(genetic_map_path, vcf_founders, sample_map, save_path, \
-    num_samples, gens_to_ret, random_seed=10):
-    """
-    Use XGMix simulation to create admixed dataset
-    """
-    genetic_map = get_chm_info(genetic_map_path, vcf_founders)
-    founders = build_founders(vcf_founders, genetic_map, sample_map)
-    admixed_samples, select_idx = create_non_rec_dataset(founders, \
-                    num_samples, gens_to_ret, genetic_map["breakpoint_probability"], random_seed)
-    write_output(save_path, admixed_samples)
-    return admixed_samples, select_idx
-
 def repeat_pop_arr(sample_map):
     """
     This function maps from ref idx of sample map
@@ -109,10 +96,10 @@ def createCoordinates(pop_arr, ref_map, save_path):
     reference map
     """
     df_labels= pd.DataFrame(pop_arr, columns=['Sample', 'ref_idx', 'granular_pop', 'superpop'])
-    df_labels=df_labels.merge(ref_map[['Sample', 'Latitude', 'Longitude']], how="inner", on="Sample").reset_index(drop=True)
+    df_labels=df_labels.merge(ref_map.loc[:,('Sample', 'Latitude', 'Longitude')], how="inner", on="Sample").reset_index(drop=True)
     # save labelsBySample.tsv
-    df_labelsBySample=df_labels[['Sample', 'ref_idx', 'Latitude', 'Longitude']]
-    df_labelsBySample['labels']=list(df_labels[['Latitude', 'Longitude']].to_numpy())
+    df_labelsBySample=df_labels.loc[:,('Sample', 'ref_idx', 'Latitude', 'Longitude')]
+    df_labelsBySample['labels']=list(df_labels.loc[:,('Latitude', 'Longitude')].to_numpy())
     df_labelsBySample.drop(columns=['Latitude', 'Longitude'], inplace=True)
     df_labelsBySample.to_csv(osp.join(save_path, "labelsBySample.tsv"), sep="\t", index=None)
     # save labels.pkl as a dict with vcf_idx as key and coordinates as values
@@ -157,7 +144,6 @@ def getAdmixedCombineChm(*args, **kwargs):
 
     for i, chm in enumerate(range(start_chm-1, end_chm)):
         save_path_chm=osp.join(save_path, ''.join(['chm', str(chm+1)])) if prevAdmixedFlag else save_path
-        print(f"i:{i}, chm:{chm}")
         if (vcf_founders[i][-4:]=='.vcf') or (vcf_founders[i][-3:]=='.gz'):
             vcf_master = allel.read_vcf(str(vcf_founders[i]))
         else:

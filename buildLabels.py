@@ -4,7 +4,7 @@ import logging
 import os.path as osp
 import allel
 from src.utils.labelUtil import filter_reference_file, get_sample_map, getLabelsPath,\
-    repeat_pop_arr, split_sample_maps, get_admixed_samples, createCoordinates, getAdmixedCombineChm
+    repeat_pop_arr, split_sample_maps, createCoordinates, getAdmixedCombineChm
 from src.utils.dataUtil import load_path, save_file, vcf2npy
 from src.createLabels.unsupervisedMethods import pcaSpace, spectralEmbeddingSpace, umapSpace, \
     tsneSpace, residualPca, thinningPcaSpace

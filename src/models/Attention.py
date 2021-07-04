@@ -65,20 +65,19 @@ class PositionalEncoding(nn.Module):
 
 
 class FFNN(nn.Module):
-    def __init__(self, params, input1_size, input2_size, input3_size, output_size):
+    def __init__(self, params, input1_size, output_size):
         super(FFNN, self).__init__()
+        #input size1,2 and 3 must be same because we do x+fc{i} in forward call
         self.input1_size= input1_size
-        self.input2_size= input2_size
-        self.input3_size= input3_size
         self.output_size=output_size
-        self.fc1 = nn.Linear(self.input1_size, self.input2_size)
+        self.fc1 = nn.Linear(self.input1_size, self.input1_size)
         self.dropout1 = nn.Dropout(params.FFNN_dropout1)
-        self.layernorm1 = nn.LayerNorm(self.input2_size)
-        self.fc2 = nn.Linear(self.input2_size, self.input3_size)
+        self.layernorm1 = nn.LayerNorm(self.input1_size)
+        self.fc2 = nn.Linear(self.input1_size, self.input1_size)
 
         self.dropout2 = nn.Dropout(params.FFNN_dropout2)
-        self.layernorm2 = nn.LayerNorm(self.input3_size)
-        self.fc3 = nn.Linear(self.input3_size, self.output_size)
+        self.layernorm2 = nn.LayerNorm(self.input1_size)
+        self.fc3 = nn.Linear(self.input1_size, self.output_size)
         if params.FFNN_activation == 'gelu':
             self.activation = nn.GELU()
         else:
@@ -93,14 +92,12 @@ class FFNN(nn.Module):
         return out2, out3
 
 class AttentionBlock(nn.Module):
-    def __init__(self, params, input1_size, input2_size, input3_size, output_size):
+    def __init__(self, params, input1_size, output_size):
         super(AttentionBlock, self).__init__()
         self.input1_size=input1_size
-        self.input2_size= input2_size
-        self.input3_size= input3_size
         self.output_size=output_size
         self.attention = attention_single(params, self.input1_size)
-        self.ffnn = FFNN(params, self.input1_size, self.input2_size, self.input3_size, output_size)
+        self.ffnn = FFNN(params, self.input1_size, output_size)
     
     def forward(self,x):
         out_nxt, _, weight = self.attention(x)

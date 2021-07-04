@@ -46,7 +46,6 @@ def set_logger(scriptname):
     if not logger.handlers:
         # Logging to console
         stream_handler = logging.StreamHandler()
-        #stream_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s: %(funcName)s:%(name)s:%(message)s'))
         stream_handler.setFormatter(logging.Formatter('%(levelname)s: %(funcName)s:%(name)s:%(message)s'))
         logger.addHandler(stream_handler)
     return logger

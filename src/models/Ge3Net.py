@@ -341,13 +341,15 @@ class Ge3NetBase():
                 logger.info(f"exception while saving params:{e}")
                 pass
 
-        if trial is not None:    
-            trial.report(eval_result.t_accr['loss_main'], epoch)
-            if trial.should_prune():
-                raise optuna.exceptions.TrialPruned()
-            return best_val_accr
-        #============================= Epoch Loop ===============================#    
+            if trial is not None:    
+                trial.report(best_val_accr, epoch)
+                if trial.should_prune():
+                    raise optuna.exceptions.TrialPruned()
+        
         torch.cuda.empty_cache()
+        return best_val_accr
+        #============================= Epoch Loop ===============================#    
+        
 
     def epoch_logger(self, phase, result, epoch):
         self.wandb.log({f"{phase}_metrics":result.t_accr, "epoch":epoch})

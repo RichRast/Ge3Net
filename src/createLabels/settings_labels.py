@@ -5,7 +5,7 @@ import os.path as osp
 import distutils.util
 
 parser = argparse.ArgumentParser()                 
-parser.add_argument('--data.geno_type', type=str, required=True, choices=['humans', 'dogs'], help="genotype of humans or dogs")
+parser.add_argument('--data.geno_type', type=str, required=True, choices=['humans', 'dogs', 'ancient'], help="genotype of humans or dogs")
 parser.add_argument('--data.vcf_dir', nargs="*", help='directory where vcf file for the particular chm is saved')
 parser.add_argument('--data.genetic_map', type=str, default=osp.join( os.environ.get('IN_PATH'), 'reference_files/allchrs.b38.gmap'), help='directory where genetic map is saved')
 parser.add_argument('--data.sample_map', type=str, required=False, help="type of sample map such as expt1, a, b c or keep")

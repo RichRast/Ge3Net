@@ -15,9 +15,13 @@ if [[ ${geno_type} = "dogs" ]]; then
         
     done
 elif [[ ${geno_type} = "ancient" ]]; then 
-    echo "phasing for ${geno_type}"
-    mkdir -p $OUT_PATH/${geno_type}/phased_data
-    # subset the vcf file with the sample map
-    java -Xmx1000g -jar /home/users/richras/packages/beagle.jar gt=$IN_PATH/${geno_type}/ped_format/v44_ancient.ped out=$OUT_PATH/${geno_type}/v44_ancient_phased map=$IN_PATH/${geno_type}/ped_format/v44_ancient.map
+    for (( chm=$1; chm<=$2; chm++ )); do
+        echo "phasing for ${geno_type}"
+        mkdir -p $OUT_PATH/${geno_type}/chr${chm}
+        # subset the vcf file with the sample map
+        java -Xmx1000g -jar /home/users/richras/packages/beagle.jar gt=$OUT_PATH/${geno_type}/sm_coverage_2/chr${chm}/chr${chm}_sm_coverage_2.vcf.gz out=$OUT_PATH/${geno_type}/sm_coverage_2/chr${chm}/chr${chm}_phased map=$OUT_PATH/${geno_type}/sm_coverage_2/chr${chm}/chr${chm}_sm_coverage_2.map
+        # use the ref from previous output and now impute and phase all the samples
+        java -Xmx1000g -jar /home/users/richras/packages/beagle.jar ref=$OUT_PATH/${geno_type}/sm_coverage_2/chr${chm}/chr${chm}_phased.vcf.gz out=$OUT_PATH/${geno_type}/chr${chm}/chr${chm}_phased_imputed map=$OUT_PATH/${geno_type}/sm_coverage_2/chr${chm}/chr${chm}_sm_coverage_2.map gt=$OUT_PATH/${geno_type}/chr${chm}/chr${chm}_unfiltered.vcf.gz
 
+    done
 fi

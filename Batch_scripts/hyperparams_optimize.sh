@@ -63,7 +63,7 @@ ml load py-pytorch/1.4.0_py36
 ml load py-scipy/1.4.1_py36
 ml load py-matplotlib/3.2.1_py36
 ml load py-pandas/1.0.3_py36
-ml load cuda/9.0.176
+ml load cuda/10.1.168
 ml load git-lfs/2.4.0
 ml load system nvtop
 
@@ -73,7 +73,7 @@ python3 hyperparams_optimize.py  --data.params $USER_PATH/src/main/experiments/e
 --data.dir $OUT_PATH/$geno_type/labels/data_id_${data_id} \
 --models.dir $OUT_PATH/$geno_type/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/ \
 --model.summary $model_summary \
---log.verbose $verbose 2>&1 | tee $OUT_PATH/$geno_type/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
+--log.verbose $verbose 2>&1 | tee $OUT_PATH/$geno_type/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/Ge3Net_tuning.log
 
-node_feat -n $(hostname|sed 's/.int.*//') >> $OUT_PATH/$geno_type/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
+node_feat -n $(hostname|sed 's/.int.*//') >> $OUT_PATH/$geno_type/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/Ge3Net_tuning.log
 

@@ -2,13 +2,14 @@ import numpy as np
 import pandas as pd 
 import scipy
 from torch.utils.data import Dataset
-import logging
 import math
 import os.path as osp
-from src.utils.dataUtil import load_path, getWinInfo
+from src.utils.dataUtil import load_path, getWinInfo, set_logger
 from src.utils.labelUtil import repeat_pop_arr
 from src.utils.modelUtil import convert_nVector
 from src.utils.decorators import timer
+
+logger=set_logger(__name__)
 
 class Haplotype(Dataset):
     @timer
@@ -25,22 +26,22 @@ class Haplotype(Dataset):
         elif dataset_type=="test":
             self.gens_to_ret =  self.params.test_gens
         
-        logging.info(f" Loading {dataset_type} Dataset")
+        logger.info(f" Loading {dataset_type} Dataset")
 
         # can add more here, example granular_pop is not being used
         self.data = {'X':None, 'y':None, 'y_vcf_idx':None, 'cps':None, 'superpop':None, 'granular_pop':None}
         
         if labels_path is None:
-            logging.info(f'Loading snps data')
+            logger.info(f'Loading snps data')
             self.snps = load_path(osp.join(data_dir, str(dataset_type),'mat_vcf_2d.npy'))
-            logging.info(f"snps data shape : {self.data['X'].shape}")
+            logger.info(f"snps data shape : {self.data['X'].shape}")
         else:
             for i, gen in enumerate(self.gens_to_ret):
-                logging.info(f"Loading gen {gen}")
+                logger.info(f"Loading gen {gen}")
                 curr_snps = load_path(osp.join(data_dir, str(dataset_type) ,'gen_' + str(gen), 'mat_vcf_2d.npy'))
-                logging.info(f' snps data: {curr_snps.shape}')
+                logger.info(f' snps data: {curr_snps.shape}')
                 curr_vcf_idx = load_path(osp.join(data_dir , str(dataset_type) ,'gen_' + str(gen) ,'mat_map.npy'))
-                logging.info(f' y_labels data :{curr_vcf_idx.shape}')
+                logger.info(f' y_labels data :{curr_vcf_idx.shape}')
 
                 if i>0:
                     self.snps = np.concatenate((self.snps, curr_snps),axis=0)
@@ -111,7 +112,7 @@ class Haplotype(Dataset):
     def transform_data(self, chmlen, n_win):        
         # take the mode according to windows for labels
         # map to coordinates according to ref_idx
-        logging.info("Transforming the data")
+        logger.info("Transforming the data")
         y_tmp = self.vcf_idx[:,:chmlen]
         y_tmp = y_tmp.reshape(-1, n_win, self.params.win_size)
         self.data['y_vcf_idx'] = scipy.stats.mode(y_tmp, axis=2)[0].squeeze(2)

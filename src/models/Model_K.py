@@ -15,7 +15,7 @@ class model_K(nn.Module):
         self.params=params
         self.aux = BaseNetwork(self.params)
         self.pe = PositionalEncoding(self.params, self.params.aux_net_hidden)
-        self.attentionBlock = AttentionBlock(self.params, self.params.aux_net_hidden, self.params.FFNN_input2, self.params.FFNN_input3, self.params.FFNN_output)
+        self.attentionBlock = AttentionBlock(self.params, self.params.aux_net_hidden, self.params.FFNN_output)
         self.cp = logits_Block(self.params, self.params.aux_net_hidden) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None

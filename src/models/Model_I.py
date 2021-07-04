@@ -15,8 +15,8 @@ class model_I(nn.Module):
         self.params=params
         self.aux = AuxNetwork(self.params)
         self.pe = PositionalEncoding(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
-        self.attentionBlock1 = AttentionBlock(self.params, self.params.aux_net_hidden + self.params.dataset_dim, self.params.FFNN_input2, self.params.FFNN_input3, self.params.FFNN_output)
-        self.attentionBlock2 = AttentionBlock(self.params, self.params.aux_net_hidden + self.params.dataset_dim, self.params.FFNN2_input2, self.params.FFNN2_input3, self.params.FFNN2_output)
+        self.attentionBlock1 = AttentionBlock(self.params, self.params.aux_net_hidden + self.params.dataset_dim, self.params.FFNN_output)
+        self.attentionBlock2 = AttentionBlock(self.params, self.params.aux_net_hidden + self.params.dataset_dim, self.params.FFNN2_output)
         self.cp = logits_Block(self.params, self.params.aux_net_hidden + self.params.dataset_dim) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None

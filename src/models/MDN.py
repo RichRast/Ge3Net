@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.distributions import Categorical
 import math
 import pdb
 
@@ -39,7 +40,7 @@ class MixtureDensityNetwork(nn.Module):
         
     def forward(self, x):
         pi = self.pi(x)
-        sigma = torch.exp(self.sigma(x)) # sigma >=0 , page 274, eq 5.151
+        sigma = torch.exp(self.sigma(x)) # sigma >=0 , page 274, eq 5.151 Bishop
         sigma = sigma.view(-1, self.params.n_win, self.num_gaussian, self.output_size)
         mu = self.mu(x)
         mu = mu.view(-1, self.params.n_win, self.num_gaussian, self.output_size)
@@ -55,10 +56,18 @@ def gaussian_probability(sigma, mu, x):
             mu: (BXWXGXO)
             x: (BXWXGXO)
         output:
+            probabilities: (BXWXG): probability of each window for the prospective pi's
+            parameterized by mu and sigma
     """
+    prob_per_pi = ONEOVERSQRT2PI*torch.exp(-0.5*torch.pow((mu-x),2))/sigma
+    return torch.prod(prob_per_pi, 3)
 
 def mdn_loss(pi, sigma, mu, x):
-    ...
+    """
+    compute negative log likelihood
+    """
+    prob = pi * gaussian_probability(sigma, mu, x)
+    nll = - torch.log()
 
 def sample(pi, sigma, mu):
     ...

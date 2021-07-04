@@ -28,7 +28,11 @@ def get_chm_info(genetic_map,vcf_data):
     chm = chm.lstrip("chr") # in some reference files we have this instead of just chr number. 22 or chr22
 
     # read in genetic map and subset to chm number.
-    genetic_df = pd.read_csv(genetic_map,delimiter="\t",header=None,comment="#",dtype=str)
+    #genetic_df = pd.read_csv(genetic_map, delimiter="\t",header=None,comment="#",dtype=str)
+    # instead of tab delimiter, use a regex delimiter for any number of spaces
+    genetic_df = pd.read_csv(genetic_map, delimiter = r"\s+" , header=None,comment="#",dtype=str)
+    #pick the first three columns incase gmap has more than 3 columns
+    genetic_df=genetic_df.loc[:,(0, 1, 2)]
     genetic_df.columns = ["chm","pos","cM"]
     genetic_chm = genetic_df[genetic_df["chm"]==chm]
 

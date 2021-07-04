@@ -65,13 +65,13 @@ sbatch << EOT
 #SBATCH -G 1
 #SBATCH --mem=250GB
 #SBATCH -t 24:00:00
-#SBATCH --output=$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
+#SBATCH --output=$OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/Ge3Net.log
 
 ml load py-pytorch/1.4.0_py36
 ml load py-scipy/1.4.1_py36
 ml load py-matplotlib/3.2.1_py36
 ml load py-pandas/1.0.3_py36
-ml load cuda/9.0.176
+ml load cuda/10.1.168
 ml load git-lfs/2.4.0
 ml load system nvtop
 
@@ -85,7 +85,7 @@ python3 trainer.py  --data.params '$USER_PATH/src/main/experiments/exp_$model_ty
 --log.verbose $verbose
 
 if [[ $verbose = "True" ]] ; then 
-    node_feat -n $(hostname|sed 's/.int.*//') >> $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/.log
+    node_feat -n $(hostname|sed 's/.int.*//') >> $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/Ge3Net.log
 fi
 EOT
 
@@ -95,8 +95,8 @@ squeue -u richras
 sleep .5
 echo "status of this job"
 
-echo log_dir: $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
-less +F $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/logs.out
+echo log_dir: $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/Ge3Net.log
+less +F $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/Ge3Net.log
 
 # command from terminal directly
 # python3 trainer.py --data.params $USER_PATH/src/main/experiments/exp_B --data.geno_type humans  --data.labels $OUT_PATH/humans/labels/data_id_1_geo --data.dir $OUT_PATH/humans/labels/data_id_1_geo --models.dir $OUT_PATH/humans/training/Model_B_exp_id_22_data_id_1_geo --model.summary "tb_refactor"

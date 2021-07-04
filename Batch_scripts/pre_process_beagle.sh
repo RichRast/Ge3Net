@@ -33,7 +33,7 @@ sbatch<<EOT
 #SBATCH -c 1
 #SBATCH --mem=1100G
 #SBATCH -t 24:00:00
-#SBATCH --output=$IN_PATH/${geno_type}/beagle_${start_chm}_${end_chm}.out
+#SBATCH --output=$OUT_PATH/${geno_type}/beagle_${start_chm}_${end_chm}.out
 
 ml load biology
 ml load java/11.0.11

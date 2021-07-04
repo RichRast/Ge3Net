@@ -17,7 +17,7 @@ class model_J(nn.Module):
         self.aux = AuxNetwork(self.params)
         self.pe = PositionalEncoding(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
         self.attention = attention_single(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
-        self.ffnn = FFNN(self.params, self.params.FFNN_input1, self.params.FFNN_input2, self.params.FFNN_input3, self.params.FFNN_output)
+        self.ffnn = FFNN(self.params, self.params.aux_net_hidden + self.params.dataset_dim, self.params.FFNN_output)
         self.conv = Conv1d(self.params)
         self.cp = logits_Block(self.params, self.params.FFNN_output) if self.params.cp_predict else None
         self.criterion=criterion
