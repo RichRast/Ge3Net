@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# sample command srun --pty -p gpu --gres=gpu:1 --mem=250GB --cpus-per-gpu=10 --time 24:00:00 ./Batch_scripts/hyperparams_optimize.sh -gt humans -e 2 -d 1_geo -m A -sum "model_A" -v
+# sample command srun --pty -p gpu --gres=gpu:1 --mem=250GB --cpus-per-gpu=10 --time 24:00:00 ./Batch_scripts/hyperparams_optimize.sh -gt humans -e 2 -d 1_geo -m A -sum "model_A"
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 

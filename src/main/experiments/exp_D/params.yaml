@@ -13,20 +13,16 @@ rtnOuts: false
 reg_loss: false
 reg_loss_pow: 1.0
 cp_predict: true
-superpop_mask: false
 pop_sample_map: "pop_sample_map.tsv"
 plotting: false
 n_comp_overall: 3
-n_comp_subclass: 0
-superpop_predict: false
-residual: false
-geography: true
-criteria: "gcd"
+geography: false
+criteria: "l1_loss"
 criteria_alpha: 1.0
 
 train_gens: [0, 2, 4, 8]
 valid_gens: [0, 2, 4, 8]
-evaluateTest: false
+evaluateTest: true
 test_gens: [0, 2, 4, 8]
 win_size: 1000
 dataset_dim: 3
@@ -47,7 +43,7 @@ aux_net_in: 1000
 aux_net_hidden: 100
 aux_net_n_layers: 1
 aux_net_hidden1: 100
-aux_net_hidden2: 50
+aux_net_hidden2: 64
 aux_net_out: 3
 aux_net_dropout: 0.2
 aux_net_dropout1: 0.2
@@ -62,7 +58,7 @@ rnn_net_hidden: 32
 rnn_net_n_layers: 2
 rnn_net_dropout: 0.3
 rnn_net_norm: "LayerNorm"
-tbptt: false
+tbptt: true
 tbptt_steps: 20
 rnn_net_bidirectional: true
   

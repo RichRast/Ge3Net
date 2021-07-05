@@ -112,7 +112,7 @@ def main(config):
         valid_vcf_idx = list(pop_arr_valid[:,1])
         
         #for test labels
-        if len(test_sample_map)>0:
+        if len(test_sample_map)>2:
             pop_arr_test = repeat_pop_arr(test_sample_map)
             test_vcf_idx = list(pop_arr_test[:,1])
 
@@ -123,8 +123,8 @@ def main(config):
 
         # save the train, valid and test sample maps
         # create admixed samples
-        dataset_type = ['train', 'valid', 'test'] if len(test_sample_map)>0 else ['train', 'valid']
-        sample_map_lst = [train_sample_map, valid_sample_map, test_sample_map] if len(test_sample_map)>0 else [train_sample_map, valid_sample_map]
+        dataset_type = ['train', 'valid', 'test'] if len(test_sample_map)>2 else ['train', 'valid']
+        sample_map_lst = [train_sample_map, valid_sample_map, test_sample_map] if len(test_sample_map)>2 else [train_sample_map, valid_sample_map]
         admixed_num_per_gen = config['data.samples_per_type']
 
         print("Forming the dataset with simulation")

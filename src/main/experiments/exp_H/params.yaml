@@ -20,15 +20,15 @@ n_comp_overall: 3
 n_comp_subclass: 0
 superpop_predict: false
 residual: false
-geography: true
-criteria: "gcd"
+geography: false
+criteria: "l1_loss"
 criteria_alpha: 1.0
 
 train_gens: [0, 2, 4, 8]
 valid_gens: [0, 2, 4, 8]
-evaluateTest: false
+evaluateTest: true
 test_gens: [0, 2, 4, 8]
-win_size: 500
+win_size: 1000
 dataset_dim: 3
 coordinates: "labels.pkl"
 # n_win and chmlen will be computed during data transform
@@ -47,7 +47,7 @@ aux_net_in: 1000
 aux_net_hidden: 100
 aux_net_n_layers: 1
 aux_net_hidden1: 100
-aux_net_hidden2: 50
+aux_net_hidden2: 64
 aux_net_out: 3
 aux_net_dropout: 0.2
 aux_net_dropout1: 0.2

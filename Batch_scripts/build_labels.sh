@@ -4,7 +4,7 @@ source ini.sh
 # sample command ./Batch_scripts/build_labels.sh -gt=dogs -e=1 -sim -bl -n_o=3 -sm=expt1 -s=1234 -um=umap -st_chm=22 -ed_chm=22
 #./Batch_scripts/build_labels.sh -gt=humans -e=1 -sim -bl -n_o=3 -um=pca -vt=ukb -st_chm=22 -ed_chm=22
 # sample_map for dogs can be expt1, a, b, c
-# ./Batch_scripts/build_labels.sh -gt=ancient -e=1 -sim -bl -n_o=3 -sm=time_block17H_3K -um=geo -st_chm=22 -ed_chm=22 -spt=[100,100,100] -split=[0.9,0.09, 0.01]
+# ./Batch_scripts/build_labels.sh -gt=ancient -e=1 -sim -bl -n_o=3 -sm=time_block17H_3K -um=geo -st_chm=22 -ed_chm=22 -spt='100 100 100' -split='0.9 0.09 0.01'
 
 Help()
 {
@@ -54,9 +54,9 @@ for argument in "$@"; do
         -vt|--vcf_type )            vcf_type=$value;;
         -st_chm|--start_chm )       start_chm=$value;;
         -ed_chm|--end_chm )         end_chm=$value;;
-        -spt|--samples_per_type )     samples_per_type=${value[*]};;
-        -split|--split_perc )         split_perc=${value[*]};;
-        -gtr|--gens_to_ret )          gens_to_ret=${value[*]};;
+        -spt|--samples_per_type )     samples_per_type=$value;;
+        -split|--split_perc )         split_perc=$value;;
+        -gtr|--gens_to_ret )          gens_to_ret=$value;;
         -h |--help ) Help ; exit ;;
         \? ) echo "Error: Invalid option"; exit 1;;
     esac    
@@ -114,7 +114,7 @@ gen_map=$IN_PATH/${geno_type}/reference_files/allchrs.b38.gmap;
 all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_0.5/vcf_type_${vcf_type}/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy
 n_comp=44; # smallest number of samples in a class is 44, only used for extended/residual pca
 elif [[  ${geno_type} = 'dogs' ]]; then
-vcf_dir=$OUT_PATH/dogs/sm_${sample_map}/chr22/chr22_biallelic.vcf.gz;
+vcf_dir=$OUT_PATH/dogs/sm_${sample_map}/chr22/chr22_filtered.vcf.gz;
 ref_map=$OUT_PATH/dogs/ref_map_${sample_map}.tsv;
 gen_map=$IN_PATH/dogs/chr22/chr22_average_canFam3.1.txt;
 all_chm_snps=$OUT_PATH/dogs/sm_${sample_map}/ld_False/vcf_type_/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy;

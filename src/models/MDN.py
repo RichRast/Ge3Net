@@ -67,7 +67,21 @@ def mdn_loss(pi, sigma, mu, x):
     compute negative log likelihood
     """
     prob = pi * gaussian_probability(sigma, mu, x)
-    nll = - torch.log()
+    nll = - torch.log(torch.sum(prob, dim=2))
+    return torch.mean(nll)
 
 def sample(pi, sigma, mu):
-    ...
+    """
+    Draw sample from mixture of gaussians parametrized by pi, sigma and mu
+    Arguments:
+        input:
+
+        output:
+
+    """
+    # Choose the gaussian to pick the sample from
+    pis = Categorical(pi).sample().view(pi.shape(0),1,1,1)
+    gaussian_noise = torch.randn((sigma.shape[3], sigma.shape[0], sigma.shape[1]), requires_grad=False)
+    variance_samples= sigma.gather(2, pis).detach().squeeze()
+    mean_samples=mu.detach().gather(2, pis).squeeze()
+    return (gaussian_noise*variance_samples + mean_samples).permute(1,2,0).contiguous()

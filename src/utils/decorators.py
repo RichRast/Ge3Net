@@ -15,15 +15,6 @@ def timer(func):
         return value
     return wrapper_timer
 
-def log_decorator(func):
-    @functools.wraps(func)
-    def log_decorator_inner(*args, **kwargs):
-        logger = set_logger(log_path, scriptname)
-        value = func(*args, **kwargs)
-        return value
-    return log_decorator_inner
-
-
 def guardAgainstDivideZero(operate):
     @functools.wraps(operate)
     def inner(x, y):
