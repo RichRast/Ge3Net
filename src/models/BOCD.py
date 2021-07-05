@@ -18,7 +18,7 @@ class BOCD(object):
         else:
             # hazard = self.recomb_rate[t]/100
             # hazard=6/self.T
-            hazard = 10/self.T   
+            hazard = 2/self.T   
         return hazard
     
     @timer

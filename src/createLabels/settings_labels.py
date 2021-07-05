@@ -25,9 +25,9 @@ parser.add_argument('--data.create_labels', type=distutils.util.strtobool, defau
 parser.add_argument('--data.simulate', type=distutils.util.strtobool, default='True', help='set True if you want to simulate admixed data with ref indices')
 parser.add_argument('--data.all_chm_snps', type=str, required=False, default=osp.join(os.environ.get('IN_PATH'), \
     'combined_chm/all_chm_combined_snps_variance_filter_0.3.npy'), help='numpy files with combined chm whose var>0.09')
-parser.add_argument('--data.samples_per_type', type=list, default=[400, 400, 400], help='num_samples per gen for each of train, valid and test')
-parser.add_argument('--data.split_perc', type=list, default=[0.7, 0.2, 0.1], help='split percentage for train, valid and test')
-parser.add_argument('--data.gens_to_ret', type=list, default=[2,4,8], help='gens to simulate') 
+parser.add_argument('--data.samples_per_type', nargs="*", type=int, default=[400, 400, 400], help='num_samples per gen for each of train, valid and test')
+parser.add_argument('--data.split_perc', nargs="*", type=float, default=[0.7, 0.2, 0.1], help='split percentage for train, valid and test')
+parser.add_argument('--data.gens_to_ret', nargs="*", type=int, default=[2,4,8], help='gens to simulate') 
 parser.add_argument('--data.start_chm', type=int, required=False, help='start chm if doing admixture combined')
 parser.add_argument('--data.end_chm', type=int, required=False, help='end chm if doing admixture combined')
 

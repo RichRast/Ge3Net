@@ -6,7 +6,7 @@ import trainer
 from src.utils.modelUtil import Params
 from src.utils.dataUtil import set_logger
 from src.main.settings_model import parse_args
-from src.models.modelTuningParams import suggestParams
+from src.models.modelTuningParams import suggestParams, getParamKeys
 
 logger=set_logger(__name__)
 
@@ -42,7 +42,10 @@ def main(config, params):
         os.makedirs(save_path)
     study = optuna.create_study(direction="minimize", pruner=optuna.pruners.MedianPruner(n_startup_trials=5,
             n_warmup_steps=30, interval_steps=10))
-    #study.enqueue_trial(params)
+    init_params=getParamKeys(params)
+    print(f"init_params:{init_params}")
+    print(f"params:{params['aux_net_hidden']}")
+    study.enqueue_trial({k:params[k] for k in init_params})
     
     try:
         study.optimize(objective(params, config, save_path), n_trials=params.optuna_n_trials)

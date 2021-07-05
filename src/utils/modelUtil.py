@@ -43,6 +43,9 @@ class Params():
         """updates new parameters to the existing params dict"""
         self.__dict__.update(newParams_dict)
     
+    def __getitem__(self, key):
+        return self.__dict__[key]
+    
 def save_checkpoint(state, save_path, is_best):
 
     if not osp.exists(save_path):

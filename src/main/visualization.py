@@ -2,6 +2,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.patches as mpatches
+from matplotlib import ticker
 import plotly.graph_objects as go
 import numpy as np
 import seaborn as sns
@@ -9,7 +10,7 @@ from src.utils.modelUtil import convert_coordinates
 from src.utils.dataUtil import getValueBySelection
 from src.main.evaluation import cpMethod
 
-def plot_coordinates_map(label, data_coordinates, lbl_coord, rev_pop_order, pop_arr):
+def plot_coordinates_map(granularPopNames, pred_coord, lbl_coord, **kwargs):
     """
     plotly plot for coordinates on a map
     label: target label vector (int) for the specific sample
@@ -17,21 +18,140 @@ def plot_coordinates_map(label, data_coordinates, lbl_coord, rev_pop_order, pop_
     rev_pop_order: dict with keys as target label ints and values
     as granular population name
     """
+    cpShow=kwargs.get('cpShow')
+    pred_cps=kwargs.get('pred_cps') 
+    alpha=[1.0]*len(lbl_coord)
+    if cpShow:
+        unknownIdx=np.nonzero(pred_cps)[0]
+        granularPopNames=["UNK" if i in unknownIdx else granularPopNames[i] for i in range(len(granularPopNames))]
     fig = go.Figure(go.Scattergeo())
-    label_list=np.unique(label)
+    colors_pop = sns.color_palette("rainbow", len(np.unique(granularPopNames)))
+    
+    colors_pop_dict = {k:v for k,v in zip(np.unique(granularPopNames), colors_pop)}
+    colors_pop_dict['UNK']=(188,188,188) # grey color
+    fig.add_trace(go.Scattergeo(lon=pred_coord[:,1], lat=pred_coord[:,0], text = granularPopNames,\
+    marker_color=['rgba'+str(colors_pop_dict[x]+(y,)) for x,y in zip(granularPopNames, alpha)]))
+    fig.update_traces(marker_size = 5)
+    fig.add_trace(go.Scattergeo(lon=lbl_coord[:,1], lat=lbl_coord[:,0], marker = dict(symbol = 'square'), \
+                                text = granularPopNames))
+    fig.update_traces(marker_size = 5)
 
-    for i in label_list:
-        idx=np.nonzero(label==i)[0]
-        popIdx = getValueBySelection(pop_arr, 1, i, 2)[0]
-        fig.add_trace(go.Scattergeo(lon=data_coordinates[idx,1], lat=data_coordinates[idx,0]\
-                                        ,text = rev_pop_order[popIdx], name = rev_pop_order[popIdx]))
-        fig.update_traces(marker_size = 5)
-        fig.add_trace(go.Scattergeo(lon=lbl_coord[idx,1], lat=lbl_coord[idx,0]\
-        , marker = dict(symbol = 'square'), text = rev_pop_order[popIdx]))
-        fig.update_traces(marker_size = 5)
- 
-    #fig.show()
-    return fig
+    fig.show()
+    plt.show()
+    plt.close('all')
+
+
+def plot_sample(granularPopSample, y_predSample, y_trueSample, superop_dict, chmlen, **kwargs):
+    backgroundAxis=kwargs.get('backgroundAxis')
+    y_predCps=kwargs.get('y_predCps')
+    y_preds=kwargs.get('y_preds')
+    superpops=kwargs.get('superpops')
+    cpShow=kwargs.get('cpShow')
+    pred_cps=kwargs.get('pred_cps')
+    mappedSpArr=kwargs.get('mappedSpArr')
+    fig, ax = plt.subplots(figsize=(12,14))
+    
+    gs1 = fig.add_gridspec(nrows=3, ncols=1, height_ratios=[13,1,1])
+    ax1=fig.add_subplot(gs1[0],projection='3d')
+    ax2=fig.add_subplot(gs1[1])
+    ax3=fig.add_subplot(gs1[2])
+    for axis in [ax, ax2, ax3]:
+        axis.set_yticks([])
+        axis.spines['top'].set_color('none')
+        axis.spines['left'].set_color('none')
+        axis.spines['right'].set_color('none')
+    ax.set_xticks([])
+    plt.subplots_adjust(hspace=0.01)
+    
+    if backgroundAxis is not None:
+        lgnd, colorsPop_sp_dict =plot_all(ax1, y_preds, superpops, cpShow=False)
+    else:
+        continentaPops=list(superop_dict.values())
+        colors_Sp = sns.color_palette("bright", 10)
+        del colors_Sp[1]
+        del colors_Sp[4]
+        del colors_Sp[5]
+        colorsPop_sp_dict = {k:v for k,v in zip(continentaPops, colors_Sp)}
+        colorsPop_sp_dict[-1]=(0.7,0.7,0.7) # grey color
+        patches=[]
+        for k, val in superop_dict.items():
+            patches.append(mpatches.Patch(color = colorsPop_sp_dict[val], label = k))
+        lgnd = ax1.legend(handles=patches, loc="upper right",fontsize=15)
+    ax1.add_artist(lgnd)    
+    colors_pop = sns.color_palette("rainbow", len(np.unique(granularPopSample)))
+    colors_pop_dict = {k:v for k,v in zip(np.unique(granularPopSample), colors_pop)}
+
+    alpha=[1]*len(y_predSample)
+    if cpShow is None:
+#         alpha=(pred_cps==0).astype(float)
+        unknownIdx=np.nonzero(pred_cps)[0]
+        print(f"number of changepoints removed:{len(unknownIdx)},{len(unknownIdx)/len(y_predSample)}")
+        granularPopNames=["UNK" if i in unknownIdx else granularPopSample[i] for i in range(len(granularPopSample))]
+        colors_pop_dict["UNK"]=(0.9,0.9,0.9) # grey color
+        mappedSpArr[unknownIdx]=-1
+    
+    ax1.scatter(y_predSample[:,0], y_predSample[:,1], y_predSample[:,2], \
+               color = [colors_pop_dict[x]+(y,) for x,y in zip(granularPopNames, alpha)], s=50, zorder=0) 
+    ax1.scatter(y_trueSample[:,0], y_trueSample[:,1], y_trueSample[:,2], \
+               color = [colors_pop_dict[x] for x in granularPopSample], marker='X', s=200, zorder=0)
+    
+    for axis in [ax1.xaxis, ax1.yaxis, ax1.zaxis]:
+        axis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        axis._axinfo["grid"]['color'] = (1,1,1,0)
+    patches=[]
+    for i, val in enumerate(np.unique(granularPopSample)):
+        patches.append(mpatches.Patch(color = colors_pop_dict[val], label = val))
+    patches.append(mpatches.Patch(color = (0.9,0.9,0.9), label = "UNK"))
+    ax1.legend(handles=patches, loc="upper left", fontsize=20)
+    
+    #chm plot ground truth
+    ax2.scatter(np.arange(len(y_trueSample)),np.ones(len(y_trueSample)),\
+                color=[colors_pop_dict[x] for x in granularPopSample], marker='s')
+    ax2.set_title('Labeled Chromosome22', fontsize=30, y=0.3)
+    #chm plot of predictions
+    ax3.scatter(np.arange(len(mappedSpArr)),np.ones(len(mappedSpArr)),\
+                color=[colorsPop_sp_dict[x]+(y,) for x,y in zip(mappedSpArr,alpha)], marker='s')
+    ax3.set_title('Predicted Chromosome22', fontsize=30, y=0.3)
+    
+    for ax in [ax2, ax3]:
+        ax.xaxis.set_major_locator(ticker.MultipleLocator(1.0))
+        ax.xaxis.set_minor_locator(ticker.MultipleLocator(4))
+        ax.xaxis.set_ticks_position('bottom')
+        ax.tick_params(which='major', width=2, length=10, labelsize=25)
+        ax.tick_params(which='minor', width=2, length=10, labelsize=10)
+        ax.set_xlim(0, chmlen/1000)
+        ax.set_ylim(0.99,1.09)
+        positions = [0, chmlen/200, chmlen/1000]
+        x_labels = [0, chmlen/2, chmlen]
+        ax.xaxis.set_major_locator(ticker.FixedLocator(positions))
+        ax.xaxis.set_major_formatter(ticker.FixedFormatter(x_labels))
+    
+    fig.tight_layout()
+    plt.show()
+    plt.close('all')
+
+def plot_all(ax, y_preds, superpops, superop_dict, **kwargs):
+    cpShow=kwargs.get('cpShow')
+    pred_cps=kwargs.get('pred_cps')    
+    continentaPops=list(superop_dict.values())
+    colors_pop = sns.color_palette("bright", 10)
+    del colors_pop[1]
+    del colors_pop[4]
+    del colors_pop[5]
+    colors_pop_dict = {k:v for k,v in zip(continentaPops, colors_pop)}
+    
+    alpha=[0.03]*len(y_preds)
+    if cpShow is None:
+        alpha=(pred_cps==0).astype(float)
+    
+    ax.scatter(y_preds[:,0], y_preds[:,1], y_preds[:,2], \
+               color = [colors_pop_dict[x]+(y,) for x,y in zip(superpops, alpha)], marker=".", s=0.05,zorder=-1) 
+    
+    patches=[]
+    for k, val in superop_dict.items():
+        patches.append(mpatches.Patch(color = colors_pop_dict[val], label = k))
+    lgnd = ax.legend(handles=patches, loc="upper right", fontsize=15)
+    return lgnd, colors_pop_dict
     
 def plot_dist(mean, var , chm):
     """
@@ -104,7 +224,7 @@ def plot_changepoints(true_cps, pred_cps, y_pred, bocp_rl, y_var, popNames):
     ax[6].set_title("BOCD (post process) cp")
     ax[7].set_title("True Cps")
     plt.show()
-    return fig
+    
 
 def chm_plot(label,gcd):
     """

@@ -1,25 +1,26 @@
 
-from yaml.loader import BaseLoader
+lr_dict_model_O = {"lr_aux": (1e-5, 1e-1), "lr_att": (1e-5, 1e-1)}
 
-from models.Model_J import model_J
-
-lr_dict_model_A = {"float": {"lr_aux": (1e-5, 1e-1), "lr_att": (1e-5, 1e-1)}}
-
-params_dict_model_A = {"int": {"aux_net_hidden": (100,512), "aux_net_hidden1": (64,512)},
-                       "categorical": {"aux_net_hidden": [64, 128, 256]},
+params_dict_model_O = {"int": {"aux_net_hidden1": (64,512)},
+                       "categorical": {"aux_net_hidden": [64, 100, 128, 256]},
                        "float": {"aux_net_dropout": (0.1,0.5)} }
+def getParamKeys(params):
+    if params.model == "Model_O":
+        params_dict = params_dict_model_O
+    
+    paramsKeys=list(['learning_rate'])
+    paramsKeys.extend(list(params_dict["categorical"].keys()))
+    paramsKeys.extend(list(params_dict["int"].keys())) 
+    paramsKeys.extend(params_dict["float"].keys())
+    return paramsKeys
 
 def suggestParams(params, trial):
     suggestedParams={}
-    if params.model == "Model_A":
-        lr_dict = lr_dict_model_A
-        params_dict = params_dict_model_A
-
-    for i, param in enumerate(lr_dict["float"].keys()):
-        if params['model_name'] == "Attention":
-            pass
-        params.learning_rate[0] = trial.suggest_float(param, lr_dict["float"][param][0],
-                                                     lr_dict["float"][param][1])
+    if params.model == "Model_O":
+        lr_dict = lr_dict_model_O
+        params_dict = params_dict_model_O
+        params.learning_rate[0] = trial.suggest_float("lr_aux", lr_dict["lr_aux"][0],
+                                                        lr_dict["lr_aux"][1])
 
     for param in params_dict["categorical"].keys():
         suggestedParams[param] = trial.suggest_categorical(param, params_dict["categorical"][param])
@@ -74,23 +75,4 @@ def suggestParams(params, trial):
     # #params.update(newParams)
     # params.update(suggestedParams)
     # return params
-
-def suggest_param_keys():
-
-    return param_keys
-
-# class suggestParams():
-#     def __init__(self, trial, modelname:
-#         if modelname:
-#             _suggestedParams_dict, _suggestedLr_dict = suggestParams(trial)
-
-#     def getParams(self, params):
-#         for in self._suggestedLr_dict.key():
-#             params.learning_rate[i] = val
-        
-#         params.update(self._suggestedParams_dict)
-#         return params
-
-#     def getParamKeys():
-#         return _suggestedParams_dict.keys()
     

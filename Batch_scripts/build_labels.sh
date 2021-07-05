@@ -4,7 +4,7 @@ source ini.sh
 # sample command ./Batch_scripts/build_labels.sh -gt=dogs -e=1 -sim -bl -n_o=3 -sm=expt1 -s=1234 -um=umap -st_chm=22 -ed_chm=22
 #./Batch_scripts/build_labels.sh -gt=humans -e=1 -sim -bl -n_o=3 -um=pca -vt=ukb -st_chm=22 -ed_chm=22
 # sample_map for dogs can be expt1, a, b, c
-# ./Batch_scripts/build_labels.sh -gt=ancient -e=1 -sim -bl -n_o=3 -sm=time_block17H_3K -um=geo -st_chm=22 -ed_chm=22
+# ./Batch_scripts/build_labels.sh -gt=ancient -e=1 -sim -bl -n_o=3 -sm=time_block17H_3K -um=geo -st_chm=22 -ed_chm=22 -spt=[100,100,100] -split=[0.9,0.09, 0.01]
 
 Help()
 {
@@ -24,6 +24,9 @@ Help()
     echo "-n_s|--n_comp_subclass Specify the number of components for subclasses for extended pca, typically 2"
     echo "-st_chm|--start_chm   Start chm for simulation"
     echo "-ed_chm|--end_chm     End chm for simulation"
+    echo "-spt|--samples_per_type     Number of samples per generation to be taken for creating admixed. Twice this number(one each for maternal/paternal) will be created. Should be given as a [400, 400, 400] each for gen 2,4 and 8"
+    echo "-split|--split_perc   train/val/test split. Should be given as [0.7,0.2,0.1]"
+    echo "-gtr|--gens_to_ret    generations to return. Should be given as [2,4,8]"
     echo "-h|--help             Print this help manual"
     echo
 }
@@ -51,6 +54,9 @@ for argument in "$@"; do
         -vt|--vcf_type )            vcf_type=$value;;
         -st_chm|--start_chm )       start_chm=$value;;
         -ed_chm|--end_chm )         end_chm=$value;;
+        -spt|--samples_per_type )     samples_per_type=${value[*]};;
+        -split|--split_perc )         split_perc=${value[*]};;
+        -gtr|--gens_to_ret )          gens_to_ret=${value[*]};;
         -h |--help ) Help ; exit ;;
         \? ) echo "Error: Invalid option"; exit 1;;
     esac    
@@ -79,7 +85,9 @@ if [[ (-z ${sample_map}) && (${geno_type} = "humans") ]]; then sample_map="None"
 if [[ -z $vcf_type ]] ; then echo "no specific vcf type specified"; fi
 if [[ -z ${n_comp_subclass} ]]; then echo "setting n_comp_subclass to 0"; n_comp_subclass=0; fi
 if [[ (${unsupMethod} = "geo") && (-z ${n_comp}) ]]; then echo "Setting n_comp=3 for n vectors"; n_comp=3; fi
-
+if [[ -z ${samples_per_type} ]]; then echo "setting samples_per_type to default values of [400,400,400]"; samples_per_type=(400 400 400); fi
+if [[ -z ${split_perc} ]]; then echo "setting split_perc to default values of [0.7,0.2,0.1]"; split_perc=(0.91 0.09 0.0); fi
+if [[ -z ${gens_to_ret} ]]; then echo "setting gens_to_ret to None"; gens_to_ret=(2 4 8); fi
 
 # set the vcf, genetic map and ref map according to genotype
 echo "Setting variables for ${geno_type}"
@@ -171,7 +179,10 @@ python3 buildLabels.py --data.seed $seed \
 --data.all_chm_snps ${all_chm_snps} \
 --data.method ${unsupMethod} \
 --data.start_chm ${start_chm} \
---data.end_chm ${end_chm}
+--data.end_chm ${end_chm} \
+--data.samples_per_type ${samples_per_type[*]} \
+--data.split_perc ${split_perc[*]} \
+--data.gens_to_ret ${gens_to_ret[*]}
 EOT
 
 sleep .5

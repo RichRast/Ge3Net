@@ -112,8 +112,9 @@ def main(config):
         valid_vcf_idx = list(pop_arr_valid[:,1])
         
         #for test labels
-        pop_arr_test = repeat_pop_arr(test_sample_map)
-        test_vcf_idx = list(pop_arr_test[:,1])
+        if len(test_sample_map)>0:
+            pop_arr_test = repeat_pop_arr(test_sample_map)
+            test_vcf_idx = list(pop_arr_test[:,1])
 
         #save the sample_maps
         save_file(osp.join(data_out_path, 'train_sample_map.tsv'), train_sample_map, en_df=True)
@@ -122,9 +123,8 @@ def main(config):
 
         # save the train, valid and test sample maps
         # create admixed samples
-        dataset_type = ['train', 'valid', 'test']
-        sample_map_lst = [train_sample_map, valid_sample_map, test_sample_map]
-        idx_lst = [train_vcf_idx, valid_vcf_idx, test_vcf_idx]
+        dataset_type = ['train', 'valid', 'test'] if len(test_sample_map)>0 else ['train', 'valid']
+        sample_map_lst = [train_sample_map, valid_sample_map, test_sample_map] if len(test_sample_map)>0 else [train_sample_map, valid_sample_map]
         admixed_num_per_gen = config['data.samples_per_type']
 
         print("Forming the dataset with simulation")
@@ -138,7 +138,6 @@ def main(config):
             sample_map=sample_map_lst[i], save_path=save_path, num_samples=admixed_num_per_gen[i], \
             gens_to_ret=config['data.gens_to_ret'], pop_arr=pop_arr)
         
-
 if __name__=="__main__":
     config = parse_args()
     main(config)
