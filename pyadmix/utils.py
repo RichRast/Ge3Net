@@ -183,12 +183,13 @@ def build_founders(vcf_data, genetic_map_data, sample_map_data, sample_weight=No
         
     if sample_weight is not None:
         founders_weight = sample_map_data["sample_weight"]
-
-        return founders,founders_weight,founders_idx
     else:
-        return founders,founders_idx
+        founders_weight= [1/len(founders) for _ in range(len(founders))]
 
-def getFoundersForCombineAdmix(prevAdmixedSample, originalFounders, foundersIdx):
+    return founders,founders_idx, founders_weight
+    
+
+def getFoundersForCombineAdmix(prevAdmixedSample, originalFounders, foundersIdx, foundersWeight):
     """
     returns the founders to be used for each admixture cycle/ admixture sample
     """
@@ -196,21 +197,23 @@ def getFoundersForCombineAdmix(prevAdmixedSample, originalFounders, foundersIdx)
     # from the list of founders objects (Person instances), pick those instances where
     # the founder object(Person instance) are equal
     foundersMat, foundersPat=[],[]
+    foundersMatWeight, foundersPatWeight=[],[]
     vcfIdxMatLs=list(np.unique(prevAdmixedSample.maternal['vcf_idx']))
     vcfIdxPatLs=list(np.unique(prevAdmixedSample.paternal['vcf_idx']))
     
     for v in vcfIdxMatLs:
         idx=foundersIdx[v]
         foundersMat.append(originalFounders[idx])
+        foundersMatWeight.append(foundersWeight[idx])
 
     for v in vcfIdxPatLs:
         idx=foundersIdx[v]
         foundersPat.append(originalFounders[idx])
-
-    return foundersMat, foundersPat
+        foundersPatWeight.append(foundersWeight[idx])
+    return foundersMat, foundersMatWeight, foundersPat, foundersPatWeight
 
 def create_dataset(founders,num_samples_per_gen,gens_to_ret,breakpoint_probability=None,random_seed=42,\
-    verbose=True, founders_weight=None):
+    founders_weight=None, verbose=True):
     
     np.random.seed(random_seed)
 
@@ -267,8 +270,8 @@ def create_dataset(founders,num_samples_per_gen,gens_to_ret,breakpoint_probabili
 
     return overall
 
-def create_non_rec_dataset(founders,num_samples_per_gen,gens_to_ret,breakpoint_probability=None,random_seed=42,verbose=True, \
-    founders_weight=None, prevAdmixedFlag=False, prevAdmixed=None, foundersIdx=None):
+def create_non_rec_dataset(founders,num_samples_per_gen,gens_to_ret, founders_weight, breakpoint_probability=None,\
+    random_seed=42,verbose=True, prevAdmixedFlag=False, prevAdmixed=None, foundersIdx=None):
     
     np.random.seed(random_seed)
     print(f"prevAdmixedFlag:{prevAdmixedFlag}")
@@ -300,17 +303,15 @@ def create_non_rec_dataset(founders,num_samples_per_gen,gens_to_ret,breakpoint_p
         this_gen_people = []
         
         for i in range(number_of_admixed_samples):
-            # use the new admixture tool for non-recursive simulation
-            if founders_weight is None:
-                founders_weight_used = [1/len(founders) for _ in range(len(founders))]
             # additional logic for using previous admixed sample founders
             if prevAdmixedFlag:
                 prevAdmixedSample = prevAdmixed[gen][i]
-                founders=getFoundersForCombineAdmix(prevAdmixedSample, founders_copy, foundersIdx)
-                founders_weight_used = [1/len(founders[0]) for _ in range(len(founders[0]))],\
-                                        [1/len(founders[1]) for _ in range(len(founders[1]))]
-            
-            adm, m_idx, p_idx = create_new_non_rec(founders,founders_weight_used,gen,breakpoint_probability,prevAdmixedFlag)
+                foundersMat, foundersMatWeight, foundersPat, foundersPatWeight = \
+                getFoundersForCombineAdmix(prevAdmixedSample, founders_copy, foundersIdx, founders_weight)
+                founders = foundersMat, foundersPat
+                founders_weight = foundersMatWeight, foundersPatWeight
+
+            adm, m_idx, p_idx = create_new_non_rec(founders,founders_weight,gen,breakpoint_probability,prevAdmixedFlag)
             this_gen_people.append(adm)
             select_idx[gen].append([m_idx,p_idx])
 

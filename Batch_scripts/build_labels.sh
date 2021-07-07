@@ -92,7 +92,7 @@ if [[ -z ${gens_to_ret} ]]; then echo "setting gens_to_ret to None"; gens_to_ret
 # set the vcf, genetic map and ref map according to genotype
 echo "Setting variables for ${geno_type}"
 if [[ (${geno_type} = 'humans') && (${vcf_type} != 'ukb') ]]; then
-vcf_dir=$IN_PATH/${geno_type}/master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr22.vcf.gz;
+vcf_dir=$IN_PATH/${geno_type}/master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr${start_chm}.vcf.gz;
 ref_map=$IN_PATH/${geno_type}/reference_files/reference_panel_metadata.tsv;
 gen_map=$IN_PATH/${geno_type}/reference_files/allchrs.b38.gmap;
 all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_False/all_chm_combined_snps_variance_filter_0.09_sample_win_0.npy;

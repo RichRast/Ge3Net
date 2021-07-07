@@ -149,15 +149,15 @@ def getAdmixedCombineChm(*args, **kwargs):
         else:
             vcf_master = load_path(vcf_founders[i], en_pickle=True)
         genetic_map = get_chm_info(genetic_map_path, vcf_master)
-        founders, foundersIdx = build_founders(vcf_master, genetic_map, sample_map)
+        founders, foundersIdx, foundersWeight = build_founders(vcf_master, genetic_map, sample_map)
         if chm==start_chm-1:
             admixed_samples_start, select_idx = create_non_rec_dataset(founders, \
-                            num_samples, gens_to_ret, genetic_map["breakpoint_probability"], random_seed)
+            num_samples, gens_to_ret,  foundersWeight, genetic_map["breakpoint_probability"], random_seed)
             write_output(save_path_chm, admixed_samples_start)
         else:
             admixed_samples, select_idx = create_non_rec_dataset(founders, num_samples, gens_to_ret,\
-            genetic_map["breakpoint_probability"], random_seed, prevAdmixedFlag=prevAdmixedFlag,\
-                 prevAdmixed=admixed_samples_start, foundersIdx=foundersIdx)
+            foundersWeight, genetic_map["breakpoint_probability"], random_seed, prevAdmixedFlag=prevAdmixedFlag,\
+            prevAdmixed=admixed_samples_start, foundersIdx=foundersIdx)
             write_output(save_path_chm, admixed_samples)
 
 @timer   

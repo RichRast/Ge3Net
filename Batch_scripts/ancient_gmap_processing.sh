@@ -12,7 +12,7 @@ end_chm=$3
 
 for (( chm=${start_chm}; chm<=${end_chm}; chm++ )); do
     echo "processing for chm = ${chm}"
-    awk '{print $1,$2,$3,$4}' $IN_PATH/${geno_type}/ped_format/v44_ancient.pedsnp | awk -v chm=$chm '$1 == chm' > $OUT_PATH/${geno_type}/sm_coverage_2/chr${chm}/chr${chm}_sm_coverage_2.map
+    awk '{print$1,".",$3*100,$4}' $IN_PATH/${geno_type}/ped_format/v44_ancient.pedsnp | awk -v chm=${chm} '$1 == chm'> $OUT_PATH/${geno_type}/sm_coverage_2/chr${chm}/chr${chm}_sm_coverage_2.map
 done
 
 echo "All done"
