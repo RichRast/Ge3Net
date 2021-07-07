@@ -48,6 +48,13 @@ class RnnResults:
     loss_main:Any=None
 
 @dataclass
+class mdnResults:
+    pi:Any=None
+    sigma:Any=None
+    mu:Any=None
+    x:Any=None
+
+@dataclass
 class branchLoss:
     loss_main:Any=None
     loss_aux:Any=None

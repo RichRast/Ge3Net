@@ -86,7 +86,7 @@ if [[ -z $vcf_type ]] ; then echo "no specific vcf type specified"; fi
 if [[ -z ${n_comp_subclass} ]]; then echo "setting n_comp_subclass to 0"; n_comp_subclass=0; fi
 if [[ (${unsupMethod} = "geo") && (-z ${n_comp}) ]]; then echo "Setting n_comp=3 for n vectors"; n_comp=3; fi
 if [[ -z ${samples_per_type} ]]; then echo "setting samples_per_type to default values of [400,400,400]"; samples_per_type=(400 400 400); fi
-if [[ -z ${split_perc} ]]; then echo "setting split_perc to default values of [0.7,0.2,0.1]"; split_perc=(0.91 0.09 0.0); fi
+if [[ -z ${split_perc} ]]; then echo "setting split_perc to default values of [0.7,0.2,0.1]"; split_perc=(0.7 0.2 0.1); fi
 if [[ -z ${gens_to_ret} ]]; then echo "setting gens_to_ret to None"; gens_to_ret=(2 4 8); fi
 
 # set the vcf, genetic map and ref map according to genotype
@@ -114,7 +114,7 @@ gen_map=$IN_PATH/${geno_type}/reference_files/allchrs.b38.gmap;
 all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_0.5/vcf_type_${vcf_type}/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy
 n_comp=44; # smallest number of samples in a class is 44, only used for extended/residual pca
 elif [[  ${geno_type} = 'dogs' ]]; then
-vcf_dir=$OUT_PATH/dogs/sm_${sample_map}/chr22/chr22_filtered.vcf.gz;
+vcf_dir=$OUT_PATH/dogs/sm_${sample_map}/chr22/chr22_filtered.vcf;
 ref_map=$OUT_PATH/dogs/ref_map_${sample_map}.tsv;
 gen_map=$IN_PATH/dogs/chr22/chr22_average_canFam3.1.txt;
 all_chm_snps=$OUT_PATH/dogs/sm_${sample_map}/ld_False/vcf_type_/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy;
