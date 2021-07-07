@@ -36,19 +36,16 @@ class Haplotype(Dataset):
             self.snps = load_path(osp.join(data_dir, str(dataset_type),'mat_vcf_2d.npy'))
             logger.info(f"snps data shape : {self.data['X'].shape}")
         else:
+            curr_snps, curr_vcf_idx=[],[]
             for i, gen in enumerate(self.gens_to_ret):
                 logger.info(f"Loading gen {gen}")
-                curr_snps = load_path(osp.join(data_dir, str(dataset_type) ,'gen_' + str(gen), 'mat_vcf_2d.npy'))
-                logger.info(f' snps data: {curr_snps.shape}')
-                curr_vcf_idx = load_path(osp.join(data_dir , str(dataset_type) ,'gen_' + str(gen) ,'mat_map.npy'))
-                logger.info(f' y_labels data :{curr_vcf_idx.shape}')
+                curr_snps.append(load_path(osp.join(data_dir, str(dataset_type) ,'gen_' + str(gen), 'mat_vcf_2d.npy')))
+                logger.info(f' snps data: {curr_snps[-1].shape}')
+                curr_vcf_idx.append(load_path(osp.join(data_dir , str(dataset_type) ,'gen_' + str(gen) ,'mat_map.npy')))
+                logger.info(f' y_labels data :{curr_vcf_idx[-1].shape}')
 
-                if i>0:
-                    self.snps = np.concatenate((self.snps, curr_snps),axis=0)
-                    self.vcf_idx = np.concatenate((self.vcf_idx, curr_vcf_idx),axis=0)
-                else:
-                    self.snps = curr_snps
-                    self.vcf_idx = curr_vcf_idx
+            self.snps = np.vstack(self.snps)
+            self.vcf_idx = np.vstack(curr_vcf_idx)
    
         chmlen, n_win = getWinInfo(self.snps.shape[1], self.params.win_size)
         params.n_win = n_win

@@ -121,9 +121,9 @@ all_chm_snps=$OUT_PATH/dogs/sm_${sample_map}/ld_False/vcf_type_/all_chm_combined
 # all_chm_snps='$OUT_PATH/dogs/expt2_biallelic/all_chm_combined_snps_variance_filter_0.0_sample_win_100.npy';
 n_comp=23; # smallest number of samples in a class is 23, only used for extended/residual pca
 elif [[  ${geno_type} = 'ancient' ]]; then
-vcf_dir=$OUT_PATH/${geno_type}/chr22/chr22_phased_imputed.vcf.gz;
+vcf_dir=$OUT_PATH/${geno_type}/chr${start_chm}/chr${start_chm}_phased_imputed.vcf.gz;
 ref_map=$OUT_PATH/${geno_type}/sm_${sample_map}.tsv;
-gen_map=$OUT_PATH/${geno_type}/chr22/chr22_sm_coverage_2_re_ordered.map;
+gen_map=$OUT_PATH/${geno_type}/chr${start_chm}/chr${start_chm}_phased_imputed.map;
 all_chm_snps="None"
 
 else
