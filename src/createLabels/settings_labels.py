@@ -30,6 +30,9 @@ parser.add_argument('--data.split_perc', nargs="*", type=float, default=[0.7, 0.
 parser.add_argument('--data.gens_to_ret', nargs="*", type=int, default=[2,4,8], help='gens to simulate') 
 parser.add_argument('--data.start_chm', type=int, required=False, help='start chm if doing admixture combined')
 parser.add_argument('--data.end_chm', type=int, required=False, help='end chm if doing admixture combined')
+parser.add_argument('--singleAncestryAdmixture', nargs="*", type=str, required=False, default=[], help='single ancestry admixture simulation')
+parser.add_argument('--sim.balanced', type=distutils.util.strtobool, help='set True to create balanced simulation')
+
 
 # log args
 parser.add_argument('--log.verbose', type=distutils.util.strtobool, default='True', help='verbose')

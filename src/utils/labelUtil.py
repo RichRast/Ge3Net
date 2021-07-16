@@ -3,6 +3,8 @@ import pandas as pd
 import scipy
 import logging
 import os
+import glob
+import os.path as osp
 import allel
 import os.path as osp
 from pyadmix.utils import get_chm_info, build_founders, create_non_rec_dataset, write_output 
@@ -138,6 +140,7 @@ def getAdmixedCombineChm(*args, **kwargs):
     gens_to_ret=kwargs.get('gens_to_ret')
     random_seed=kwargs.get('random_seed')
     save_path=kwargs.get('save_path')
+    sample_weight=kwargs.get('sample_weight')
 
     prevAdmixedFlag=True if end_chm>start_chm else False
     print(f"prevAdmixedFlag:{prevAdmixedFlag}")
@@ -149,7 +152,7 @@ def getAdmixedCombineChm(*args, **kwargs):
         else:
             vcf_master = load_path(vcf_founders[i], en_pickle=True)
         genetic_map = get_chm_info(genetic_map_path, vcf_master)
-        founders, foundersIdx, foundersWeight = build_founders(vcf_master, genetic_map, sample_map)
+        founders, foundersIdx, foundersWeight = build_founders(vcf_master, genetic_map, sample_map, sample_weight=sample_weight)
         if chm==start_chm-1:
             admixed_samples_start, select_idx = create_non_rec_dataset(founders, \
             num_samples, gens_to_ret,  foundersWeight, genetic_map["breakpoint_probability"], random_seed)
@@ -199,6 +202,18 @@ def getPairwiseDistancePops(**kwargs):
     """
     distMetric=kwargs('distMetric')
     ...
+
+def writeCompact(gens_to_ret, dataset_type, data_out_path):
+    """
+    Goes inside the folder for each pop , example- 'train_AMR' and combines 
+    mat_vcf_2d.npy and mat_map.npy for each of gen example - gen_0,2,4,8 etc
+    """
+    for gen, d in zip(gens_to_ret, dataset_type):
+        for filename in glob.iglob(osp.join(data_out_path,f'{d}_*/gen_{gen}/mat_map.npy'), recursive=True):
+            save_file(osp.join(data_out_path,f'{d}/gen_{gen}/mat_map.npy'), np.vstack(load_path(filename)))
+        for filename in glob.iglob(osp.join(data_out_path,f'{d}_*/gen_{gen}/mat_vcf_2d.npy'), recursive=True):
+            save_file(osp.join(data_out_path,f'{d}/gen_{gen}/mat_map.npy'), np.vstack(load_path(filename)))
+
 
 
 

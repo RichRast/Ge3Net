@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import os.path as osp
 import logging
-from src.utils.modelUtil import  Params, weight_int
+from src.utils.modelUtil import  Params, weight_int, load_model
 from src.utils.dataUtil import set_logger, load_path
 from src.utils.labelUtil import repeat_pop_arr
 from src.utils.decorators import timer
@@ -73,9 +73,18 @@ def main(config, params, **kwargs):
     option = Selections.get_selection()
     criterion = option['loss'][params.criteria](reduction='sum', alpha=params.criteria_alpha, geography=params.geography)
     cp_criterion=option['cpMetrics']['loss_cp']
-    model = modelOption['models'][params.model](params, criterion, cp_criterion)
+    model = modelOption['models'][params.model](params, criterion, cp_criterion) 
+    
+    if params.pretrained:
+        # load pretrained model
+        model_path = osp.join(config['model.pretrained_dir'], 'models_dir')
+        logger.info(f" model_path :{model_path}")
+        model = load_model(''.join([str(model_path),'/model_weights/best.pt']), model)
+    else:
+        model.apply(weight_int)
+
     model.to(params.device)
-    model.apply(weight_int)
+    
 
     logger.info(f"is the model on cuda? : {next(model.parameters()).is_cuda}")
     if torch.cuda.device_count() > 1:

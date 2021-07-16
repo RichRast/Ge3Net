@@ -11,7 +11,7 @@ class Selections():
         'l1_loss': lambda reduction, alpha, geography: torch.nn.L1Loss(reduction=reduction),
         'mse': lambda reduction, alpha, geography: torch.nn.MSELoss(reduction=reduction),
         'smooth_l1': lambda reduction, alpha, geography: SmoothL1Loss(reduction=reduction, alpha=alpha),
-        'weighted_loss': lambda reduction, alpha, geography: Weighted_Loss(reduction=reduction, alpha=alpha)
+        'weighted_loss': lambda reduction, alpha, geography: Weighted_Loss(reduction=reduction, alpha=alpha),
     }
     _balancedMetrics={
         'median': lambda metricsObj: metricsObj.medianMetric,
@@ -28,6 +28,10 @@ class Selections():
         'Precision': None, 
         'Recall': None, 
         'BalancedAccuracy': None
+    }
+    _gpMetrics={
+        'loss_gp': lambda reduction, alpha, geography: torch.nn.CrossEntropyLoss(reduction=reduction),
+        'Accuracy': lambda reduction, alpha, geography: class_accuracy, 
     }
     _normalizationLayers={
         'LayerNorm': lambda input_units: nn.LayerNorm(input_units),
@@ -59,6 +63,7 @@ class Selections():
             'balancedMetrics':cls._balancedMetrics,
             'cpMetrics':cls._cpMetrics,
             'spMetrics':cls._spMetrics,
+            'gpMetrics':cls._gpMetrics,
             'normalizationLayer':cls._normalizationLayers,
             'activation':cls._activation,
             'dropouts':cls._dropouts

@@ -210,7 +210,7 @@ class residualPca(pcaSpace):
         for j, _ in enumerate(pop_num):
             # plot all the classes for the same subclass for train
             # randomly select 30 granular pops for the particular subpop                
-            random_idx = np.random.choice(self.labels.shape[0], 20)
+            random_idx = np.random.choice(self.labels.shape[0], 15)
             lgnd, fig = self.pca_subclass[j]._plot2dEmbeddings(self.pop_arr, random_idx, rev_pop_dict, self.pop_order)
             plt.title(f" subclass : {self.pca_subclass[j].name}")
             plt.show()
@@ -330,6 +330,10 @@ def MDS_space(x, distance_matrix, data_folder, verbose = True):
     return X_transformed, dissimilarity_matrix
 
 def plot3dEmbeddingsGeneric(labels, superpop, granular_pop, random_idx):
+    """
+    color by superpop and annotate granular pop labels from random_idx
+    for 3d embeddings - n vector or 3 components from any other space
+    """
     fig, ax = plt.subplots(figsize=(12,10))
     ax= Axes3D(fig)
     superpop_num = superpop.unique()
@@ -348,7 +352,6 @@ def plot3dEmbeddingsGeneric(labels, superpop, granular_pop, random_idx):
     ax.legend(handles=patches, bbox_to_anchor=(0.3,0.85,0.7,0),loc=5,ncol=4)
 
     for k in random_idx:
-        ax.text(labels[k,0], labels[k,1], labels[k,2], \
-                s = granular_pop[k],\
+        ax.text(labels[k,0], labels[k,1], labels[k,2], s = granular_pop[k],\
             fontweight='bold', fontsize = 12)
     return fig, ax

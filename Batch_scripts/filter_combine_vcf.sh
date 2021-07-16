@@ -67,9 +67,11 @@ for chm in $(seq ${start_chm} ${end_chm})
         elif [[ (${geno_type} = "humans")  ]] ; then
         vcf_filename+=($IN_PATH/${geno_type}/master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr$chm.vcf.gz)
         elif [[ ($geno_type = "dogs") && (${ld_prune} = "False") ]] ; then
-        vcf_filename+=($OUT_PATH/dogs/sm_${sample_map}/chr$chm/chr${chm}_filtered.vcf)
+        vcf_filename+=($OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_filtered.vcf)
         elif [[ ($geno_type = "dogs")]] ; then
-        vcf_filename+=($OUT_PATH/dogs/sm_${sample_map}/chr$chm/vcf_pruned_chr$chm.vcf)
+        vcf_filename+=($OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/vcf_pruned_chr$chm.vcf)
+        elif [[ ($geno_type = "ancient")]] ; then
+        vcf_filename+=($OUT_PATH/${geno_type}/chr$chm/chr${chm}_phased_imputed.vcf.gz)
         fi
     done
 echo ${vcf_filename[*]}
@@ -84,7 +86,7 @@ sbatch<<EOT
 #!/bin/sh
 #SBATCH -p bigmem
 #SBATCH -c 1
-#SBATCH --mem=500G
+#SBATCH --mem=1100G
 #SBATCH -t 24:00:00
 #SBATCH --output=${save_path}/log.out
 

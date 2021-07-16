@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# sample command srun --pty -p bigmem --mem=1100G -c 1 --time 24:00:00 ./Batch_scripts/ancient_preProcess.sh ancient 1 24 sm_coverage_2
+# sample command srun --pty -p bigmem --mem=1100G -c 1 --time 24:00:00 ./Batch_scripts/ancient_preProcess.sh ancient 1 24 sm_coverage_2_HG_NA 2>&1 | tee /scratch/groups/cdbustam/richras/data_out/ancient/subset_by_samplemap.txt
 # convert .ped to .vcf.gz
 # use bcftools to subset by chromosomes
 source ini.sh

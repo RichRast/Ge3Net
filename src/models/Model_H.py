@@ -22,6 +22,12 @@ class model_H(nn.Module):
         self.cp = logits_Block(self.params, self.params.rnn_net_hidden * (1+1*self.params.rnn_net_bidirectional)) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
+        if self.params.pretrained:
+            # freeze all the layers except lstm  and cp detect layer
+            frozen_modules=[self.aux]
+            for m in frozen_modules:
+                for p in m.parameters():
+                    p.requires_grad=False
         self._setOptimizerParams()
 
         count_params=[]
@@ -33,12 +39,20 @@ class model_H(nn.Module):
 
     def _setOptimizerParams(self):
         self.Optimizerparams=[]
-        for i, m in enumerate([self.aux, self.pe, self.attention, self.ffnn, self.lstm, self.cp]):
-            params_dict={}
-            params_dict['params']= m.parameters()
-            params_dict['lr'] = self.params.learning_rate[i]
-            params_dict['weight_decay'] = self.params.weight_decay[i]
-            self.Optimizerparams.append(params_dict)
+        if not self.params.pretrained:
+            for i, m in enumerate([self.aux, self.pe, self.attention, self.ffnn, self.lstm, self.cp]): 
+                params_dict={}
+                params_dict['params']= m.parameters()
+                params_dict['lr'] = self.params.learning_rate[i]
+                params_dict['weight_decay'] = self.params.weight_decay[i]
+                self.Optimizerparams.append(params_dict)
+        else:
+            for i, m in enumerate([self.pe, self.attention, self.ffnn, self.lstm, self.cp]): 
+                params_dict={}
+                params_dict['params']= m.parameters()
+                params_dict['lr'] = self.params.learning_rate[i]
+                params_dict['weight_decay'] = self.params.weight_decay[i]
+                self.Optimizerparams.append(params_dict)
     
     def getOptimizerParams(self):
         return self.Optimizerparams

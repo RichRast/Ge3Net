@@ -44,7 +44,7 @@ class Haplotype(Dataset):
                 curr_vcf_idx.append(load_path(osp.join(data_dir , str(dataset_type) ,'gen_' + str(gen) ,'mat_map.npy')))
                 logger.info(f' y_labels data :{curr_vcf_idx[-1].shape}')
 
-            self.snps = np.vstack(self.snps)
+            self.snps = np.vstack(curr_snps)
             self.vcf_idx = np.vstack(curr_vcf_idx)
    
         chmlen, n_win = getWinInfo(self.snps.shape[1], self.params.win_size)
@@ -89,8 +89,8 @@ class Haplotype(Dataset):
         """
         # ToDo: Need to change this. Too slow!!!
         lat=coord[..., 0]
-        long=coord[..., 1] 
-        nVec=convert_nVector(lat,long)
+        lon=coord[..., 1] 
+        nVec=convert_nVector(lat,lon)
         return nVec
 
     @timer
