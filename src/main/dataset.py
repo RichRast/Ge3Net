@@ -143,5 +143,3 @@ class Haplotype(Dataset):
         for k, v in self.data.items():
             ls.append(self.data[k][idx])
         return ls
-
-

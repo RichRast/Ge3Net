@@ -9,6 +9,7 @@ from typing import Any
 from enum import Enum
 from sklearn.metrics import recall_score, precision_score, \
 balanced_accuracy_score, accuracy_score
+from src.utils.labelUtil import nearestNeighbourMapping
 import pdb
 
 t_results = namedtuple('t_results',['t_accr', 't_cp_accr', 't_sp_accr', 't_out', 't_balanced_gcd'])
@@ -127,13 +128,13 @@ def eval_cp_batch(cp_target, cp_pred, seq_len, win_tol=2):
 
     # convert to numpy
     if torch.is_tensor(cp_target):
-        cp_target = cp_target.detach().cpu().numpy()
+        cp_target_np = cp_target.detach().cpu().numpy()
     if torch.is_tensor(cp_pred):
-        cp_pred = cp_pred.detach().cpu().numpy()
+        cp_pred_np = cp_pred.detach().cpu().numpy()
 
     for i in range(num_samples):
-        cp_target_idx = np.nonzero(cp_target[i,:])[0]
-        cp_pred_idx = np.nonzero(cp_pred[i,:])[0]
+        cp_target_idx = np.nonzero(cp_target_np[i,:])[0]
+        cp_pred_idx = np.nonzero(cp_pred_np[i,:])[0]
         true_cps = cp_target_idx
         pred_cps = cp_pred_idx
         
@@ -344,3 +345,56 @@ def class_accuracy(y_pred, y_test):
     acc = correct_pred.sum() / (n * w)
     acc = acc * 100
     return acc
+
+def getCpBasedCentroid(cp_pred, coord_main, labels_path, labelType="granular_pop", distType="L2"):
+    """
+    Given a batch of haplotypes with changepoints, return the centroid of coordinates per segment
+    and the option to return the nearest neighbour mapped label by superpop or granular pop
+    of that segment
+    Input:
+        cp_pred: shape (BxW): batch size x window size matrix of 0 and 1 with 1 for a changepoint
+        coord_main: shape (BXWX2) : batch_size x window_size x (lat, long) as predictions
+    Output:
+        centroid_coord: shape (BXWX2) : batch_size x window_size x (lat, long) as predictions with centroid 
+        coordinates
+        centroid_label: shape (BXW) : batch_size x window_size as superpop/granular_pop as specified from the
+        kwarg label_type for the nearest neighbour class from training samples
+    """
+    
+    last_win=cp_pred.shape[1]
+    # mark the last window as changepoint
+    cp_pred[:,-1]=1.0
+    # get the indices of 1 and stack them up
+    cp_idx=np.where(cp_pred==1)
+    cp_wins=cp_idx[1]
+    # transform the cp indices with the last win size. This will enable to keep track of the haplotype 
+    # number and enable to transform back from 1d stacked array to 2d array with batch_size x window size
+    transformedCp_idx = cp_idx[0] * last_win + cp_wins
+    # transformedCp_idx is a stacked array of segments. Now convert this to a stacked array of windows
+    centroid_coord_tmp=np.zeros((len(transformedCp_idx),3))
+    centroid_coord=np.zeros_like(coord_main)
+    centroid_label = np.zeros_like(cp_pred)
+    cpWin_prev=0
+    for i, win in enumerate(transformedCp_idx):
+        # find haplo num by round down division with the max window
+        haplo_num = win // last_win
+        # find cp_win by remainder
+        cp_win = win % last_win
+        centroid_coord_tmp[i,0]=np.mean(coord_main[haplo_num, cpWin_prev:cp_win+1,0])
+        centroid_coord_tmp[i,1]=np.mean(coord_main[haplo_num, cpWin_prev:cp_win+1,1])
+        centroid_coord_tmp[i,2]=np.mean(coord_main[haplo_num, cpWin_prev:cp_win+1,2])
+        centroid_coord[haplo_num, cpWin_prev:cp_win+1, :] = centroid_coord_tmp[i,:]
+        cpWin_prev = (cp_win+1)% last_win
+    
+    if labels_path is not None:
+        centroid_label_tmp=nearestNeighbourMapping(labels_path, centroid_coord_tmp, labelType=labelType , distType=distType)
+
+        for i, win in enumerate(transformedCp_idx):
+            # find haplo num by round down division with the max window
+            haplo_num = win // last_win
+            # find cp_win by remainder
+            cp_win = win % last_win
+            centroid_label[haplo_num, cpWin_prev:cp_win+1] = centroid_label_tmp[i]
+            cpWin_prev = (cp_win+1)% last_win
+
+    return centroid_coord, centroid_label

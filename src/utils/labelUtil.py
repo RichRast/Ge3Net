@@ -214,6 +214,3 @@ def writeCompact(gens_to_ret, dataset_type, data_out_path):
         for filename in glob.iglob(osp.join(data_out_path,f'{d}_*/gen_{gen}/mat_vcf_2d.npy'), recursive=True):
             save_file(osp.join(data_out_path,f'{d}/gen_{gen}/mat_map.npy'), np.vstack(load_path(filename)))
 
-
-
-
