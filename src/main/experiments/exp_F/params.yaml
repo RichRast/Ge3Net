@@ -79,6 +79,7 @@ FFNN_dropout2: 0.3
 FFNN_output: 3
 FFNN_activation: "relu"
   
+pretrained: false
 custom_opt: false
 thresh: 0.0001
 num_epochs: 200

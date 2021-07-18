@@ -59,6 +59,7 @@ mlp_dropout: 0.3
 mlp_net_norm: "LayerNorm"
 mlp_net_out: 3
   
+pretrained: false
 custom_opt: false
 thresh: 0.0001
 num_epochs: 200

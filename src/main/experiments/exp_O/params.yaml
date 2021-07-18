@@ -86,6 +86,7 @@ att2_input_size: 64
 FFNN2_input1: 64
 FFNN2_output: 64
   
+pretrained: false
 custom_opt: false
 thresh: 0.0001
 num_epochs: 200

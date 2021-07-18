@@ -75,6 +75,7 @@ FFNN_activation: "relu"
 FFNN2_input1: 103
 FFNN2_output: 3
   
+pretrained: false
 custom_opt: false
 thresh: 0.0001
 num_epochs: 200

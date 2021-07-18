@@ -53,6 +53,7 @@ activation_type: "leaky_relu"
 leaky_relu_slope: 0.1
 aux_next_norm: "LayerNorm"
   
+pretrained: false
 custom_opt: false
 thresh: 0.0001
 num_epochs: 200

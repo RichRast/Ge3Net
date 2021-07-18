@@ -81,6 +81,7 @@ conv_padding: 37
 conv_padding_mode: "reflect"
 conv_net_norm: "BatchNorm"
   
+pretrained: false
 custom_opt: false
 thresh: 0.0001
 num_epochs: 200

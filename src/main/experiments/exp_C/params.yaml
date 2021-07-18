@@ -62,6 +62,7 @@ tbptt: true
 tbptt_steps: 20
 rnn_net_bidirectional: true
   
+pretrained: false
 custom_opt: false
 thresh: 0.0001
 num_epochs: 200
