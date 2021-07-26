@@ -7,7 +7,7 @@ from src.utils.dataUtil import square_normalize, get_gradient
 from src.main.evaluation import branchLoss, modelOuts, RnnResults
 from src.models.AuxiliaryTask import AuxNetwork
 from src.models.LSTM import BiRNN
-from src.models.Attention import attention_single, PositionalEncoding, FFNN
+from src.models.Attention import attention_single, PositionalEncoding, FFNN, LabelSmoothing
 from src.models.BasicBlock import logits_Block
 
 class model_H(nn.Module):
@@ -73,6 +73,7 @@ class model_H(nn.Module):
             out_aux = square_normalize(out4) if self.params.geography else out4
             out_main = square_normalize(out_rnn) if self.params.geography else out_rnn
             outs = modelOuts(coord_main = out_main*mask, coord_aux= out_aux*mask)
+            outs.att_weights = weight
             return outs, out_nxt
 
         if mc_dropout is None:
@@ -159,12 +160,13 @@ class model_H(nn.Module):
         loss_main=self.criterion(outs.coord_main*mask, target.coord_main*mask) if self.params.criteria!="gcd" \
         else self.criterion(outs.coord_main, target.coord_main, mask=mask) 
 
+        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item())
+
         loss_cp=None
         if self.cp is not None: 
             loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum', \
             pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device))
-        
-        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp.item())
+            rtnLoss.loss_cp = loss_cp.item()
 
         if self.training:
             sample_size=mask.sum() 

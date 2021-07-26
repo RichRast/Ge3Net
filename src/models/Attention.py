@@ -107,11 +107,12 @@ class AttentionBlock(nn.Module):
 
 class LabelSmoothing(nn.Module):
     def __init__(self, seq_len, smoothing):
+        super(LabelSmoothing, self).__init__()
         self.seq_len=seq_len
         self.smoothing = smoothing
-        self.criteria= torch.nn.KLDivLoss(size_average=False)
+        self.criterion= torch.nn.KLDivLoss(reduction='sum')
 
     def forward(self, x, target, device):
-        true_dist = torch.full(size=(), fill_value=self.smoothing/self.seq_len).to(device)
-        true_dist.scattter_(dim=2, index=target.data, src=(1-self.smoothing))
-        return self.criterion(x, V(true_dist, requires_grad=False))
+        true_dist = torch.full(size=(x.shape[0], x.shape[1], x.shape[2]), fill_value=self.smoothing/self.seq_len).to(device)
+        true_dist.scatter_(dim=2, index=target.data.unsqueeze(2), value=(1-self.smoothing))
+        return self.criterion(torch.log(x), V(true_dist, requires_grad=False))

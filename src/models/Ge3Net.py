@@ -1,3 +1,4 @@
+
 import torch
 import numpy as np
 import math
@@ -9,6 +10,7 @@ from src.main.evaluation import GcdLoss, eval_cp_batch, balancedMetrics, t_resul
 Running_Average, modelOuts, branchLoss, PrCounts, computePrMetric
 from src.utils.dataUtil import set_logger
 from src.models.MCDropout import MC_Dropout
+from src.models.Attention import LabelSmoothing
 from dataclasses import fields
 import matplotlib.pyplot as plt
 import optuna
@@ -61,6 +63,8 @@ class Ge3NetBase():
             if debugMode: self.model._checkModelParamGrads()
 
             train_outs, loss_inner, lossBack = self.model._batch_train_1_step(train_x, train_labels, cp_mask)
+            if self.params.label_smoothing:
+                lossBack += LabelSmoothing(granularpop.shape[1], self.params.label_smoothing_factor)(train_outs.att_weights, granularpop.to(self.params.device), self.params.device)
             if lossBack is not None: lossBack.backward() 
 
             #check that the model param grads are not None
