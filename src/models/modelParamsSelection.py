@@ -55,6 +55,10 @@ class Selections():
         'dropout':lambda p : nn.Dropout(p),
         'alphaDropout': lambda p: nn.AlphaDropout(p)
     }
+    _optimizers={
+        'Adam': lambda p: torch.optim.Adam(p), 
+        'AdamW': lambda p: torch.optim.AdamW(p), 
+    }
    
     @classmethod
     def get_selection(cls):
@@ -66,5 +70,6 @@ class Selections():
             'gpMetrics':cls._gpMetrics,
             'normalizationLayer':cls._normalizationLayers,
             'activation':cls._activation,
-            'dropouts':cls._dropouts
+            'dropouts':cls._dropouts,
+            'optimizers':cls._optimizers
         }

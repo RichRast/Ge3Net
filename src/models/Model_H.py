@@ -31,7 +31,7 @@ class model_H(nn.Module):
         self._setOptimizerParams()
 
         count_params=[]
-        for m in [self.aux, self.pe, self.attention, self.ffnn, self.lstm, self.cp]:
+        for m in [self.aux, self.attention, self.ffnn, self.lstm, self.cp]:
             params_count=countParams(m)
             print(f"Parameter count for model {m.__class__.__name__}:{params_count}")
             count_params.append(params_count)
@@ -40,18 +40,16 @@ class model_H(nn.Module):
     def _setOptimizerParams(self):
         self.Optimizerparams=[]
         if not self.params.pretrained:
-            for i, m in enumerate([self.aux, self.pe, self.attention, self.ffnn, self.lstm, self.cp]): 
+            for i, m in enumerate([self.aux, self.attention, self.ffnn, self.lstm, self.cp]): 
                 params_dict={}
                 params_dict['params']= m.parameters()
                 params_dict['lr'] = self.params.learning_rate[i]
-                params_dict['weight_decay'] = self.params.weight_decay[i]
                 self.Optimizerparams.append(params_dict)
         else:
-            for i, m in enumerate([self.pe, self.attention, self.ffnn, self.lstm, self.cp]): 
+            for i, m in enumerate([self.attention, self.ffnn, self.lstm, self.cp]): 
                 params_dict={}
                 params_dict['params']= m.parameters()
                 params_dict['lr'] = self.params.learning_rate[i]
-                params_dict['weight_decay'] = self.params.weight_decay[i]
                 self.Optimizerparams.append(params_dict)
     
     def getOptimizerParams(self):
@@ -103,7 +101,7 @@ class model_H(nn.Module):
         mask=kwargs.get('mask')
         if mask is None: mask = torch.ones((val_x.shape[0], self.params.n_win, 1), device=self.params.device, dtype=torch.uint8)
         mc_dropout = kwargs.get('mc_dropout')
-        if mc_dropout is not None: activate_mc_dropout(*[self.aux, self.lstm, self.cp])
+        if mc_dropout is not None: activate_mc_dropout(*[self.aux, self.attention, self.ffnn, self.lstm, self.cp])
         val_outs = self(val_x, mask, mc_dropout=mc_dropout) #call forward
         if val_labels is None:
             return val_outs           

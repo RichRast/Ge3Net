@@ -9,6 +9,7 @@ import pandas as pd
 import os
 import scipy.interpolate
 import copy
+import pdb
 
 from .person import Person, create_new, create_new_non_rec
 
@@ -126,7 +127,7 @@ def get_sample_map_data(sample_map, vcf_data, sample_weights = None):
     
     return sample_map_data
 
-def build_founders(vcf_data, genetic_map_data, sample_map_data, sample_weight=None):
+def build_founders(vcf_data, genetic_map_data, sample_map_data, sample_weight=False):
     
     """
     Returns founders - a list of Person datatype.
@@ -181,10 +182,21 @@ def build_founders(vcf_data, genetic_map_data, sample_map_data, sample_weight=No
 
         founders.append(p)
         
-    if sample_weight is not None:
-        founders_weight = sample_map_data["sample_weight"]
-    else:
-        founders_weight= [1/len(founders) for _ in range(len(founders))]
+    founders_weight= [1/len(founders) for _ in range(len(founders))]
+    if sample_weight:
+        prob_threshold=0.001    # threshold by gp
+        df_count_gp = sample_map_data.groupby(by='granular_pop').size().to_frame('size')
+        df_count_gp['prob'] = list(map(lambda x: df_count_gp.loc[x, 'size']/(len(founders)) , df_count_gp.index))
+        df_upsample_gp=df_count_gp[df_count_gp.prob<prob_threshold]
+        print(f" len df_upsample_gp:{len(df_upsample_gp)}")
+        cumUpsampleProb=len(df_upsample_gp)*prob_threshold
+        downsampleProb=(1-cumUpsampleProb)/(1-sum(df_upsample_gp['prob']))
+        print(f"downsampleProb:{downsampleProb}")
+
+        founders_weight = list(map(lambda x: prob_threshold/df_count_gp.loc[x,'size'] if df_count_gp.loc[x,'prob']<prob_threshold \
+            else df_count_gp.loc[x,'prob']*downsampleProb/df_count_gp.loc[x,'size'], sample_map_data['granular_pop'].values)) 
+        print(f"sum prob : {sum(founders_weight)}")
+    
 
     return founders,founders_idx, founders_weight
     
@@ -292,7 +304,7 @@ def create_non_rec_dataset(founders,num_samples_per_gen,gens_to_ret, founders_we
     # could be greater than or equal to 100 to avoid founder bias.
     number_of_admixed_samples = num_samples_per_gen
     select_idx = {}
-    for gen in gens_to_ret:
+    for g, gen in enumerate(gens_to_ret):
         select_idx[gen]=[]
         # BUG fix: Gen ==0 means do nothing.
         if gen == 0:
@@ -302,7 +314,7 @@ def create_non_rec_dataset(founders,num_samples_per_gen,gens_to_ret, founders_we
             print("Simulating generation ",gen)
         this_gen_people = []
         
-        for i in range(number_of_admixed_samples):
+        for i in range(number_of_admixed_samples[g]):
             # additional logic for using previous admixed sample founders
             if prevAdmixedFlag:
                 prevAdmixedSample = prevAdmixed[gen][i]

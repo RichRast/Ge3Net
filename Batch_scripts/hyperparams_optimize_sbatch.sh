@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# sample command srun --pty -p gpu --gres=gpu:1  --mem-per-gpu=32GB --time 24:00:00 ./Batch_scripts/hyperparams_optimize.sh -gt humans -e 2 -d 1_geo -m A -sum "model_A"
+# sample command ./Batch_scripts/hyperparams_optimize_sbatch.sh -gt humans -e 2 -d 1_geo -m A -sum "model_A"
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
@@ -49,7 +49,7 @@ then
     echo " $OUT_PATH/${geno_type}/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id} already exists. Are you sure you want to overwrite ?";
     select yn in "Yes" "No"; do
         case $yn in
-            Yes ) echo "okay going to overwrite and continue to start training"; break;;
+            Yes ) echo "okay going to overwrite and continue to start tuning hyperparameter"; break;;
             No ) echo "okay, exiting"; exit;;
         esac
     done
@@ -59,6 +59,15 @@ else
     echo "dir created"
 fi
 
+sbatch << EOT
+#!/bin/bash
+#SBATCH -p gpu
+#SBATCH -G 1
+#SBATCH -C GPU_MEM:32GB
+#SBATCH -t 24:00:00
+#SBATCH --output=$OUT_PATH/$geno_type/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/Ge3Net_tuning.log
+
+
 ml load py-pytorch/1.4.0_py36
 ml load py-scipy/1.4.1_py36
 ml load py-matplotlib/3.2.1_py36
@@ -67,6 +76,7 @@ ml load cuda/10.1.168
 ml load git-lfs/2.4.0
 ml load system nvtop
 
+cd $USER_PATH
 python3 hyperparams_optimize.py  --data.params $USER_PATH/src/main/experiments/exp_$model_type \
 --data.geno_type $geno_type \
 --data.labels $OUT_PATH/$geno_type/labels/data_id_${data_id} \
@@ -77,3 +87,4 @@ python3 hyperparams_optimize.py  --data.params $USER_PATH/src/main/experiments/e
 
 node_feat -n $(hostname|sed 's/.int.*//') >> $OUT_PATH/$geno_type/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/Ge3Net_tuning.log
 
+EOT

@@ -88,8 +88,8 @@ thresh: 0.0001
 num_epochs: 200
 SmoothLoss_beta: 1.0
 weightLoss_alpha: 1.0
-learning_rate: [0.001, 0.01, 0.001, 0.001, 0.001, 0.01, 0.001]
-weight_decay: [0,0,0,0,0,0,0]
+learning_rate: [0.001, 0.01, 0.001, 0.001, 0.01, 0.001]
+weight_decay: [0,0,0,0,0,0]
 warmup_lr_groups: [2,3]
 eps: 0.0001
 early_stopping_thresh: 6

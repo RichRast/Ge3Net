@@ -162,8 +162,12 @@ class Ge3NetBase():
         
         sample_size = torch.sum(mask)
         if self.params.evalExtraMainLosses:
-            batchLoss={**batchLoss, **{metric:self.losses[metric](y.coord_main*mask, target.coord_main*mask).item() for metric in self.losses if self.losses[metric] is not None}}
-            
+            for metric in self.losses:
+                if metric=='gcd' and self.params.geography:
+                    batchLoss={**batchLoss, **{'gcd':GcdLoss()(y.coord_main, target.coord_main, mask=mask).detach()}}
+                elif (self.losses[metric] is not None) and (metric!='gcd'):
+                    batchLoss={**batchLoss, **{metric:self.losses[metric](y.coord_main*mask, target.coord_main*mask).item()}}
+
         # update the running avg object
         for key, val in runAvgObj.items():
             if batchLoss.get(key) is not None:
@@ -263,7 +267,7 @@ class Ge3NetBase():
         trial=kwargs.get('trial')
         
         modelOptimParams=self.model.getOptimizerParams()
-        optimizer = torch.optim.Adam(modelOptimParams)
+        optimizer= self.option['optimizers'][self.params.optimizer](modelOptimParams)
         
         # learning rate scheduler
         exp_lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = self.params.lr_steps_decay,\
@@ -307,6 +311,8 @@ class Ge3NetBase():
             # saving a model at every epoch
             logger.info(f"Saving at epoch {epoch}")
             logger.info(f"train accr: {train_result.t_accr['loss_main']}, val accr: {eval_result.t_accr['loss_main']}")
+            if self.params.geography and self.params.criteria!='gcd':
+                logger.info(f"train accr: {train_result.t_accr['gcd']}, val accr: {eval_result.t_accr['gcd']}")
             checkpoint = osp.join(modelSavePath, 'models_dir')
             models_state_dict = self.model.state_dict() 
 

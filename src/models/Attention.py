@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable as V
 import math
     
 # credit to http://nlp.seas.harvard.edu/2018/04/03/attention.html
@@ -103,3 +104,14 @@ class AttentionBlock(nn.Module):
         out_nxt, _, weight = self.attention(x)
         _, out_att = self.ffnn(out_nxt)
         return out_att
+
+class LabelSmoothing(nn.Module):
+    def __init__(self, seq_len, smoothing):
+        self.seq_len=seq_len
+        self.smoothing = smoothing
+        self.criteria= torch.nn.KLDivLoss(size_average=False)
+
+    def forward(self, x, target, device):
+        true_dist = torch.full(size=(), fill_value=self.smoothing/self.seq_len).to(device)
+        true_dist.scattter_(dim=2, index=target.data, src=(1-self.smoothing))
+        return self.criterion(x, V(true_dist, requires_grad=False))

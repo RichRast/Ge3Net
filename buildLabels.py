@@ -102,11 +102,6 @@ def main(config):
         print("Split into train, valid and test data")
         #split into train, val and test dataset
         split_perc = config['data.split_perc']
-        if config['sim.balanced']:
-            df_count_gp = pop_sample_map.groupby(by='granular_pop').size().to_frame('size')
-            sample_weight = list(map(lambda x: 1/df_count_gp.loc[x,'size'], pop_sample_map['granular_pop'].values)) 
-        else:
-            sample_weight = [1.0]*len(pop_sample_map)  
         # to get a different split, set the config['data.seed'] argument before running the script
         train_sample_map, valid_sample_map, test_sample_map = split_sample_maps(pop_sample_map, split_perc, seed)
 
@@ -114,10 +109,9 @@ def main(config):
         save_file(osp.join(data_out_path, 'train_sample_map.tsv'), train_sample_map, en_df=True)
         save_file(osp.join(data_out_path, 'valid_sample_map.tsv'), valid_sample_map, en_df=True)
         save_file(osp.join(data_out_path, 'test_sample_map.tsv'), test_sample_map, en_df=True)
-        save_file(osp.join(data_out_path, 'sample_weight.tsv'), pd.DataFrame(sample_weight, columns=['sample_weight']), en_df=True)
-
+        
         # save the train, valid and test sample maps
-        # create admixed samples
+        # create admixed samples. Test data may not always be present.
         dataset_type = ['train', 'valid', 'test'] if len(test_sample_map)>2 else ['train', 'valid']
         sample_map_lst = [train_sample_map, valid_sample_map, test_sample_map] if len(test_sample_map)>2 else [train_sample_map, valid_sample_map]
         admixed_num_per_gen = config['data.samples_per_type']
@@ -128,15 +122,14 @@ def main(config):
                     #subset the sample_map for that pop
                     subsetSampleMap = sample_map_lst[i]
                     subsetSampleMap = subsetSampleMap.loc[subsetSampleMap.superpop==rev_superpop_dict[valPop],:]
-
                     start_chm=config['data.start_chm']
                     end_chm=config['data.end_chm']
                     print(f"Simulating for pop {valPop} for dataset {val} for start chm {start_chm} end chm {end_chm}")
                     save_path = osp.join(data_out_path, ''.join([str(val),'_', str(valPop)]))
                     genetic_map_path = str(config['data.genetic_map'])
                     getAdmixedCombineChm(start_chm, end_chm, genetic_map_path=genetic_map_path, vcf_founders=config['data.vcf_dir'], \
-                    sample_map=subsetSampleMap, save_path=save_path, num_samples=admixed_num_per_gen[i], \
-                    gens_to_ret=config['data.gens_to_ret'], pop_arr=pop_arr, sample_weight=sample_weight)
+                    sample_map=subsetSampleMap, save_path=save_path, num_samples=admixed_num_per_gen, \
+                    gens_to_ret=config['data.gens_to_ret'], pop_arr=pop_arr, sample_weight=config['sim.balanced'])
             # combine all the valpops into one folder, so it can be read downstream as dataset_type/gen
             writeCompact(config['data.gens_to_ret'], dataset_type, data_out_path)
 
@@ -148,8 +141,8 @@ def main(config):
                 save_path = osp.join(data_out_path, str(val))
                 genetic_map_path = str(config['data.genetic_map'])
                 getAdmixedCombineChm(start_chm, end_chm, genetic_map_path=genetic_map_path, vcf_founders=config['data.vcf_dir'], \
-                sample_map=sample_map_lst[i], save_path=save_path, num_samples=admixed_num_per_gen[i], \
-                gens_to_ret=config['data.gens_to_ret'], pop_arr=pop_arr)
+                sample_map=sample_map_lst[i], save_path=save_path, num_samples=admixed_num_per_gen, \
+                gens_to_ret=config['data.gens_to_ret'], pop_arr=pop_arr, sample_weight=config['sim.balanced'])
         
 if __name__=="__main__":
     config = parse_args()

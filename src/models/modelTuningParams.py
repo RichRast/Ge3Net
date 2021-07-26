@@ -8,7 +8,7 @@ suggestParamsDict= {
                                             },
                                 
                                 "int": {
-                                        "cp_tol": (1,3),
+                                        "win_size":(500,1200) ,
                                         },
                                 "categorical": {
                                         "aux_net_hidden": [64, 100, 128, 256],
@@ -41,7 +41,7 @@ suggestParamsDict= {
                                             },
                                 
                                 "int": {
-                                        "cp_tol": (1,3),
+                                       "win_size":(500,1200) ,
                                         },
                                 "categorical": {
                                         "aux_net_hidden": [64, 100, 128, 256],
@@ -73,7 +73,7 @@ suggestParamsDict= {
                                             },
                                 
                                 "int": {
-                                        "cp_tol": (1,3),
+                                        "win_size":(500,1200) ,
                                         },
                                 "categorical": {
                                         "aux_net_hidden": [64, 100, 128, 256],
@@ -100,7 +100,7 @@ suggestParamsDict= {
                                             },
                                 
                                 "int": {
-                                        "cp_tol": (1,3),
+                                        "win_size":(500,1200) ,
                                         },
                                 "categorical": {
                                         "aux_net_hidden": [64, 100, 128, 256],
@@ -134,17 +134,18 @@ suggestParamsDict= {
                                             },
                                 
                                 "int": {
-                                        "cp_tol": (1,3),
+                                        "win_size":(500,1200),
+                                        # "train_seed": (42,1235) 
                                         },
                                 "categorical": {
                                         "aux_net_hidden": [64, 100, 128, 256],
                                         "aux_net_hidden1": [64, 100, 128, 256],
                                         "aux_net_hidden2": [50, 64, 100],
                                         "aux_next_norm": ["LayerNorm", "BatchNorm"],
-                                        "FFNN_output":[64, 100, 128],
+                                        "FFNN_output":[64, 103, 128],
                                         "rnn_net_hidden": [16, 32, 64],
-                                        "batch_size": [64, 128, 256],
-                                        "win_size":[100,500,1000,1500, 2000]   
+                                        "batch_size": [64, 128, 256],  
+                                        
                                 },
                                 "float": {
                                         "aux_net_dropout": (0.1,0.5),
@@ -166,7 +167,7 @@ suggestParamsDict= {
                                             },
                                 
                                 "int": {
-                                        "cp_tol": (1,3),
+                                        "win_size":(500,1200) ,
                                         },
                                 "categorical": {
                                         "aux_net_hidden": [64, 100, 128, 256],
@@ -196,7 +197,7 @@ suggestParamsDict= {
                                             },
                                 
                                 "int": {
-                                        "cp_tol": (1,3),
+                                        "win_size":(500,1200) ,
                                         },
                                 "categorical": {
                                         "aux_net_hidden": [64, 100, 128, 256],
@@ -227,65 +228,23 @@ def getParamKeys(params):
 
 def suggestParams(params, trial):
     suggestedParams={}
-    if params.model == "Model_O":
-        lr_dict = suggestParamsDict[params.model]["lr_dict"]
-        params.learning_rate[0] = trial.suggest_float("lr_aux", lr_dict["lr_aux"][0], lr_dict["lr_aux"][1], log=True)
-        params.learning_rate[2] = trial.suggest_float("lr_att", lr_dict["lr_att"][0], lr_dict["lr_att"][1], log=True)
-        params.learning_rate[3] = trial.suggest_float("lr_ffnn", lr_dict["lr_ffnn"][0], lr_dict["lr_ffnn"][1], log=True)
-        params.learning_rate[4] = trial.suggest_float("lr_lstm", lr_dict["lr_lstm"][0], lr_dict["lr_lstm"][1], log=True)
-        params.learning_rate[5] = trial.suggest_float("lr_att2", lr_dict["lr_att2"][0], lr_dict["lr_att2"][1], log=True)
-        params.learning_rate[6] = trial.suggest_float("lr_ffnn2", lr_dict["lr_ffnn2"][0], lr_dict["lr_ffnn2"][1], log=True)
-        params.learning_rate[7] = trial.suggest_float("lr_lstm2", lr_dict["lr_lstm2"][0], lr_dict["lr_lstm2"][1], log=True)
-        params.learning_rate[8] = trial.suggest_float("lr_cp", lr_dict["lr_cp"][0], lr_dict["lr_cp"][1], log=True)
-    elif params.model == "Model_N":
-        lr_dict = suggestParamsDict[params.model]["lr_dict"]
-        params.learning_rate[0] = trial.suggest_float("lr_aux", lr_dict["lr_aux"][0], lr_dict["lr_aux"][1], log=True)
-        params.learning_rate[1] = trial.suggest_float("lr_lstm", lr_dict["lr_lstm"][0], lr_dict["lr_lstm"][1], log=True)
-        params.learning_rate[3] = trial.suggest_float("lr_att", lr_dict["lr_att"][0], lr_dict["lr_att"][1], log=True)
-        params.learning_rate[4] = trial.suggest_float("lr_ffnn", lr_dict["lr_ffnn"][0], lr_dict["lr_ffnn"][1], log=True)
-        params.learning_rate[5] = trial.suggest_float("lr_lstm2", lr_dict["lr_lstm2"][0], lr_dict["lr_lstm2"][1], log=True)
-        params.learning_rate[6] = trial.suggest_float("lr_cp", lr_dict["lr_cp"][0], lr_dict["lr_cp"][1], log=True)
-    elif params.model == "Model_M":
-        lr_dict = suggestParamsDict[params.model]["lr_dict"]
-        params.learning_rate[0] = trial.suggest_float("lr_aux", lr_dict["lr_aux"][0], lr_dict["lr_aux"][1], log=True)
-        params.learning_rate[1] = trial.suggest_float("lr_mlp", lr_dict["lr_mlp"][0], lr_dict["lr_mlp"][1], log=True)
-        params.learning_rate[2] = trial.suggest_float("lr_cp", lr_dict["lr_cp"][0], lr_dict["lr_cp"][1], log=True)
-    elif params.model == "Model_L":
-        lr_dict = suggestParamsDict[params.model]["lr_dict"]
-        params.learning_rate[0] = trial.suggest_float("lr_base", lr_dict["lr_base"][0], lr_dict["lr_base"][1], log=True)
-        params.learning_rate[2] = trial.suggest_float("lr_attBlock", lr_dict["lr_attBlock"][0], lr_dict["lr_attBlock"][1], log=True)
-        params.learning_rate[3] = trial.suggest_float("lr_lstm", lr_dict["lr_lstm"][0], lr_dict["lr_lstm"][1], log=True)
-        params.learning_rate[4] = trial.suggest_float("lr_cp", lr_dict["lr_cp"][0], lr_dict["lr_cp"][1], log=True)
-    elif params.model == "Model_H":
-        lr_dict = suggestParamsDict[params.model]["lr_dict"]
-        params.learning_rate[0] = trial.suggest_float("lr_aux", lr_dict["lr_aux"][0], lr_dict["lr_aux"][1], log=True)
-        params.learning_rate[2] = trial.suggest_float("lr_att", lr_dict["lr_att"][0], lr_dict["lr_att"][1], log=True)
-        params.learning_rate[3] = trial.suggest_float("lr_ffnn", lr_dict["lr_ffnn"][0], lr_dict["lr_ffnn"][1], log=True)
-        params.learning_rate[4] = trial.suggest_float("lr_lstm", lr_dict["lr_lstm"][0], lr_dict["lr_lstm"][1], log=True)
-        params.learning_rate[5] = trial.suggest_float("lr_cp", lr_dict["lr_cp"][0], lr_dict["lr_cp"][1], log=True)
-    elif params.model == "Model_F":
-        lr_dict = suggestParamsDict[params.model]["lr_dict"]
-        params.learning_rate[0] = trial.suggest_float("lr_aux", lr_dict["lr_aux"][0], lr_dict["lr_aux"][1], log=True)
-        params.learning_rate[2] = trial.suggest_float("lr_att", lr_dict["lr_att"][0], lr_dict["lr_att"][1], log=True)
-        params.learning_rate[3] = trial.suggest_float("lr_ffnn", lr_dict["lr_ffnn"][0], lr_dict["lr_ffnn"][1], log=True)
-        params.learning_rate[4] = trial.suggest_float("lr_cp", lr_dict["lr_cp"][0], lr_dict["lr_cp"][1], log=True)
-    elif params.model == "Model_D":
-        lr_dict = suggestParamsDict[params.model]["lr_dict"]
-        params.learning_rate[0] = trial.suggest_float("lr_aux", lr_dict["lr_aux"][0], lr_dict["lr_aux"][1], log=True)
-        params.learning_rate[1] = trial.suggest_float("lr_lstm", lr_dict["lr_lstm"][0], lr_dict["lr_lstm"][1], log=True)
-        params.learning_rate[2] = trial.suggest_float("lr_cp", lr_dict["lr_cp"][0], lr_dict["lr_cp"][1], log=True)
+#     lr_dict = suggestParamsDict[params.model]["lr_dict"]
+#     i=0
+#     for k, v in lr_dict.items():
+#         params.learning_rate[i] = trial.suggest_float(k, v[0], v[1], log=True)
+#         i+=1
 
-    for param in suggestParamsDict[params.model]["categorical"].keys():
-        suggestedParams[param] = trial.suggest_categorical(param, \
-                                suggestParamsDict[params.model]["categorical"][param])
+#     for param in suggestParamsDict[params.model]["categorical"].keys():
+#         suggestedParams[param] = trial.suggest_categorical(param, \
+#                                 suggestParamsDict[params.model]["categorical"][param])
 
     for param in suggestParamsDict[params.model]["int"].keys():
         suggestedParams[param] = trial.suggest_int(param, suggestParamsDict[params.model]["int"][param][0], 
                                 suggestParamsDict[params.model]["int"][param][1])
 
-    for param in suggestParamsDict[params.model]["float"].keys():
-        suggestedParams[param] = trial.suggest_float(param, suggestParamsDict[params.model]["float"][param][0],
-                                suggestParamsDict[params.model]["float"][param][1])
+#     for param in suggestParamsDict[params.model]["float"].keys():
+#         suggestedParams[param] = trial.suggest_float(param, suggestParamsDict[params.model]["float"][param][0],
+#                                 suggestParamsDict[params.model]["float"][param][1])
 
     params.update(suggestedParams)
     return params

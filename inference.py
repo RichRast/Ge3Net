@@ -51,7 +51,7 @@ def main(config, params):
         model_stats = loadTrainingStats(''.join([str(model_path),'/training_Stats/best.pt']))
     else:
         model = load_model(''.join([str(model_path),'/model_weights/last.pt']), model_init)
-        model_stats = loadTrainingStats(''.join([str(model_path),'/training_Stats/best.pt']))
+        model_stats = loadTrainingStats(''.join([str(model_path),'/training_Stats/last.pt']))
     model.to(params.device)
     model.eval()
     print(f"is the model on cuda? : {next(model.parameters()).is_cuda}")

@@ -21,19 +21,21 @@ class model_M(nn.Module):
 
         count_params=[]
         for m in [self.aux, self.mlp, self.cp]:
-            params_count=countParams(m)
-            print(f"Parameter count for model {m.__class__.__name__}:{params_count}")
-            count_params.append(params_count)
+            if m is not None:
+                params_count=countParams(m)
+                print(f"Parameter count for model {m.__class__.__name__}:{params_count}")
+                count_params.append(params_count)
         print(f"Total parameters:{sum(count_params)}")
 
     def _setOptimizerParams(self):
         self.Optimizerparams=[]
         for i, m in enumerate([self.aux, self.mlp, self.cp]):
-            params_dict={}
-            params_dict['params']= m.parameters()
-            params_dict['lr'] = self.params.learning_rate[i]
-            params_dict['weight_decay'] = self.params.weight_decay[i]
-            self.Optimizerparams.append(params_dict)
+            if m is not None:
+                params_dict={}
+                params_dict['params']= m.parameters()
+                params_dict['lr'] = self.params.learning_rate[i]
+                params_dict['weight_decay'] = self.params.weight_decay[i]
+                self.Optimizerparams.append(params_dict)
     
     def getOptimizerParams(self):
         return self.Optimizerparams
