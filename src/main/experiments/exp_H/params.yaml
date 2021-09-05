@@ -59,7 +59,7 @@ learning_rate:
 - 0.001
 - 0.001
 - 0.001
-- 0.001
+- 0.01
 - 0.001
 logits_Block_dropout: 0.3
 logits_Block_hidden: 32
@@ -99,10 +99,10 @@ test_gens:
 - 4
 - 8
 thresh: 0.0001
-train_gens: [0, 2, 4, 8, 16, 24, 32, 48, 64, 72, 100]
+train_gens: [0, 2, 4, 8]
 train_seed: 1234
 validCpMask: false
-valid_gens: [2, 4, 8, 16, 24, 32, 48, 64, 72, 100]
+valid_gens: [0, 2, 4, 8]
 warmup_lr_groups:
 - 2
 - 3

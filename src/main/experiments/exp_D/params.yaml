@@ -20,8 +20,8 @@ geography: true
 criteria: "gcd"
 criteria_alpha: 1.0
 
-train_gens: [0, 2, 4, 8]
-valid_gens: [0, 2, 4, 8]
+train_gens: [0, 2, 4, 8, 16, 24, 32, 48, 64, 72, 100]
+valid_gens: [0, 2, 4, 8, 16, 24, 32, 48, 64, 72, 100]
 evaluateTest: false
 test_gens: [0, 2, 4, 8]
 win_size: 500
@@ -62,10 +62,13 @@ tbptt: true
 tbptt_steps: 20
 rnn_net_bidirectional: true
   
+label_smoothing_factor: 0.05
+label_smoothing: false
 pretrained: false
 custom_opt: false
 thresh: 0.0001
-num_epochs: 200
+num_epochs: 300
+optimizer: AdamW
 SmoothLoss_beta: 1.0
 weightLoss_alpha: 1.0
 learning_rate: [0.0001, 0.01, 0.0001]

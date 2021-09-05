@@ -201,3 +201,10 @@ class Swish(nn.Module):
 
     def forward(x):
         return x * F.sigmoid(x)
+
+def modelAveraging(model_paths, model_init):
+    """
+    Given the path for model checkpoints, read the model weights
+    avergage them and return the ensembled model
+    """
+    

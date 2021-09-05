@@ -90,7 +90,7 @@ if [[ (${unsupMethod} = "geo") && (-z ${n_comp}) ]]; then echo "Setting n_comp=3
 if [[ -z ${samples_per_type} ]]; then echo "setting samples_per_type to default values of [400,400,400]"; samples_per_type=(400 400 400); fi
 if [[ -z ${split_perc} ]]; then echo "setting split_perc to default values of [0.7,0.2,0.1]"; split_perc=(0.7 0.2 0.1); fi
 if [[ -z ${gens_to_ret} ]]; then echo "setting gens_to_ret to [2,4,8]"; gens_to_ret=(2 4 8); fi
-if [[ -z ${simulate_balanced} ]]; then echo "simulate with balancing by default, setting simulate_balanced to True"; simulate_balanced='True'; fi
+if [[ -z ${simulate_balanced} ]]; then echo "simulate with balancing by default, setting simulate_balanced to False"; simulate_balanced='False'; fi
 
 # set the vcf, genetic map and ref map according to genotype
 echo "Setting variables for ${geno_type}"

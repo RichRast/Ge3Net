@@ -59,6 +59,7 @@ class model_F(nn.Module):
             out_aux = square_normalize(out4) if self.params.geography else out4
             out_main = square_normalize(out_att) if self.params.geography else out_att
             outs = modelOuts(coord_main = out_main*mask, coord_aux= out_aux*mask)
+            outs.att_weights = weight
             return outs, out_nxt
 
         if mc_dropout is None:

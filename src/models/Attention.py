@@ -116,3 +116,31 @@ class LabelSmoothing(nn.Module):
         true_dist = torch.full(size=(x.shape[0], x.shape[1], x.shape[2]), fill_value=self.smoothing/self.seq_len).to(device)
         true_dist.scatter_(dim=2, index=target.data.unsqueeze(2), value=(1-self.smoothing))
         return self.criterion(torch.log(x), V(true_dist, requires_grad=False))
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, params, input_size, num_heads):
+        super(MultiHeadAttention, self).__init__() # Initialize self._modules as OrderedDict
+        assert input_size % num_heads == 0
+        
+        self.key_size = input_size // num_heads
+        self.num_heads = num_heads
+        self.linears = clones(nn.Linear(input_size, input_size), 4)
+        self.attn = None
+        self.dropout = nn.Dropout(p=params.att_dropout)
+        
+    def forward(self, query, key, value):
+        nbatches = query.size(0)
+        
+        # 1) Do all the linear projections in batch from d_model => h x d_k 
+        query, key, value = \
+            [l(x).view(nbatches, -1, self.h, self.d_k).transpose(1, 2)
+             for l, x in zip(self.linears, (query, key, value))]
+        
+        # 2) Apply attention on all the projected vectors in batch. 
+        x, self.attn = attention(query, key, value, mask=mask, 
+                                 dropout=self.dropout)
+        
+        # 3) "Concat" using a view and apply a final linear. 
+        x = x.transpose(1, 2).contiguous() \
+             .view(nbatches, -1, self.h * self.d_k)
+        return self.linears[-1](x)     

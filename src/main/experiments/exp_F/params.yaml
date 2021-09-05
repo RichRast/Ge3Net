@@ -24,8 +24,8 @@ geography: true
 criteria: "gcd"
 criteria_alpha: 1.0
 
-train_gens: [0, 2, 4, 8]
-valid_gens: [0, 2, 4, 8]
+train_gens: [0, 2, 4, 8, 16, 24, 32, 48, 64, 72, 100]
+valid_gens: [2, 4, 8, 16, 24, 32, 48, 64, 72, 100]
 evaluateTest: false
 test_gens: [0, 2, 4, 8]
 win_size: 1000
@@ -81,6 +81,9 @@ FFNN_activation: "relu"
   
 pretrained: false
 custom_opt: false
+optimizer: AdamW
+label_smoothing_factor: 0.05
+label_smoothing: false
 thresh: 0.0001
 num_epochs: 200
 SmoothLoss_beta: 1.0
