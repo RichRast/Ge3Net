@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable as V
+from torch import Tensor
 import math
     
 # credit to http://nlp.seas.harvard.edu/2018/04/03/attention.html
@@ -143,4 +144,39 @@ class MultiHeadAttention(nn.Module):
         # 3) "Concat" using a view and apply a final linear. 
         x = x.transpose(1, 2).contiguous() \
              .view(nbatches, -1, self.h * self.d_k)
-        return self.linears[-1](x)     
+        return self.linears[-1](x)  
+
+class TransformerModel(nn.Module):
+    def __init__(self, params, input1_size):
+        super().__init__()
+        self.d_model = input1_size
+        nhead = params.mht_num_heads
+        nlayers = params.mht_nlayers
+        self.pos_encoder = PositionalEncoding(params, self.d_model)
+        encoder_layers = nn.TransformerEncoderLayer(d_model=self.d_model, nhead=nhead, dim_feedforward=params.mht_hidden_dim, dropout=params.att_dropout)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layers, nlayers)
+        
+    def forward(self, src: Tensor) -> Tensor:
+        """"
+        src: [batch_size, num_words, embed_dim]
+        """
+        src = self.pos_encoder(src)
+        output = self.transformer_encoder(src.permute(1,0,2).contiguous())
+        return output.permute(1,0,2).contiguous()
+
+class LinearLayers(nn.Module):
+    def __init__(self, params, d_model):
+        super().__init__()
+        self.d_model = d_model
+        self.fc1 = nn.Linear(self.d_model, params.final_out1)
+        self.norm = nn.LayerNorm(params.final_out1)
+        self.dropout = nn.Dropout(p=params.final_dropout)
+        self.activation = nn.GELU()
+        self.fc2 = nn.Linear(params.final_out1, params.final_out2)
+
+
+    def forward(self, src: Tensor) -> Tensor:
+       
+        output = self.dropout(self.fc1(src))
+        output1 = self.fc2(self.norm(self.activation(output)))
+        return output1

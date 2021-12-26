@@ -40,7 +40,7 @@ def main(config, params, **kwargs):
     plotObj=None
     
     if config['log.verbose']:
-        wandb.init(project='Ge3Net', config=params, allow_val_change=True)
+        wandb.init(project='Ge3Net_v2', config=params, allow_val_change=True)
         wandb.run.name='_'.join([str(params.model), str(config['model.summary'])])
         
         # Initiate the class for plotting per epoch

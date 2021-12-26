@@ -1,5 +1,5 @@
 from src.models import Model_A, Model_B, Model_C, Model_D, Model_E, Model_F, Model_G, \
-Model_H, Model_I, Model_J, Model_K, Model_L, Model_M, Model_N, Model_O
+Model_H, Model_I, Model_J, Model_K, Model_L, Model_M, Model_N, Model_O, Model_P, Model_Q
 
 class modelSelect():
     _models={
@@ -18,6 +18,8 @@ class modelSelect():
         "Model_M": lambda params, criterion, cp_criterion : Model_M.model_M(params, criterion, cp_criterion),
         "Model_N": lambda params, criterion, cp_criterion : Model_N.model_N(params, criterion, cp_criterion),
         "Model_O": lambda params, criterion, cp_criterion : Model_O.model_O(params, criterion, cp_criterion),
+        "Model_P": lambda params, criterion, cp_criterion : Model_P.model_P(params, criterion, cp_criterion),
+        "Model_Q": lambda params, criterion, cp_criterion : Model_Q.model_Q(params, criterion, cp_criterion),
     }
 
     @classmethod

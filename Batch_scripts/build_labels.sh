@@ -93,11 +93,17 @@ if [[ -z ${gens_to_ret} ]]; then echo "setting gens_to_ret to None"; gens_to_ret
 echo "Setting variables for ${geno_type}"
 if [[ (${geno_type} = 'humans') && (${vcf_type} != 'ukb') ]]; then
 vcf_dir=$IN_PATH/${geno_type}/master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr${start_chm}.vcf.gz;
+# vcf_dir=$OUT_PATH/${geno_type}/benchmark/data_id_1_geo/train_valid/founders.vcf.gz;
 ref_map=$IN_PATH/${geno_type}/reference_files/reference_panel_metadata.tsv;
 gen_map=$IN_PATH/${geno_type}/reference_files/allchrs.b38.gmap;
-all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_False/all_chm_combined_snps_variance_filter_0.09_sample_win_0.npy;
-# all_chm_snps=$OUT_PATH/${geno_type}/combined_chm/all_chm_combined_snps_variance_filter_0.3.npy;
-n_comp=44; # smallest number of samples in a class is 44, only used for extended/residual pca
+    if [[ ${unsupMethod} = "geo" ]]; then
+        all_chm_snps="None";
+        n_comp=3;
+    else
+        all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_False/all_chm_combined_snps_variance_filter_0.09_sample_win_0.npy;
+        # all_chm_snps=$OUT_PATH/${geno_type}/combined_chm/all_chm_combined_snps_variance_filter_0.3.npy;
+        n_comp=44; # smallest number of samples in a class is 44, only used for extended/residual pca
+    fi
 elif [[ (${geno_type} = 'humans') && (${vcf_type} = 'ukb') ]]; then
 # vcf_dir=$IN_PATH/${geno_type}/${vcf_type}/filtered_references/ukb_snps_chm_1.recode.vcf;
 vcf_filename=()

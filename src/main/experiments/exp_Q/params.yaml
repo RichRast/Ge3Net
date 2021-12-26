@@ -13,12 +13,11 @@ activation_type: leaky_relu
 att_beta: 1.0
 att_dropout: 0.3
 att_dropout2: 0.3
-att_factor: 0.0001
-att_input_size: 103
-att_key_size: 103
-att_num_heads: 1
-att_query_size: 103
-att_value_size: 103
+
+mht_num_heads: 2
+mht_nlayers: 2
+mht_hidden_dim: 64
+
 att_warmup_steps: 50
 label_smoothing_factor: 0.05
 label_smoothing: false
@@ -58,19 +57,19 @@ leaky_relu_slope: 0.1
 learning_rate:
 - 0.001
 - 0.001
-- 0.001
 - 0.01
 - 0.001
+weight_decay: [0,0,0,0]
 logits_Block_dropout: 0.3
 logits_Block_hidden: 32
 logits_Block_hidden1: 4
 logits_Block_in: 64
 logits_Block_n_layers: 1
 logits_Block_out: 1
-lr_steps_decay: 10
+lr_steps_decay: 20
 mc_dropout: false
 mc_samples: 100
-model: Model_H
+model: Model_Q
 n_comp_overall: 3
 n_comp_subclass: 0
 n_win: 317

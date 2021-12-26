@@ -4,6 +4,7 @@ source ini.sh
 # sample command srun --pty -p bigmem --mem=1100GB --time 24:00:00 ./Batch_scripts/build_labels_srun.sh -gt=ancient -e=6 -sim -bl -n_o=3 -sm=time_block17H_3K -um=geo -st_chm=1 -ed_chm=1 -split='0.9 0.09 0.01'
 # /Batch_scripts/build_labels_srun.sh -gt=ancient -e=6 -sim -bl -n_o=3 -s=1234 -um=geo -st_chm=1 -sm=time_block17H_3K -ed_chm=1 -split='0.9 0.09 0.01'
 #./Batch_scripts/build_labels.sh -gt=humans -e=1 -sim -bl -n_o=3 -um=pca -vt=ukb -st_chm=22 -ed_chm=22
+# srun --pty -p gpu --gres=gpu:1 --mem=250GB --time 24:00:00 ./Batch_scripts/build_labels_srun.sh  -gt=humans -e=1 -sim -bl -n_o=3 -um=geo -st_chm=22 -ed_chm=22
 # sample_map for dogs can be expt1, a, b, c
 # ./Batch_scripts/build_labels.sh -gt=ancient -e=1 -sim -bl -n_o=3 -sm=time_block17H_3K -um=geo -st_chm=22 -ed_chm=22 -spt='100 100 100' -split='0.9 0.09 0.01'
 
@@ -95,13 +96,19 @@ if [[ -z ${simulate_balanced} ]]; then echo "simulate with balancing by default,
 # set the vcf, genetic map and ref map according to genotype
 echo "Setting variables for ${geno_type}"
 if [[ (${geno_type} = 'humans') && (${vcf_type} != 'ukb') ]]; then
-# vcf_dir=$IN_PATH/${geno_type}/master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr${start_chm}.vcf.gz;
-vcf_dir=$OUT_PATH/${geno_type}/benchmark/data_id_1_geo/train_valid/founders.vcf.gz;
+vcf_dir=$IN_PATH/${geno_type}/master_vcf_files/ref_final_beagle_phased_1kg_hgdp_sgdp_chr${start_chm}.vcf.gz;
+# vcf_dir=$OUT_PATH/${geno_type}/benchmark/data_id_1_geo/train_valid/founders.vcf.gz;
 ref_map=$IN_PATH/${geno_type}/reference_files/reference_panel_metadata.tsv;
 gen_map=$IN_PATH/${geno_type}/reference_files/allchrs.b38.gmap;
-all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_False/all_chm_combined_snps_variance_filter_0.09_sample_win_0.npy;
-# all_chm_snps=$OUT_PATH/${geno_type}/combined_chm/all_chm_combined_snps_variance_filter_0.3.npy;
-n_comp=44; # smallest number of samples in a class is 44, only used for extended/residual pca
+    if [[ ${unsupMethod} = "geo" ]]; then
+        all_chm_snps="None";
+        n_comp=3;
+    else
+        all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_False/all_chm_combined_snps_variance_filter_0.09_sample_win_0.npy;
+        # all_chm_snps=$OUT_PATH/${geno_type}/combined_chm/all_chm_combined_snps_variance_filter_0.3.npy;
+        n_comp=44; # smallest number of samples in a class is 44, only used for extended/residual pca
+    fi
+
 elif [[ (${geno_type} = 'humans') && (${vcf_type} = 'ukb') ]]; then
 # vcf_dir=$IN_PATH/${geno_type}/${vcf_type}/filtered_references/ukb_snps_chm_1.recode.vcf;
 vcf_filename=()

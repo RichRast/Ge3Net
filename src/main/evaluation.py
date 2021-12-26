@@ -128,13 +128,13 @@ def eval_cp_batch(cp_target, cp_pred, seq_len, win_tol=2):
 
     # convert to numpy
     if torch.is_tensor(cp_target):
-        cp_target = cp_target.detach().cpu().numpy()
+        cp_target_np = cp_target.detach().cpu().numpy()
     if torch.is_tensor(cp_pred):
-        cp_pred = cp_pred.detach().cpu().numpy()
+        cp_pred_np = cp_pred.detach().cpu().numpy()
 
     for i in range(num_samples):
-        cp_target_idx = np.nonzero(cp_target[i,:])[0]
-        cp_pred_idx = np.nonzero(cp_pred[i,:])[0]
+        cp_target_idx = np.nonzero(cp_target_np[i,:])[0]
+        cp_pred_idx = np.nonzero(cp_pred_np[i,:])[0]
         true_cps = cp_target_idx
         pred_cps = cp_pred_idx
         
@@ -195,7 +195,7 @@ def getCpPred(name, cp_pred_raw, cpThresh, Batch_size, T):
     elif name==cpMethod.BOCD.name:
         cp_pred_diff = cp_pred_raw[:,1:]-cp_pred_raw[:,:-1]
         cp_pred = torch.zeros((Batch_size, T))
-        cp_idx = torch.nonzero((cp_pred_diff<-10))
+        cp_idx = torch.nonzero((cp_pred_diff<0))
         for i,j in zip(cp_idx[:,0], cp_idx[:,1]):
             if cp_pred_raw[i,j+1]<=cpThresh:
                 cp_pred[i,j-1]=1

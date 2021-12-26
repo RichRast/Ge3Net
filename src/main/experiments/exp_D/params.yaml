@@ -20,11 +20,14 @@ geography: true
 criteria: "gcd"
 criteria_alpha: 1.0
 
-train_gens: [0, 2, 4, 8, 16, 24, 32, 48, 64, 72, 100]
-valid_gens: [0, 2, 4, 8, 16, 24, 32, 48, 64, 72, 100]
-evaluateTest: false
+train_gens: [0, 2, 4, 8]
+valid_gens: [0, 2, 4, 8]
+# train_gens: [0, 2, 4, 8]
+# valid_gens: [0, 2, 4, 8]
+evaluateTest: true
 test_gens: [0, 2, 4, 8]
-win_size: 500
+win_size: 1000
+# win_size: 1000
 dataset_dim: 3
 coordinates: "labels.pkl"
 # n_win and chmlen will be computed during data transform
