@@ -50,8 +50,8 @@ early_stopping_thresh: 6
 eps: 0.0001
 evalBalancedGcd: true
 evalCp: true
-evalExtraMainLosses: true
-evaluateTest: true
+evalExtraMainLosses: false
+evaluateTest: false
 geography: true
 leaky_relu_slope: 0.1
 learning_rate:
@@ -98,7 +98,7 @@ test_gens:
 - 4
 - 8
 thresh: 0.0001
-train_gens: [0, 2, 4, 8]
+train_gens: [0, 2, 4, 8, 16, 24]
 train_seed: 1234
 validCpMask: false
 valid_gens: [0, 2, 4, 8]

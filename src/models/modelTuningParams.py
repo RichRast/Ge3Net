@@ -216,14 +216,25 @@ suggestParamsDict= {
                                         "logits_Block_dropout": (0.1,0.5),
                                         }
                                 },
+                "Model_Q":{
+                                
+                                "int": {
+                                        "mht_num_heads":(1,4) ,
+                                        "mht_nlayers":(1,4),
+                                        },
+                                "categorical": {
+                                        "mht_hidden_dim": [8,16, 64],
+                                }
+                                },
                     }   
- 
+typeKeys=['categorical', 'int', 'float']
 def getParamKeys(params):
     params_dict = suggestParamsDict[params.model]
     paramsKeys=list(['learning_rate'])
-    paramsKeys.extend(list(params_dict["categorical"].keys()))
-    paramsKeys.extend(list(params_dict["int"].keys())) 
-    paramsKeys.extend(list(params_dict["float"].keys()))
+    
+    for k in typeKeys:
+        if params_dict.get(k) is not None:
+            paramsKeys.extend(list(params_dict[k].keys()))
     return paramsKeys
 
 def suggestParams(params, trial):
@@ -233,18 +244,19 @@ def suggestParams(params, trial):
 #     for k, v in lr_dict.items():
 #         params.learning_rate[i] = trial.suggest_float(k, v[0], v[1], log=True)
 #         i+=1
+    if suggestParamsDict[params.model].get('categorical') is not None: 
+        for param in suggestParamsDict[params.model]["categorical"].keys():
+                suggestedParams[param] = trial.suggest_categorical(param, \
+                                        suggestParamsDict[params.model]["categorical"][param])
+    if suggestParamsDict[params.model].get('int') is not None: 
+        for param in suggestParamsDict[params.model]["int"].keys():
+                suggestedParams[param] = trial.suggest_int(param, suggestParamsDict[params.model]["int"][param][0], 
+                                        suggestParamsDict[params.model]["int"][param][1])
 
-#     for param in suggestParamsDict[params.model]["categorical"].keys():
-#         suggestedParams[param] = trial.suggest_categorical(param, \
-#                                 suggestParamsDict[params.model]["categorical"][param])
-
-    for param in suggestParamsDict[params.model]["int"].keys():
-        suggestedParams[param] = trial.suggest_int(param, suggestParamsDict[params.model]["int"][param][0], 
-                                suggestParamsDict[params.model]["int"][param][1])
-
-#     for param in suggestParamsDict[params.model]["float"].keys():
-#         suggestedParams[param] = trial.suggest_float(param, suggestParamsDict[params.model]["float"][param][0],
-#                                 suggestParamsDict[params.model]["float"][param][1])
+    if suggestParamsDict[params.model].get('float') is not None:
+        for param in suggestParamsDict[params.model]["float"].keys():
+                suggestedParams[param] = trial.suggest_float(param, suggestParamsDict[params.model]["float"][param][0],
+                                suggestParamsDict[params.model]["float"][param][1])
 
     params.update(suggestedParams)
     return params
