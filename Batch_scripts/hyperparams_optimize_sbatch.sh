@@ -43,6 +43,16 @@ if [[ -z $verbose ]] ; then echo "Setting verbose to default of False" ; verbose
 
 echo "Starting experiment $expt_id with Model $model_type and data from experiment # $data_id for geno_type $geno_type"
 
+if [[ ("$data_id" = *"_geo"*) ]]; then
+    params_name="params"; 
+elif [[ ("$data_id" = *"_pca"*) ]]; then
+    params_name="params_pca";
+elif [[ ("$data_id" = *"_umap"*) ]]; then
+    params_name="params_umap";
+else
+    echo "exiting"; exit 1 ;
+fi
+echo "data_id $data_id params_name $params_name"
 
 if [[ -d $OUT_PATH/${geno_type}/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id} ]];
 then
@@ -63,7 +73,7 @@ sbatch << EOT
 #!/bin/bash
 #SBATCH -p gpu
 #SBATCH -G 1
-#SBATCH -C GPU_MEM:32GB
+#SBATCH --mem=250GB
 #SBATCH -t 24:00:00
 #SBATCH --output=$OUT_PATH/$geno_type/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/Ge3Net_tuning.log
 
@@ -77,7 +87,7 @@ ml load git-lfs/2.4.0
 ml load system nvtop
 
 cd $USER_PATH
-python3 hyperparams_optimize.py  --data.params $USER_PATH/src/main/experiments/exp_$model_type \
+python3 hyperparams_optimize.py  --data.params $USER_PATH/src/main/experiments/exp_$model_type/${params_name}.yaml \
 --data.geno_type $geno_type \
 --data.labels $OUT_PATH/$geno_type/labels/data_id_${data_id} \
 --data.dir $OUT_PATH/$geno_type/labels/data_id_${data_id} \

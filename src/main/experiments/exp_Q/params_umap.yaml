@@ -33,7 +33,7 @@ cp_detect: true
 cp_pos_weight: 10.0
 cp_predict: true
 cp_tol: 1
-criteria: gcd
+criteria: l1_loss
 criteria_alpha: 1.0
 cuda: true
 custom_opt: false
@@ -43,9 +43,9 @@ early_stopping_thresh: 6
 eps: 0.0001
 evalBalancedGcd: true
 evalCp: true
-evalExtraMainLosses: false
-evaluateTest: false
-geography: true
+evalExtraMainLosses: true
+evaluateTest: true
+geography: false
 label_smoothing: false
 label_smoothing_factor: 0.05
 leaky_relu_slope: 0.1
@@ -63,7 +63,7 @@ logits_Block_out: 1
 lr_steps_decay: 20
 mc_dropout: false
 mc_samples: 100
-mht_hidden_dim: 64
+mht_hidden_dim: 16
 mht_nlayers: 2
 mht_num_heads: 2
 model: Model_Q

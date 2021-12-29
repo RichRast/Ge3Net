@@ -100,37 +100,37 @@ gen_map=$IN_PATH/${geno_type}/reference_files/allchrs.b38.gmap;
         all_chm_snps="None";
         n_comp=3;
     else
-        all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_False/all_chm_combined_snps_variance_filter_0.09_sample_win_0.npy;
+        all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_False/vcf_type_${vcf_type}/all_chm_combined_snps_variance_filter_0.09_sample_win_0.npy;
         # all_chm_snps=$OUT_PATH/${geno_type}/combined_chm/all_chm_combined_snps_variance_filter_0.3.npy;
         n_comp=44; # smallest number of samples in a class is 44, only used for extended/residual pca
     fi
 elif [[ (${geno_type} = 'humans') && (${vcf_type} = 'ukb') ]]; then
-# vcf_dir=$IN_PATH/${geno_type}/${vcf_type}/filtered_references/ukb_snps_chm_1.recode.vcf;
-vcf_filename=()
-    start_chm=1;
-    end_chm=22
-    for chm in $(seq ${start_chm} ${end_chm})
-        do
-            vcf_filename+=($IN_PATH/${geno_type}/ukb/filtered_references/ukb_snps_chm_$chm.recode.vcf)
-        done
-vcf_dir=${vcf_filename[*]}
-echo " vcf dir variable passed: ${vcf_dir}"
-ref_map=$IN_PATH/${geno_type}/reference_files/reference_panel_metadata.tsv;
-gen_map=$IN_PATH/${geno_type}/reference_files/allchrs.b38.gmap;
-all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_0.5/vcf_type_${vcf_type}/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy
-n_comp=44; # smallest number of samples in a class is 44, only used for extended/residual pca
+    # vcf_dir=$IN_PATH/${geno_type}/${vcf_type}/filtered_references/ukb_snps_chm_1.recode.vcf;
+    vcf_filename=()
+        start_chm=1;
+        end_chm=22
+        for chm in $(seq ${start_chm} ${end_chm})
+            do
+                vcf_filename+=($IN_PATH/${geno_type}/ukb/filtered_references/ukb_snps_chm_$chm.recode.vcf)
+            done
+    vcf_dir=${vcf_filename[*]}
+    echo " vcf dir variable passed: ${vcf_dir}"
+    ref_map=$IN_PATH/${geno_type}/reference_files/reference_panel_metadata.tsv;
+    gen_map=$IN_PATH/${geno_type}/reference_files/allchrs.b38.gmap;
+    all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_False/vcf_type_${vcf_type}/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy
+    n_comp=44; # smallest number of samples in a class is 44, only used for extended/residual pca
 elif [[  ${geno_type} = 'dogs' ]]; then
-vcf_dir=$OUT_PATH/dogs/sm_${sample_map}/chr22/chr22_filtered.vcf;
-ref_map=$OUT_PATH/dogs/ref_map_${sample_map}.tsv;
-gen_map=$IN_PATH/dogs/chr22/chr22_average_canFam3.1.txt;
-all_chm_snps=$OUT_PATH/dogs/sm_${sample_map}/ld_False/vcf_type_/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy;
-# all_chm_snps='$OUT_PATH/dogs/expt2_biallelic/all_chm_combined_snps_variance_filter_0.0_sample_win_100.npy';
-n_comp=23; # smallest number of samples in a class is 23, only used for extended/residual pca
+    vcf_dir=$OUT_PATH/dogs/sm_${sample_map}/chr$chm/chr$chm_filtered.vcf;
+    ref_map=$OUT_PATH/dogs/ref_map_${sample_map}.tsv;
+    gen_map=$IN_PATH/dogs/dogs_genetic_map/chr$chm_average_canFam3.1.txt;
+    all_chm_snps=$OUT_PATH/dogs/sm_${sample_map}/ld_False/vcf_type_/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy;
+    # all_chm_snps='$OUT_PATH/dogs/expt2_biallelic/all_chm_combined_snps_variance_filter_0.0_sample_win_100.npy';
+    n_comp=23; # smallest number of samples in a class is 23, only used for extended/residual pca
 elif [[  ${geno_type} = 'ancient' ]]; then
-vcf_dir=$OUT_PATH/${geno_type}/chr${start_chm}/chr${start_chm}_phased_imputed.vcf.gz;
-ref_map=$OUT_PATH/${geno_type}/sm_${sample_map}.tsv;
-gen_map=$OUT_PATH/${geno_type}/chr${start_chm}/chr${start_chm}_phased_imputed.map;
-all_chm_snps="None"
+    vcf_dir=$OUT_PATH/${geno_type}/chr${start_chm}/chr${start_chm}_phased_imputed.vcf.gz;
+    ref_map=$OUT_PATH/${geno_type}/sm_${sample_map}.tsv;
+    gen_map=$OUT_PATH/${geno_type}/chr${start_chm}/chr${start_chm}_phased_imputed.map;
+    all_chm_snps="None"
 
 else
 echo "${geno_type} not supported"; exit 1 ;

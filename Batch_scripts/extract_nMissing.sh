@@ -20,13 +20,20 @@ for (( chm=$3; chm<=$4; chm++ )); do
     bcftools stats -s - $OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_subset_tmp.vcf.gz >$OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_biostats.txt
 
     echo "Extract number of snps, sample and nMissing for chm $chm"
+    # extract number of samples for the chm
+    sed -n '23p' $OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_biostats.txt | cut -f3- >$OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_nMissing.txt
+    nsamples=$(sed -n '23p' $OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_biostats.txt | cut -f4)
+    echo "nsamples $nsamples" 
     # extract number of snps for the chm
-    sed -n '26p' $OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_biostats.txt | cut -f3- >$OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_nMissing.txt
+    sed -n '26p' $OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_biostats.txt | cut -f3- >>$OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_nMissing.txt
     # for the particular subset, it is always lines 1718 through 2384 and column 3, 14 
     # for sample, nMissing
-    linenum=$(awk '/nMissing/{ print NR; exit }' $OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_nMissing.txt)
-    echo "linenum $linenum"
-    sed -n '1580,2108p' $OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_biostats.txt | cut -f3,14 >>$OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_nMissing.txt
+    linenum=$(awk '/PSC/{print NR; exit}' $OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_biostats.txt)
+    # +2 for the two comment lines with # PSC
+    linenum_st=$(($linenum+2))
+    linenum_end=$(($linenum+$nsamples+1))
+    echo "linenum start: $linenum_st, linenum end: $linenum_end"
+    sed -n ${linenum_st},${linenum_end}'p' $OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_biostats.txt | cut -f3,14 >>$OUT_PATH/${geno_type}/sm_${sample_map}/chr$chm/chr${chm}_nMissing.txt
 done
 
 echo "All Done"

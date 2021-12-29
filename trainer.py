@@ -40,7 +40,7 @@ def main(config, params, **kwargs):
     plotObj=None
     
     if config['log.verbose']:
-        wandb.init(project='Ge3Net_v2', config=params, allow_val_change=True)
+        wandb.init(project=config['model.wandb_name'], config=params, allow_val_change=True)
         wandb.run.name='_'.join([str(params.model), str(config['model.summary'])])
         
         # Initiate the class for plotting per epoch
@@ -103,7 +103,7 @@ def main(config, params, **kwargs):
 
 if __name__=="__main__":
     config = parse_args()
-    yaml_path = osp.join(config['data.params'], 'params.yaml')
+    yaml_path = config['data.params']
     assert osp.isfile(yaml_path), "No yaml configuration file found at {}".format(yaml_path)
     params = Params(yaml_path)
     main(config, params)

@@ -71,7 +71,7 @@ def main(config, params):
                 
 if __name__=="__main__":
     config = parse_args()
-    yaml_path = osp.join(config['data.params'], 'params.yaml')
+    yaml_path = config['data.params']
     assert osp.isfile(yaml_path), "No yaml configuration file found at {}".format(yaml_path)
     params = Params(yaml_path)
     main(config, params)

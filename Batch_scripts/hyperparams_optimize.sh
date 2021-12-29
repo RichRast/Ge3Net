@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# sample command srun --pty -p gpu --gres=gpu:1  --mem-per-gpu=32GB --time 24:00:00 ./Batch_scripts/hyperparams_optimize.sh -gt humans -e 2 -d 1_geo -m A -sum "model_A"
+# sample command srun --pty -p gpu --gres=gpu:1  --mem=32GB --time 24:00:00 ./Batch_scripts/hyperparams_optimize.sh -gt humans -e 2 -d 1_geo -m A -sum "model_A"
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
@@ -44,6 +44,16 @@ if [[ -z $verbose ]] ; then echo "Setting verbose to default of False" ; verbose
 echo "Starting experiment $expt_id with Model $model_type and data from experiment # $data_id for geno_type $geno_type"
 
 
+if [[ ("$data_id" = *"_geo"*) ]]; then
+    params_name="params"; 
+elif [[ ("$data_id" = *"_pca"*) ]]; then
+    params_name="params_pca";
+elif [[ ("$data_id" = *"_umap"*) ]]; then
+    params_name="params_umap";
+else
+    echo "exiting"; exit 1 ;
+echo "data_id $data_id params_name $params_name"
+
 if [[ -d $OUT_PATH/${geno_type}/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id} ]];
 then
     echo " $OUT_PATH/${geno_type}/hyperparams_optimize/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id} already exists. Are you sure you want to overwrite ?";
@@ -67,7 +77,7 @@ ml load cuda/10.1.168
 ml load git-lfs/2.4.0
 ml load system nvtop
 
-python3 hyperparams_optimize.py  --data.params $USER_PATH/src/main/experiments/exp_$model_type \
+python3 hyperparams_optimize.py  --data.params $USER_PATH/src/main/experiments/exp_$model_type/${params_name}.yaml \
 --data.geno_type $geno_type \
 --data.labels $OUT_PATH/$geno_type/labels/data_id_${data_id} \
 --data.dir $OUT_PATH/$geno_type/labels/data_id_${data_id} \

@@ -35,7 +35,7 @@ if [[ -z $combine ]] ; then echo "Missing combine argument, no chms will be comb
 if [[ -z $sample_map ]] ; then echo "Missing sample map to subset" ; exit 1; fi
 if [[ -z $geno ]] ; then echo "Missing mind parameter ()" ; exit 1; fi
 if [[ -z $maf ]] ; then echo "Missing maf parameter" ; exit 1; fi
-if [[ -z $ld_prune ]] ; then echo "Missing ld prune parameter" ; exit 1; fi
+if [[ -z $ld_prune ]] ; then echo "Missing ld prune parameter" ; ld_prune=0.0; fi
 if [[ -z $geno_type ]] ; then echo "Missing geno type" ; exit 1; fi
 
 if [[ -d $OUT_PATH/dogs/preprocess_vcf_sm_${sample_map}_${start_chm}_${end_chm}_combine_${combine}_ld_prune_${ld_prune}.out ]];
@@ -66,13 +66,14 @@ cd $USER_PATH
 
 if ./Batch_scripts/pre_process_loop.sh ${start_chm} ${end_chm} ${geno} ${maf} ${ld_prune} ${sample_map} ${geno_type}; then echo "Success";
 else echo "Fail"; fi
-if [[ ($combine = "True") ]] ; then
-    echo "Launching the combine script for pruned data "
-    if ./Batch_scripts/filter_combine_vcf.sh -gt ${geno_type} -sm ${sample_map} -f 0.0 -st_chm 1 -ed_chm 38 -s_win 0 -ld ${ld_prune} -c; then echo "Success";
-    else echo "Fail combine script"; fi 
-    echo "Launching the combine script for unpruned and unfiltered data"
+if [[ ($combine = "True") && ( $ld_prune = 0.0 ) ]] ; then
+    echo "Launching the combine script for unpruned data"
     if ./Batch_scripts/filter_combine_vcf.sh -gt ${geno_type} -sm ${sample_map} -f 0.0 -st_chm 1 -ed_chm 38 -s_win 0 -c ; then echo "Success";
     else echo "Fail combine script"; fi 
-else echo "Finished without combining";
+else
+    echo "Launching the combine script for pruned data "
+    if ./Batch_scripts/filter_combine_vcf.sh -gt ${geno_type} -sm ${sample_map} -f 0.0 -st_chm 1 -ed_chm 38 -s_win 0 -ld ${ld_prune} -c; then echo "Success";
+    else echo "Fail combine script for pruning and combining"; fi 
 fi
+
 EOT

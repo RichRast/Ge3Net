@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# sample command srun --pty -p gpu --gres=gpu:1 --mem=250GB --time 24:00:00 ./Batch_scripts/trainer_bash_srun.sh -gt humans -e 2 -d 1_geo -m A -sum "model_A" -v
+# sample command srun --pty -p gpu --gres=gpu:1 --mem=250GB --time 24:00:00 ./Batch_scripts/trainer_bash_srun.sh -gt humans -e 2 -d 1_geo -m A -sum "model_A" -wandb_name "Ge3Net_v2" -v
 cd /home/users/richras/Ge2Net_Repo
 source ini.sh
 
@@ -16,6 +16,7 @@ Help()
     echo "-m|--model       Specify the model type and mjor version, example: D6"
     echo "-sum|--summary  Specify summary or description of this run"
     echo "-pt_dir|--pretrain_dir  Specify pretrain dir" 
+    echo "-wandb_name|--wandb_name  Specify the name of wandb project"
     echo "-v|--verbose     Specify True, False for verbose "
     echo "-h|--help        Print this help"
     echo
@@ -29,6 +30,7 @@ while [[ $# -gt 0 ]]; do
     -m | --model ) shift ; model_type=$1 ;;
     -sum | --summary ) shift ; model_summary=$1 ;;
     -pt_dir | --pretrain_dir ) shift; pretrain_dir=$1 ;;
+    -wandb_name|--wandb_name ) shift; wandb_name=$1 ;;
     -v | --verbose ) shift ; verbose="True";;
     -h | --help ) Help ; exit ;;
     \? ) echo "Error: Invalid option"; exit 1;;
@@ -43,9 +45,20 @@ if [[ -z $model_type ]] ; then echo "Missing model type" ; exit 1; fi
 if [[ -z $geno_type ]] ; then echo "Setting default genotype to humans" ; geno_type='humans' ; exit ; fi
 if [[ -z $verbose ]] ; then echo "Setting verbose to default of False" ; verbose='False'; fi
 if [[ -z $pretrain_dir ]]; then echo "no pretrained dir specified, training from scratch" ; pretrain_dir='None'; fi
+if [[ -z $wandb_name ]]; then echo "no wandb_name specified, setting to Ge3Net_v2" ; wandb_name='Ge3Net_v2'; fi
 
 echo "Starting experiment $expt_id with Model $model_type and data from experiment # $data_id for geno_type $geno_type"
 
+if [[ ("$data_id" = *"_geo"*) ]]; then
+    params_name="params"; 
+elif [[ ("$data_id" = *"_pca"*) ]]; then
+    params_name="params_pca";
+elif [[ ("$data_id" = *"_umap"*) ]]; then
+    params_name="params_umap";
+else
+    echo "exiting"; exit 1 ;
+fi
+echo "data_id $data_id params_name $params_name"
 
 if [[ -d $OUT_PATH/${geno_type}/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id} ]];
 then
@@ -70,13 +83,14 @@ ml load cuda/10.1.168
 ml load git-lfs/2.4.0
 ml load system nvtop
 
-python3 trainer.py  --data.params $USER_PATH/src/main/experiments/exp_$model_type \
+python3 trainer.py  --data.params $USER_PATH/src/main/experiments/exp_$model_type/${params_name}.yaml \
 --data.geno_type $geno_type \
 --data.labels $OUT_PATH/$geno_type/labels/data_id_${data_id} \
 --data.dir $OUT_PATH/$geno_type/labels/data_id_${data_id} \
 --models.dir $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/ \
 --model.summary $model_summary \
 --model.pretrained_dir $pretrain_dir \
+--model.wandb_name $wandb_name \
 --log.verbose $verbose 2>&1 | tee $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/Ge3Net.log
 
 node_feat -n $(hostname|sed 's/.int.*//') >> $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/Ge3Net.log
