@@ -63,7 +63,7 @@ logits_Block_out: 1
 lr_steps_decay: 20
 mc_dropout: false
 mc_samples: 100
-mht_hidden_dim: 16
+mht_hidden_dim: 64
 mht_nlayers: 2
 mht_num_heads: 2
 model: Model_Q

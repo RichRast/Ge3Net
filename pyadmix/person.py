@@ -156,6 +156,7 @@ def non_rec_admix(founders,founders_weight,gen,breakpoint_probability,prevAdmixe
         assert len(founders) >= 2, "Too few founders!!!"
     else:
         assert len(founders)>=1, "No founders passed"
+        
     order = [ 'snps', 'vcf_idx']
     chm_length_morgans = founders[0].chm_length_morgans
     chm_length_snps = founders[0].chm_length_snps
@@ -218,10 +219,11 @@ def create_new_non_rec(founders,founders_weight,gen,breakpoint_probability, prev
         paternal,p_idx = non_rec_admix(founders,founders_weight,gen,breakpoint_probability)
         p1 = founders[0]
     else:
+        print(f"founders:{founders}, founders_weight:{founders_weight}")
         maternal,m_idx = non_rec_admix(founders[0],founders_weight[0],gen,breakpoint_probability,prevAdmixedFlag)
         paternal,p_idx = non_rec_admix(founders[1],founders_weight[1],gen,breakpoint_probability,prevAdmixedFlag)
         p1 = founders[0][0]
-    
+        
     chm = p1.chm
     chm_length_morgans = p1.chm_length_morgans
     chm_length_snps = p1.chm_length_snps

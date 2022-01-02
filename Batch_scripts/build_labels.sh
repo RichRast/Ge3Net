@@ -120,9 +120,9 @@ elif [[ (${geno_type} = 'humans') && (${vcf_type} = 'ukb') ]]; then
     all_chm_snps=$OUT_PATH/${geno_type}/sm_${sample_map}/ld_False/vcf_type_${vcf_type}/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy
     n_comp=44; # smallest number of samples in a class is 44, only used for extended/residual pca
 elif [[  ${geno_type} = 'dogs' ]]; then
-    vcf_dir=$OUT_PATH/dogs/sm_${sample_map}/chr$chm/chr$chm_filtered.vcf;
+    vcf_dir=$OUT_PATH/dogs/sm_${sample_map}/chr$start_chm/chr${start_chm}_filtered.vcf;
     ref_map=$OUT_PATH/dogs/ref_map_${sample_map}.tsv;
-    gen_map=$IN_PATH/dogs/dogs_genetic_map/chr$chm_average_canFam3.1.txt;
+    gen_map=$IN_PATH/dogs/chr${start_chm}_average_canFam3.1.txt;
     all_chm_snps=$OUT_PATH/dogs/sm_${sample_map}/ld_False/vcf_type_/all_chm_combined_snps_variance_filter_0.0_sample_win_0.npy;
     # all_chm_snps='$OUT_PATH/dogs/expt2_biallelic/all_chm_combined_snps_variance_filter_0.0_sample_win_100.npy';
     n_comp=23; # smallest number of samples in a class is 23, only used for extended/residual pca

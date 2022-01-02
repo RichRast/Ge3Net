@@ -9,7 +9,5 @@ Experiments were run on three genotypes - humans, dogs and ancient and for geogr
 
 # Third Party Code
 Here we reference publicly available third party code implementations that are used/modified in our code base
-
-Attention implementation available at <github link> based on the paper <pdf paper link>
 BOCD implementation available at <github link> based on the paper <pdf paper link>
 

@@ -100,8 +100,6 @@ train_gens:
 - 2
 - 4
 - 8
-- 16
-- 24
 train_seed: 1234
 validCpMask: false
 valid_gens:
