@@ -58,13 +58,8 @@ class Ge3Net_Classification():
             for param in self.model.parameters():
                 param.grad = None
 
-            if debugMode: self.model._checkModelParamGrads()
-
             train_outs, loss_inner, lossBack = self.model._batch_train_1_step(train_x, train_labels, cp_mask)
             if lossBack is not None: lossBack.backward() 
-
-            #check that the model param grads are not None
-            if debugMode: self.model._checkModelParamGrads()
 
             # update the weights
             optimizer.step()

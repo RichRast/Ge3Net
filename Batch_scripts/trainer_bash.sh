@@ -101,10 +101,9 @@ python3 trainer.py  --data.params '$USER_PATH/src/main/experiments/exp_$model_ty
 --model.pretrained_dir $pretrain_dir \
 --model.wandb_name $wandb_name \
 --log.verbose $verbose
+ 
+node_feat -n $(hostname|sed 's/.int.*//') >> $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/Ge3Net.log
 
-if [[ $verbose = "True" ]] ; then 
-    node_feat -n $(hostname|sed 's/.int.*//') >> $OUT_PATH/$geno_type/training/Model_${model_type}_exp_id_${expt_id}_data_id_${data_id}/Ge3Net.log
-fi
 EOT
 
 sleep .5

@@ -10,15 +10,13 @@ class BOCD(object):
         self.recomb_rate = recomb_rate
         self.likelihood_model = likelihood_model
         
-    def get_hazard(self, t, run_length=0):
+    def get_hazard(self, t, run_length=0, hazard_constant=0.03):
         
         # hazard function at first and last time step
         if (t==0|t==self.T-1):
             hazard = 0
         else:
-            # hazard = self.recomb_rate[t]/100
-            # hazard=6/self.T
-            hazard = 0.03  
+            hazard = hazard_constant
         return hazard
     
     @timer

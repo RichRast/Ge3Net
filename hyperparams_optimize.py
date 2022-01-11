@@ -34,9 +34,10 @@ def save_study(study, save_path):
         pickle.dump(study, f)
                 
 def main(config, params):
-    params.optuna_n_trials=10
+    params.optuna_n_trials=20
     params.evalBalancedGcd=False
     params.evaluateTest=False
+    params.evalExtraMainLosses=False
     save_path = osp.join(config['models.dir'], 'hyperparams_studies')
     if not osp.exists(save_path):
         os.makedirs(save_path)

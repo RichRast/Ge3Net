@@ -219,7 +219,7 @@ suggestParamsDict= {
                 "Model_Q":{
 
                                 "categorical": {
-                                        "mht_hidden_dim": [8,16, 64],
+                                        # "mht_hidden_dim": [64, 100, 128, 256, 512, 2048],
                                         "mht_num_heads":(1,2,4),
                                         "mht_nlayers":(1,2,4),
                                 },

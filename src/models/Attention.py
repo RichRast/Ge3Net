@@ -153,6 +153,7 @@ class TransformerModel(nn.Module):
         nhead = params.mht_num_heads
         nlayers = params.mht_nlayers
         self.pos_encoder = PositionalEncoding(params, self.d_model)
+        # encoder_layers = nn.TransformerEncoderLayer(d_model=self.d_model, nhead=nhead, dim_feedforward=params.mht_hidden_dim, dropout=params.att_dropout)
         encoder_layers = nn.TransformerEncoderLayer(d_model=self.d_model, nhead=nhead, dim_feedforward=params.mht_hidden_dim, dropout=params.att_dropout)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, nlayers)
         

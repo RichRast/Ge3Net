@@ -68,8 +68,6 @@ class model_E(nn.Module):
     def _batch_train_1_step(self, train_x, train_labels, mask):
         train_outs= self(train_x, mask)
         loss_inner, lossBack = self._getLoss(train_outs, train_labels, mask)
-        # clip gradient norm for conv
-        torch.nn.utils.clip_grad_norm_(self.conv.parameters(), self.params.clip)
         return train_outs, loss_inner, lossBack
 
     

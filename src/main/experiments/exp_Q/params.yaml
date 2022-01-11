@@ -27,7 +27,8 @@ aux_net_out: 3
 aux_next_norm: LayerNorm
 batch_size: 256
 chmlen: 317000
-clip: 1.0
+clip_by_norm: 0.0
+clip_by_value: 0.0
 coordinates: labels.pkl
 cp_detect: true
 cp_pos_weight: 10.0
@@ -43,8 +44,8 @@ early_stopping_thresh: 6
 eps: 0.0001
 evalBalancedGcd: true
 evalCp: true
-evalExtraMainLosses: false
-evaluateTest: false
+evalExtraMainLosses: true
+evaluateTest: true
 geography: true
 label_smoothing: false
 label_smoothing_factor: 0.05
@@ -63,14 +64,14 @@ logits_Block_out: 1
 lr_steps_decay: 20
 mc_dropout: false
 mc_samples: 100
-mht_hidden_dim: 64
+mht_hidden_dim: 100
 mht_nlayers: 2
 mht_num_heads: 2
 model: Model_Q
 n_comp_overall: 3
 n_comp_subclass: 0
 n_win: 317
-num_epochs: 300
+num_epochs: 400
 optimizer: AdamW
 plotting: false
 pop_sample_map: pop_sample_map.tsv
@@ -100,6 +101,8 @@ train_gens:
 - 2
 - 4
 - 8
+- 16
+- 24
 train_seed: 1234
 validCpMask: false
 valid_gens:
@@ -108,8 +111,7 @@ valid_gens:
 - 4
 - 8
 warmup_lr_groups:
-- 2
-- 3
+- 1
 weightLoss_alpha: 1.0
 weight_decay:
 - 0

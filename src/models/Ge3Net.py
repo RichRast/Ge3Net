@@ -47,6 +47,7 @@ class Ge3NetBase():
         trainGcdBalancedMetricsObj=balancedMetrics() if self.params.geography else None
         self.model.train()
 
+        grad_history_before, grad_history_after=[],[]
         for i, train_gen in enumerate(training_generator):
             train_x, train_y, vcf_idx, cps, superpop , granularpop= train_gen
             train_x = train_x.to(self.params.device).float()
@@ -60,16 +61,34 @@ class Ge3NetBase():
             for param in self.model.parameters():
                 param.grad = None
 
-            if debugMode: self.model._checkModelParamGrads()
-
             train_outs, loss_inner, lossBack = self.model._batch_train_1_step(train_x, train_labels, cp_mask)
             if self.params.label_smoothing:
                 lossBack += LabelSmoothing(granularpop.shape[1], self.params.label_smoothing_factor)(train_outs.att_weights, granularpop.to(self.params.device), self.params.device)
             if lossBack is not None: lossBack.backward() 
 
             #check that the model param grads are not None
-            if debugMode: self.model._checkModelParamGrads()
-
+            if debugMode: 
+                # wandb log grad norm before clipping
+                grad_norm=torch.norm(torch.cat([p.grad.view(-1) for p in self.model.parameters() if p.grad is not None]))
+                grad_history_before.append(grad_norm)
+                self.wandb.log({f"grad norm before clipping":grad_norm, "batch":i})
+                self.wandb.log({f"max grad norm before clipping":max(np.abs(grad_history_before)), "batch":i})
+                self.wandb.log({f"max grad val before clipping":torch.max(torch.cat([p.grad.view(-1) for p in self.model.parameters() if p.grad is not None])), "batch":i})
+                clip_percentile=10.0
+                self.wandb.log({f"{clip_percentile} percentile before clipping":np.percentile(grad_history_before, clip_percentile), "batch":i})
+            # clip grad norm
+            if self.params.clip_by_norm > 0.:
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.params.clip_by_norm)
+            elif self.params.clip_by_value > 0.:
+                torch.nn.utils.clip_grad_value_(self.model.parameters(), clip_value=self.params.clip_by_value)
+            if debugMode:            
+                # wandb log grad norm after clipping
+                grad_norm=torch.norm(torch.cat([p.grad.view(-1) for p in self.model.parameters() if p.grad is not None]))
+                grad_history_after.append(grad_norm)
+                self.wandb.log({f"grad norm after clipping":grad_norm, "batch":i})
+                self.wandb.log({f"max grad val after clipping":torch.max(torch.cat([p.grad.view(-1) for p in self.model.parameters() if p.grad is not None])), "batch":i})
+                self.wandb.log({f"max grad norm after clipping":max(np.abs(grad_history_after)), "batch":i})
+            
             # update the weights
             optimizer.step()
 
@@ -286,7 +305,7 @@ class Ge3NetBase():
         patience = 0
         best_val_accr = math.inf
         for epoch in range(start_epoch, self.params.num_epochs):
-            train_result = self.batchLoopTrain(optimizer, training_generator)
+            train_result = self.batchLoopTrain(optimizer, training_generator, debugMode=True)
             eval_result = self.batchLoopValid(validation_generator)
             plt.close('all')
             
@@ -352,12 +371,12 @@ class Ge3NetBase():
                 pass
 
             if trial is not None:    
-                trial.report(best_val_accr, epoch)
+                trial.report(eval_result.t_accr['loss_main'], epoch)
                 if trial.should_prune():
                     raise optuna.exceptions.TrialPruned()
         
         torch.cuda.empty_cache()
-        return best_val_accr
+        return eval_result.t_accr['loss_main']
         #============================= Epoch Loop ===============================#    
         
 
