@@ -38,10 +38,11 @@ def main(config, params):
     params.evalBalancedGcd=False
     params.evaluateTest=False
     params.evalExtraMainLosses=False
+    params.debugMode=False
     save_path = osp.join(config['models.dir'], 'hyperparams_studies')
     if not osp.exists(save_path):
         os.makedirs(save_path)
-    study = optuna.create_study(direction="minimize", pruner=optuna.pruners.HyperbandPruner())
+    study = optuna.create_study(direction="maximize", pruner=optuna.pruners.HyperbandPruner())
     init_params=getParamKeys(params)
     study.enqueue_trial({k:params[k] for k in init_params})
     

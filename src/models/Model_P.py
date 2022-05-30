@@ -50,9 +50,9 @@ class model_P(nn.Module):
             out1, _, _, out4 = self.aux(x)
             out1 = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
         
-            # add residual connection by taking the gradient of aux network predictions
-            aux_diff = get_gradient(out4)
-            out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
+            # # add residual connection by taking the gradient of aux network predictions
+            # aux_diff = get_gradient(out4)
+            # out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
             out_nxt = self.mht_encoder(out1)
             out_att = self.fc(out_nxt)
             out_aux = square_normalize(out4) if self.params.geography else out4
@@ -99,9 +99,9 @@ class model_P(nn.Module):
         loss_cp=None
         if self.cp is not None: 
             loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum', \
-            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device))
+            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device)).item()
         
-        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp.item())
+        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp)
 
         if self.training:
             sample_size=mask.sum() 

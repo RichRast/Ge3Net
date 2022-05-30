@@ -27,6 +27,7 @@ class Ge3NetBase():
         self.model=model
         self.wandb=None
         self.plotObj=None
+        if not self.params.cp_predict:self.params.evalCp=False
 
     def getRunningAvgObj(self):
         lossesLs = list(self.losses.keys())
@@ -203,7 +204,7 @@ class Ge3NetBase():
 
         batchCpAvg=None
         if self.params.cp_predict:  
-            if cpThresh is None: cpThresh=0.45
+            if cpThresh is None: cpThresh=0.6
             cp_pred = (torch.sigmoid(y.cp_logits)>cpThresh).int()
             cp_pred=cp_pred.squeeze(2) 
             if self.params.evalCp:
@@ -304,8 +305,9 @@ class Ge3NetBase():
         start_epoch = 0
         patience = 0
         best_val_accr = math.inf
+        
         for epoch in range(start_epoch, self.params.num_epochs):
-            train_result = self.batchLoopTrain(optimizer, training_generator, debugMode=True)
+            train_result = self.batchLoopTrain(optimizer, training_generator, debugMode=self.params.debugMode)
             eval_result = self.batchLoopValid(validation_generator)
             plt.close('all')
             
@@ -371,12 +373,12 @@ class Ge3NetBase():
                 pass
 
             if trial is not None:    
-                trial.report(eval_result.t_accr['loss_main'], epoch)
+                trial.report(eval_result.t_cp_accr['prMetrics']['Precision'], epoch)
                 if trial.should_prune():
                     raise optuna.exceptions.TrialPruned()
         
         torch.cuda.empty_cache()
-        return eval_result.t_accr['loss_main']
+        return eval_result.t_cp_accr['prMetrics']['Precision']
         #============================= Epoch Loop ===============================#    
         
 

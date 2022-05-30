@@ -14,7 +14,7 @@ class model_C(nn.Module):
         super(model_C, self).__init__()
         self.params=params
         self.aux = AuxNetwork(self.params)
-        self.lstm = BiRNN(self.params, self.params.aux_net_out*2, self.params.rnn_net_out)
+        self.lstm = BiRNN(self.params, self.params.aux_net_hidden, self.params.rnn_net_out)
         self.cp = logits_Block(self.params, self.params.rnn_net_hidden * (1+1*self.params.rnn_net_bidirectional)) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
@@ -46,11 +46,11 @@ class model_C(nn.Module):
         def _forwardNet(x):
             out1, _, _, out4 = self.aux(x)
             
-            # add residual connection by taking the gradient of aux network predictions
-            aux_diff = get_gradient(out4)
-            out_nxt_aux = torch.cat((out4, aux_diff), dim =2)
+            # # add residual connection by taking the gradient of aux network predictions
+            # aux_diff = get_gradient(out4)
+            # out_nxt_aux = torch.cat((out4, aux_diff), dim =2)
 
-            vec_64, out_rnn, _ = self.lstm(out_nxt_aux)
+            vec_64, out_rnn, _ = self.lstm(out1)
             out_nxt = vec_64
             out_aux = square_normalize(out4) if self.params.geography else out4
             out_main = square_normalize(out_rnn) if self.params.geography else out_rnn
@@ -144,9 +144,9 @@ class model_C(nn.Module):
         loss_cp=None
         if self.cp is not None: 
             loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum', \
-            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device))
+            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device)).item()
         
-        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp.item())
+        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp)
 
         if self.training:
             sample_size=mask.sum() 
@@ -162,9 +162,9 @@ class model_C(nn.Module):
 
         # Tbtt
         # add residual connection by taking the gradient of aux network predictions
-        aux_diff = get_gradient(out4)
-        out_nxt_aux = torch.cat((out4, aux_diff), dim =2)
-        out_nxt, outs, loss_inner = self._tbtt(out_nxt_aux, target)
+        # aux_diff = get_gradient(out4)
+        # out_nxt_aux = torch.cat((out4, aux_diff), dim =2)
+        out_nxt, outs, loss_inner = self._tbtt(out1, target)
         
         loss_aux = self.criterion(out_aux*mask, target.coord_main*mask) if self.params.criteria!="gcd" \
         else self.criterion(out_aux, target.coord_main, mask=mask) 

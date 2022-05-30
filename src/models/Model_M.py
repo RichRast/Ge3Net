@@ -13,7 +13,7 @@ class model_M(nn.Module):
         super(model_M, self).__init__()
         self.params=params
         self.aux = AuxNetwork(self.params)
-        self.mlp = mlp(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
+        self.mlp = mlp(self.params, self.params.aux_net_hidden)
         self.cp = logits_Block(self.params, self.params.mlp_net_hidden) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
@@ -43,15 +43,15 @@ class model_M(nn.Module):
     def forward(self, x, mask, **kwargs):        
         mc_dropout = kwargs.get('mc_dropout')
 
-        # Run Aux and LSTM Network
+        # Run Aux and MLP Network
         def _forwardNet(x):
             out1, _, _, out4 = self.aux(x)
             out1 = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
         
-            # add residual connection by taking the gradient of aux network predictions
-            aux_diff = get_gradient(out4)
-            out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
-            out_nxt, out_mlp = self.mlp(out_nxt_aux)
+            # # add residual connection by taking the gradient of aux network predictions
+            # aux_diff = get_gradient(out4)
+            # out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
+            out_nxt, out_mlp = self.mlp(out1)
             out_aux = square_normalize(out4) if self.params.geography else out4
             out_main = square_normalize(out_mlp) if self.params.geography else out_mlp
             outs = modelOuts(coord_main = out_main*mask, coord_aux= out_aux*mask)
@@ -96,9 +96,9 @@ class model_M(nn.Module):
         loss_cp=None
         if self.cp is not None: 
             loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum', \
-            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device))
+            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device)).item()
         
-        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp.item())
+        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp)
 
         if self.training:
             sample_size=mask.sum() 

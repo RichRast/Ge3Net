@@ -1,12 +1,12 @@
 FFNN_activation: relu
 FFNN_dropout1: 0.3
 FFNN_dropout2: 0.3
-FFNN_input1: 103
-FFNN_input2: 103
-FFNN_input3: 103
-FFNN_output: 103
+FFNN_input1: 100
+FFNN_input2: 100
+FFNN_input3: 100
+FFNN_output: 100
 PE_constant: 10000
-PE_d_model: 103
+PE_d_model: 100
 PE_dropout: 0.3
 SmoothLoss_beta: 1.0
 activation_type: leaky_relu
@@ -14,11 +14,11 @@ att_beta: 1.0
 att_dropout: 0.3
 att_dropout2: 0.3
 att_factor: 0.0001
-att_input_size: 103
-att_key_size: 103
+att_input_size: 100
+att_key_size: 100
 att_num_heads: 1
-att_query_size: 103
-att_value_size: 103
+att_query_size: 100
+att_value_size: 100
 att_warmup_steps: 50
 label_smoothing_factor: 0.05
 label_smoothing: false
@@ -35,7 +35,6 @@ aux_net_out: 3
 aux_next_norm: LayerNorm
 batch_size: 256
 chmlen: 317000
-clip: 1.0
 coordinates: labels.pkl
 cp_detect: true
 cp_pos_weight: 10.0
@@ -99,7 +98,7 @@ test_gens:
 - 4
 - 8
 thresh: 0.0001
-train_gens: [0, 2, 4, 8]
+train_gens: [0, 2, 4, 8, 16, 24]
 train_seed: 1234
 validCpMask: false
 valid_gens: [0, 2, 4, 8]
@@ -108,3 +107,11 @@ warmup_lr_groups:
 - 3
 weightLoss_alpha: 1.0
 win_size: 1000
+
+clip_by_norm: 0.0
+clip_by_value: 0.0
+residual: false
+superpop_mask: false
+superpop_predict: false
+device: cuda
+debugMode: false

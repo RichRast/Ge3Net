@@ -65,7 +65,7 @@ model: Model_P
 n_comp_overall: 3
 n_comp_subclass: 0
 n_win: 317
-num_epochs: 300
+num_epochs: 200
 optimizer: AdamW
 plotting: false
 pop_sample_map: pop_sample_map.tsv
@@ -82,7 +82,7 @@ final_out2: 3
 superpop_mask: false
 superpop_predict: false
 
-test_gens: [0, 2, 4, 8]
+test_gens: [0, 2, 4, 8, 16, 24]
 thresh: 0.0001
 train_gens: [0, 2, 4, 8]
 train_seed: 1234
@@ -93,3 +93,7 @@ warmup_lr_groups:
 - 3
 weightLoss_alpha: 1.0
 win_size: 1000
+
+clip_by_norm: 0.0
+clip_by_value: 0.0
+debugMode: false

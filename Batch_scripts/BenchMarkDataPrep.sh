@@ -15,7 +15,7 @@ for split in $StringVal; do
 done
 
 #combine train and valid sample_map.tsv
-cat <(tail -n +2 $OUT_PATH/humans/labels/$dataset/train_sample_map.tsv) <(tail -n +2 $OUT_PATH/humans/labels/$dataset/valid_sample_map.tsv) | cut -f 1 >$OUT_PATH/humans/benchmark/$dataset/train_valid/sample_map.txt
+cat <(tail -n +2 $OUT_PATH/humans/labels/$dataset/train_sample_map.tsv) <(tail -n +2 $OUT_PATH/humans/labels/$dataset/valid_sample_map.tsv) | cut -f 1,2 >$OUT_PATH/humans/benchmark/$dataset/train_valid/sample_map.txt
 
 #remove header from test sample map tsv
 sed '1d' $OUT_PATH/humans/labels/$dataset/test_sample_map.tsv|cut -f 1 > $OUT_PATH/humans/benchmark/$dataset/test/sample_map.txt

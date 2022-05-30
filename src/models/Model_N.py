@@ -15,7 +15,7 @@ class model_N(nn.Module):
         super(model_N, self).__init__()
         self.params=params
         self.aux = AuxNetwork(self.params)
-        self.lstm1 = BiRNN(self.params, self.params.aux_net_hidden + self.params.aux_net_out, self.params.rnn_net_out1)
+        self.lstm1 = BiRNN(self.params, self.params.aux_net_hidden , self.params.rnn_net_out1)
         self.pe = PositionalEncoding(self.params, self.params.rnn_net_out1)
         self.attention = attention_single(self.params, self.params.rnn_net_out1)
         self.ffnn = FFNN(self.params, self.params.rnn_net_out1, self.params.FFNN_output)
@@ -54,10 +54,10 @@ class model_N(nn.Module):
             out1, _, _, out4 = self.aux(x)
             out1 = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
         
-            # add residual connection by taking the gradient of aux network predictions
-            aux_diff = get_gradient(out4)
-            out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
-            _, out_rnn1, _ = self.lstm1(out_nxt_aux)
+            # # add residual connection by taking the gradient of aux network predictions
+            # aux_diff = get_gradient(out4)
+            # out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
+            _, out_rnn1, _ = self.lstm1(out1)
             out_att_nxt, _, weight = self.attention(self.pe(out_rnn1))
             _, out_att = self.ffnn(out_att_nxt)
             vec_64, out_rnn, _ = self.lstm2(out_att)
@@ -106,9 +106,9 @@ class model_N(nn.Module):
         loss_cp=None
         if self.cp is not None: 
             loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum', \
-            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device))
+            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device)).item()
         
-        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp.item())
+        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp)
 
         if self.training:
             sample_size=mask.sum() 

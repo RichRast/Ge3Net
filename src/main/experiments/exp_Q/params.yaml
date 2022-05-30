@@ -27,11 +27,11 @@ aux_net_out: 3
 aux_next_norm: LayerNorm
 batch_size: 256
 chmlen: 317000
-clip_by_norm: 0.0
+clip_by_norm: 5.0
 clip_by_value: 0.0
 coordinates: labels.pkl
 cp_detect: true
-cp_pos_weight: 10.0
+cp_pos_weight: 30.0
 cp_predict: true
 cp_tol: 1
 criteria: gcd
@@ -39,6 +39,7 @@ criteria_alpha: 1.0
 cuda: true
 custom_opt: false
 dataset_dim: 3
+debugMode: false
 device: cuda
 early_stopping_thresh: 6
 eps: 0.0001
@@ -64,7 +65,7 @@ logits_Block_out: 1
 lr_steps_decay: 20
 mc_dropout: false
 mc_samples: 100
-mht_hidden_dim: 100
+mht_hidden_dim: 128
 mht_nlayers: 2
 mht_num_heads: 2
 model: Model_Q

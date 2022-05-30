@@ -15,9 +15,9 @@ class model_O(nn.Module):
         super(model_O, self).__init__()
         self.params=params
         self.aux = AuxNetwork(self.params)
-        self.pe = PositionalEncoding(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
-        self.attention = attention_single(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
-        self.ffnn = FFNN(self.params, self.params.aux_net_hidden + self.params.dataset_dim, self.params.FFNN_output)
+        self.pe = PositionalEncoding(self.params, self.params.aux_net_hidden )
+        self.attention = attention_single(self.params, self.params.aux_net_hidden )
+        self.ffnn = FFNN(self.params, self.params.aux_net_hidden , self.params.FFNN_output)
         self.lstm1 = BiRNN(self.params, self.params.FFNN_output, self.params.rnn_net_out1)
         self.attention2 = attention_single(self.params, self.params.rnn_net_out1)
         self.ffnn2 = FFNN(self.params, self.params.rnn_net_out1, self.params.FFNN2_output)
@@ -56,10 +56,10 @@ class model_O(nn.Module):
             out1, out2, _, out4 = self.aux(x)
             out1 = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
         
-            # add residual connection by taking the gradient of aux network predictions
-            aux_diff = get_gradient(out4)
-            out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
-            out_att_nxt, _, weight = self.attention(self.pe(out_nxt_aux))
+            # # add residual connection by taking the gradient of aux network predictions
+            # aux_diff = get_gradient(out4)
+            # out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
+            out_att_nxt, _, weight = self.attention(self.pe(out1))
             _, out_att = self.ffnn(out_att_nxt)
             _, out_rnn, _ = self.lstm1(out_att)
             out_att2_nxt, _, weight2 = self.attention2(out_rnn)
@@ -110,9 +110,9 @@ class model_O(nn.Module):
         loss_cp=None
         if self.cp is not None: 
             loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum', \
-            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device))
+            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device)).item()
         
-        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp.item())
+        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp)
 
         if self.training:
             sample_size=torch.sum(mask) 

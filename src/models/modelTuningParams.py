@@ -218,11 +218,14 @@ suggestParamsDict= {
                                 },
                 "Model_Q":{
 
-                                "categorical": {
-                                        # "mht_hidden_dim": [64, 100, 128, 256, 512, 2048],
-                                        "mht_num_heads":(1,2,4),
-                                        "mht_nlayers":(1,2,4),
-                                },
+                                # "categorical": {
+                                #         # "mht_hidden_dim": [64, 100, 128, 256, 512, 2048],
+                                #         "mht_num_heads":(1,2,4),
+                                #         "mht_nlayers":(1,2,4),
+                                # },
+                                "float": {
+                                        "cp_pos_weight": (10.,50.),
+                                        }
                                 },
                     }   
 typeKeys=['categorical', 'int', 'float']

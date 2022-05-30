@@ -1,5 +1,5 @@
 train_seed: 1234 
-model: "Model_F"
+model: Model_F
 batch_size: 256
 mc_dropout: false
 mc_samples: 100
@@ -14,23 +14,23 @@ reg_loss: false
 reg_loss_pow: 1.0
 cp_predict: true
 superpop_mask: false
-pop_sample_map: "pop_sample_map.tsv"
+pop_sample_map: pop_sample_map.tsv
 plotting: false
 n_comp_overall: 3
 n_comp_subclass: 0
 superpop_predict: false
 residual: false
 geography: true
-criteria: "gcd"
+criteria: gcd
 criteria_alpha: 1.0
 
-train_gens: [0, 2, 4, 8, 16, 24, 32, 48, 64, 72, 100]
-valid_gens: [2, 4, 8, 16, 24, 32, 48, 64, 72, 100]
+train_gens: [0, 2, 4, 8, 16, 24]
+valid_gens: [0, 2, 4, 8]
 evaluateTest: false
 test_gens: [0, 2, 4, 8]
 win_size: 1000
 dataset_dim: 3
-coordinates: "labels.pkl"
+coordinates: labels.pkl
 # n_win and chmlen will be computed during data transform
 n_win: 0
 chmlen: 0
@@ -52,14 +52,14 @@ aux_net_dropout: 0.2
 aux_net_dropout1: 0.2
 aux_net_dropout2: 0.2
 aux_net_block: false
-activation_type: "leaky_relu"
+activation_type: leaky_relu
 leaky_relu_slope: 0.1
-aux_next_norm: "LayerNorm"
+aux_next_norm: LayerNorm
 
-att_key_size: 103
-att_value_size: 103
-att_query_size: 103 
-att_input_size: 103
+att_key_size: 100
+att_value_size: 100
+att_query_size: 100 
+att_input_size: 100
 att_dropout: 0.3
 att_beta: 1.0
 att_num_heads: 1
@@ -71,9 +71,9 @@ PE_constant: 10000
 PE_d_model: 104
 PE_dropout: 0.3
 
-FFNN_input1: 103
-FFNN_input2: 103
-FFNN_input3: 103
+FFNN_input1: 100
+FFNN_input2: 100
+FFNN_input3: 100
 FFNN_dropout1: 0.3
 FFNN_dropout2: 0.3
 FFNN_output: 3
@@ -95,4 +95,15 @@ eps: 0.0001
 early_stopping_thresh: 6
 clip: 1.0
 lr_steps_decay: 10
+
+debugMode: false
+device: cuda
+label_smoothing: false
+label_smoothing_factor: 0.05
+optimizer: AdamW
+residual: false
+superpop_mask: false
+superpop_predict: false
+clip_by_norm: 0.0
+clip_by_value: 0.0
 

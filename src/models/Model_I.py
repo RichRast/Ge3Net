@@ -14,10 +14,10 @@ class model_I(nn.Module):
         super(model_I, self).__init__()
         self.params=params
         self.aux = AuxNetwork(self.params)
-        self.pe = PositionalEncoding(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
-        self.attentionBlock1 = AttentionBlock(self.params, self.params.aux_net_hidden + self.params.dataset_dim, self.params.FFNN_output)
-        self.attentionBlock2 = AttentionBlock(self.params, self.params.aux_net_hidden + self.params.dataset_dim, self.params.FFNN2_output)
-        self.cp = logits_Block(self.params, self.params.aux_net_hidden + self.params.dataset_dim) if self.params.cp_predict else None
+        self.pe = PositionalEncoding(self.params, self.params.aux_net_hidden )
+        self.attentionBlock1 = AttentionBlock(self.params, self.params.aux_net_hidden, self.params.FFNN_output)
+        self.attentionBlock2 = AttentionBlock(self.params, self.params.aux_net_hidden, self.params.FFNN2_output)
+        self.cp = logits_Block(self.params, self.params.FFNN2_output) if self.params.cp_predict else None
         self.criterion=criterion
         self.cp_criterion = cp_criterion if self.params.cp_predict else None
         self._setOptimizerParams()
@@ -52,10 +52,11 @@ class model_I(nn.Module):
             out1 = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
         
             # add residual connection by taking the gradient of aux network predictions
-            aux_diff = get_gradient(out4)
-            out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
-            out_att1 = self.attentionBlock1(self.pe(out_nxt_aux))
+            # aux_diff = get_gradient(out4)
+            # out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
+            out_att1 = self.attentionBlock1(self.pe(out1))
             out_att2 = self.attentionBlock2(out_att1)
+            out_nxt = out_att2
             out_aux = square_normalize(out4) if self.params.geography else out4
             out_main = square_normalize(out_att2) if self.params.geography else out_att2
             outs = modelOuts(coord_main = out_main*mask, coord_aux= out_aux*mask)
@@ -100,9 +101,9 @@ class model_I(nn.Module):
         loss_cp=None
         if self.cp is not None: 
             loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum', \
-            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device))
+            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device)).item()
         
-        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp.item())
+        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_aux=loss_aux.item(), loss_cp = loss_cp)
 
         if self.training:
             sample_size=mask.sum() 

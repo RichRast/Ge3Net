@@ -15,9 +15,9 @@ class model_H(nn.Module):
         super(model_H, self).__init__()
         self.params=params
         self.aux = AuxNetwork(self.params)
-        self.pe = PositionalEncoding(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
-        self.attention = attention_single(self.params, self.params.aux_net_hidden + self.params.dataset_dim)
-        self.ffnn = FFNN(self.params, self.params.aux_net_hidden + self.params.dataset_dim, self.params.FFNN_output)
+        self.pe = PositionalEncoding(self.params, self.params.aux_net_hidden)
+        self.attention = attention_single(self.params, self.params.aux_net_hidden)
+        self.ffnn = FFNN(self.params, self.params.aux_net_hidden, self.params.FFNN_output)
         self.lstm = BiRNN(self.params, self.params.FFNN_output, self.params.rnn_net_out)
         self.cp = logits_Block(self.params, self.params.rnn_net_hidden * (1+1*self.params.rnn_net_bidirectional)) if self.params.cp_predict else None
         self.criterion=criterion
@@ -67,9 +67,9 @@ class model_H(nn.Module):
             out1 = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
         
             # add residual connection by taking the gradient of aux network predictions
-            aux_diff = get_gradient(out4)
-            out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
-            out_att_nxt, _, weight = self.attention(self.pe(out_nxt_aux))
+            # aux_diff = get_gradient(out4)
+            # out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
+            out_att_nxt, _, weight = self.attention(self.pe(out1))
             _, out_att = self.ffnn(out_att_nxt)
             vec_64, out_rnn, _ = self.lstm(out_att)
             out_nxt = vec_64
@@ -182,9 +182,9 @@ class model_H(nn.Module):
         # Aux Model
         out1, _, _, out4 = self.aux(x)
         out1 = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
-        aux_diff = get_gradient(out4)
-        out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
-        out_att_nxt, _, weight = self.attention(self.pe(out_nxt_aux))
+        # aux_diff = get_gradient(out4)
+        # out_nxt_aux = torch.cat((out1, aux_diff), dim =2)
+        out_att_nxt, _, weight = self.attention(self.pe(out1))
         _, out_att = self.ffnn(out_att_nxt)
         out_aux = square_normalize(out4) if self.params.geography else out4
 

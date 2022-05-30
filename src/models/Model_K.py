@@ -51,7 +51,7 @@ class model_K(nn.Module):
             #Todo - do we really need to reshape below?
             out1 = out1.reshape(x.shape[0], self.params.n_win, self.params.aux_net_hidden)
         
-            # add residual connection by taking the gradient of aux network predictions
+            
             out_att = self.attentionBlock(self.pe(out1))
             out_nxt=out1
             out_main = square_normalize(out_att) if self.params.geography else out_att
@@ -95,9 +95,9 @@ class model_K(nn.Module):
         loss_cp=None
         if self.cp is not None: 
             loss_cp = self.cp_criterion(outs.cp_logits, target.cp_logits, reduction='sum', \
-            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device))
+            pos_weight=torch.tensor([self.params.cp_pos_weight]).to(self.params.device)).item()
         
-        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_cp = loss_cp.item())
+        rtnLoss = branchLoss(loss_main=loss_main.item(), loss_cp = loss_cp)
 
         if self.training:
             sample_size=mask.sum()
