@@ -1,4 +1,9 @@
 """
+Code used from pyadmix module of https://github.com/AI-sandbox/gnomix 
+and adapted a little
+"""
+
+"""
 Admix++
 - Get a faster pipe for getting admixture simulation.
 - Follow an approximate method to get this done.

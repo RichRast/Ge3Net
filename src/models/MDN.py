@@ -4,7 +4,7 @@ from torch.distributions import Categorical
 import math
 import pdb
 
-# credit to https://github.com/sagelywizard/pytorch-mdn/blob/master/mdn/mdn.py
+# code used from https://github.com/sagelywizard/pytorch-mdn/blob/master/mdn/mdn.py
 
 ONEOVERSQRT2PI = 1.0 / math.sqrt(2 * math.pi)
 
