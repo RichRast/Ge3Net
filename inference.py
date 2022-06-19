@@ -47,11 +47,11 @@ def main(config, params):
     cp_criterion=option['cpMetrics']['loss_cp']
     model_init = modelOption['models'][params.model](params, criterion, cp_criterion)
     if config['model.loadBest']:
-        model = load_model(''.join([str(model_path),'/model_weights/best.pt']), model_init)
-        model_stats = loadTrainingStats(''.join([str(model_path),'/training_Stats/best.pt']))
+        model = load_model(''.join([str(model_path),'/model_weights/best.pt']), model_init, device=params.cuda)
+        model_stats = loadTrainingStats(''.join([str(model_path),'/training_Stats/best.pt']), device=params.cuda)
     else:
-        model = load_model(''.join([str(model_path),'/model_weights/last.pt']), model_init)
-        model_stats = loadTrainingStats(''.join([str(model_path),'/training_Stats/last.pt']))
+        model = load_model(''.join([str(model_path),'/model_weights/last.pt']), model_init, device=params.cuda)
+        model_stats = loadTrainingStats(''.join([str(model_path),'/training_Stats/last.pt']), device=params.cuda)
     model.to(params.device)
     model.eval()
     print(f"is the model on cuda? : {next(model.parameters()).is_cuda}")

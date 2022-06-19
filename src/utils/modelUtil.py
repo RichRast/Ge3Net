@@ -58,26 +58,33 @@ def save_checkpoint(state, save_path, is_best):
         shutil.copyfile(checkpoint, osp.join(save_path, 'best.pt'))
     
 @timer
-def load_model(model_weights_path, model_init):
+def load_model(model_weights_path, model_init, **kwargs):
+    device_gpu=kwargs.get('device_gpu')
+    print(f"device in load model:{device_gpu}")
     if not osp.exists(model_weights_path):
         # ToDo look into the raise exception error not
         # coming from BaseException
         print(f'{model_weights_path} does not exist')
         raise (f'{model_weights_path} does not exist')
-        
-    checkpoint = torch.load(model_weights_path)
-    model_init.load_state_dict(checkpoint['model_state_dict'])
-         
+    if not device_gpu:
+        checkpoint = torch.load(model_weights_path, map_location=torch.device('cpu'))
+    else:
+        checkpoint = torch.load(model_weights_path)
+    model_init.load_state_dict(checkpoint['model_state_dict'])        
     return model_init
 
-def loadTrainingStats(trainingStats_path):
+def loadTrainingStats(trainingStats_path, **kwargs):
+    device_gpu=kwargs.get('device_gpu')
     if not osp.exists(trainingStats_path):
         # ToDo look into the raise exception error not
         # coming from BaseException
         print(f'{trainingStats_path} does not exist')
         raise (f'{trainingStats_path} does not exist')
-        
-    checkpoint = torch.load(trainingStats_path)
+    
+    if not device_gpu:
+        checkpoint = torch.load(trainingStats_path, map_location=torch.device('cpu'))
+    else:
+        checkpoint = torch.load(trainingStats_path)
 
     print(f"best val loss metrics : {checkpoint['val_accr']['t_accr']}")
     # print(f"test loss metrics : {checkpoint['test_accr']['t_accr']}")

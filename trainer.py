@@ -79,7 +79,7 @@ def main(config, params, **kwargs):
         # load pretrained model
         model_path = osp.join(config['model.pretrained_dir'], 'models_dir')
         logger.info(f" model_path :{model_path}")
-        model = load_model(''.join([str(model_path),'/model_weights/best.pt']), model)
+        model = load_model(''.join([str(model_path),'/model_weights/best.pt']), model, device=params.cuda)
     else:
         model.apply(weight_int)
 
