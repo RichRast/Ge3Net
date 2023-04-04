@@ -4,6 +4,7 @@ Notebooks/Large_Notebooks
 Notebooks/Other_Notebooks
 Notebooks/Models
 Notebooks/ancient
+Notebooks/*
 slurm*
 wandb/
 .vscode/

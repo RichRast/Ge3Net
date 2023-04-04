@@ -1,17 +1,13 @@
 # Ge3Net
 
-Experiments were run on three genotypes - humans, dogs and ancient and for geography, unsupervised space constructed from pca and umap. Additionally, we ran experiment with ukb snps with pca constructed space.
+Experiments were run on three genotypes - humans, dogs and ancient and for geography, unsupervised space constructed from pca and umap. 
 1. Build labels by running the script buildLabels.py
 2. For training, run trainer.py
 3. For inference only with a pre-trained model, run inference.py
 
-# Package Dependencies
 
 ## Project structure
 
-The data files, DVC files, and results change as stages are created one by one.
-After cloning and using [`dvc pull`](https://man.dvc.org/pull) to download
-data, models, and plots tracked by DVC, the workspace should look like this:
 
 ```console
 $ tree
@@ -44,8 +40,8 @@ $ tree
     ├── requirements.txt  # <-- Python dependencies needed in the project
     └── train.py
 ```
-# Third Party Code
+# Acknowledgements
 Here we reference publicly available third party code implementations that are used/modified in our code base
-BOCD implementation available at <github link> based on the paper <pdf paper link>
+BOCD implementation available at <https://github.com/gwgundersen/bocd> based on the original Bayesian Changepoint Detection paper <https://arxiv.org/abs/0710.3742>
 Pyadmix module implementation from <https://github.com/AI-sandbox/gnomix>
 
