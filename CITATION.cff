@@ -19,7 +19,7 @@ authors:
   orcid: "https://orcid.org/0000-0002-4735-7803"
 title: "Ge3Net"
 version: 2.0.4
-doi: 
+doi: "10.5281/zenodo.7800263"
 date-released: 2021-12-18
 url: "https://github.com/RichRast/Ge3Net"
 preferred-citation:
@@ -41,6 +41,6 @@ preferred-citation:
   - family-names: "Ioannidis"
     given-names: "Alexander G."
     orcid: "https://orcid.org/0000-0002-4735-7803"
-  doi: 
+  doi: "10.5281/zenodo.7800263"
   title: "Ge3Net: Inferring Continuous Population Structure Coordinates Along the Genome "
   year: 2021
