@@ -5,8 +5,8 @@ Experiments were run on three genotypes - humans, dogs and ancient and for geogr
 2. For training, run trainer.py
 3. For inference only with a pre-trained model, run inference.py
 
-## Learnt Representations
-[Learnt Representations of Ge3Net](./images/LearntRepresentations.pdf)
+## Learnt Representations from Ge3Net
+![Learnt Representations from Ge3Net](./images/LearntRepresentations.svg)
 
 <!-- ## Project structure
 
