@@ -5,8 +5,10 @@ Experiments were run on three genotypes - humans, dogs and ancient and for geogr
 2. For training, run trainer.py
 3. For inference only with a pre-trained model, run inference.py
 
+## Learnt Representations
+[Ge3Net](./images/LearntRepresentations.pdf)
 
-## Project structure
+<!-- ## Project structure
 
 
 ```console
@@ -39,7 +41,7 @@ $ tree
     ├── prepare.py
     ├── requirements.txt  # <-- Python dependencies needed in the project
     └── train.py
-```
+``` -->
 ## Acknowledgements
 Here we reference publicly available third party code implementations that are used/modified in our code base
 BOCD implementation available at <https://github.com/gwgundersen/bocd> based on the original Bayesian Changepoint Detection paper <https://arxiv.org/abs/0710.3742>
