@@ -40,8 +40,18 @@ $ tree
     ├── requirements.txt  # <-- Python dependencies needed in the project
     └── train.py
 ```
-# Acknowledgements
+## Acknowledgements
 Here we reference publicly available third party code implementations that are used/modified in our code base
 BOCD implementation available at <https://github.com/gwgundersen/bocd> based on the original Bayesian Changepoint Detection paper <https://arxiv.org/abs/0710.3742>
 Pyadmix module implementation from <https://github.com/AI-sandbox/gnomix>
+
+## Citation
+If you find Ge3Net useful for your research, please consider citing our paper/software:
+```
+
+}
+```
+
+## Feedback
+Please send feedback/issues related to this repository or the paper to [here](rr568@cornell.edu)
 

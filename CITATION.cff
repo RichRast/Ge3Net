@@ -1,0 +1,46 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Rastogi"
+  given-names: "Richa"
+  orcid: "https://orcid.org/0000-0002-5073-1667"
+- family-names: "Kumar"
+  given-names: "Arvind S."
+- family-names: "Hilmarsson"
+  given-names: "Helgi"
+- family-names: "Bustamante"
+  given-names: "Carlos D."
+  orcid: "https://orcid.org/0000-0002-4187-7920"
+- family-names: "Montserrat"
+  given-names: "Daniel Mas"
+  orcid: "https://orcid.org/0000-0002-7946-7724"
+- family-names: "Ioannidis"
+  given-names: "Alexander G."
+  orcid: "https://orcid.org/0000-0002-4735-7803"
+title: "Ge3Net"
+version: 2.0.4
+doi: 
+date-released: 2021-12-18
+url: "https://github.com/RichRast/Ge3Net"
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Rastogi"
+  given-names: "Richa"
+  orcid: "https://orcid.org/0000-0002-5073-1667"
+  - family-names: "Kumar"
+    given-names: "Arvind S."
+  - family-names: "Hilmarsson"
+    given-names: "Helgi"
+  - family-names: "Bustamante"
+    given-names: "Carlos D."
+    orcid: "https://orcid.org/0000-0002-4187-7920"
+  - family-names: "Montserrat"
+    given-names: "Daniel Mas"
+    orcid: "https://orcid.org/0000-0002-7946-7724"
+  - family-names: "Ioannidis"
+    given-names: "Alexander G."
+    orcid: "https://orcid.org/0000-0002-4735-7803"
+  doi: 
+  title: "Ge3Net: Inferring Continuous Population Structure Coordinates Along the Genome "
+  year: 2021
