@@ -18,7 +18,7 @@ authors:
   given-names: "Alexander G."
   orcid: "https://orcid.org/0000-0002-4735-7803"
 title: "Ge3Net"
-version: 2.0.4
+version: 1.0.0
 doi: "10.5281/zenodo.7800263"
 date-released: 2021-12-18
 url: "https://github.com/RichRast/Ge3Net"
@@ -26,8 +26,8 @@ preferred-citation:
   type: article
   authors:
   - family-names: "Rastogi"
-  given-names: "Richa"
-  orcid: "https://orcid.org/0000-0002-5073-1667"
+    given-names: "Richa"
+    orcid: "https://orcid.org/0000-0002-5073-1667"
   - family-names: "Kumar"
     given-names: "Arvind S."
   - family-names: "Hilmarsson"
