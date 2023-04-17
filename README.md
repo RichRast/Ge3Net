@@ -70,7 +70,7 @@ If you find Ge3Net useful for your research, please consider citing our paper/so
 ```
 @article{Rastogi_Ge3Net_Inferring_Continuous_2021,
 author = {Rastogi, Richa and Kumar, Arvind S. and Hilmarsson, Helgi and Bustamante, Carlos D. and Montserrat, Daniel Mas and Ioannidis, Alexander G.},
-doi = {10.5281/zenodo.7800263},
+doi = {10.5281/zenodo.7837947},
 title = {{Ge3Net: Inferring Continuous Population Structure Coordinates Along the Genome }},
 year = {2021}
 }
