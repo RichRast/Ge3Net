@@ -75,6 +75,7 @@ title = {{Ge3Net: Inferring Continuous Population Structure Coordinates Along th
 year = {2021}
 }
 ```
+A short version of this work was presented at Neurips Learning Meaningful Representations of Life, 2020
 
 ## Feedback
 Please send feedback/issues related to this repository or the paper to [here](rr568@cornell.edu)
